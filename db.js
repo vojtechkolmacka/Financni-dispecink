@@ -110,18 +110,17 @@ async function seedInitialData() {
   ];
   for (const g of goals) await dbAddInternal('goals', g);
 
-  // Detailní rozpis závazků a pohledávek
   const debts = [
     {
       type: 'payable',
       name: 'Provident',
-      total: 7732733, // 77 327,33 Kč
-      monthly: 150000, // 1 500 Kč
+      total: 7732733,
+      monthly: 150000,
       day: 10,
       contractNumber: 'PRV-2024-88',
-      principalLeft: 5800000, // Zbývající jistina
-      feeLeft: 1932733, // Úroky a poplatky
-      paidSoFar: 2250000, // Již zaplaceno
+      principalLeft: 5800000,
+      feeLeft: 1932733,
+      paidSoFar: 2250000,
       items: [
         { label: 'Půjčka / Jistina k doplacení', amount: 5800000 },
         { label: 'Poplatky a úrok', amount: 1932733 }
@@ -130,8 +129,8 @@ async function seedInitialData() {
     {
       type: 'payable',
       name: 'AvaFin / Crediton',
-      total: 1952400, // 19 524,00 Kč
-      monthly: 110000, // 1 100 Kč
+      total: 1952400,
+      monthly: 110000,
       day: 10,
       contractNumber: 'CRD-55019',
       principalLeft: 1500000,
@@ -183,7 +182,6 @@ async function seedInitialData() {
   for (const m of meterReadings) await dbAddInternal('meter_readings', m);
 }
 
-// Zajištění podrobných položek u existujících záznamů půjček
 async function ensureUpdatedLoanData() {
   const debts = await dbGetAll('debts');
   let changed = false;
