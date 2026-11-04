@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupPaymentsModal();
     setupQuickEntryButtons();
     setupTransferModal();
+    setupTemplatesManagement();
     setupGoalsModal();
     setupDebtTxModal();
     setupApplianceModal();
@@ -159,6 +160,7 @@ async function loadMonthData() {
           wallet: 'bank',
           isIncome: false,
           frequency: freq,
+          templateId: t.id,
           paid: false
         };
         await dbAdd('entries', newEntry);
@@ -444,7 +446,7 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   });
 }
 
-// 7. Křivka a monitoring čisté výplaty (skutečně zadané mzdy)
+// 7. Křivka a monitoring čisté výplaty
 async function drawSalaryTrendChart(allEntries) {
   const canvas = document.getElementById('salary-trend-chart');
   if (!canvas) return;
@@ -534,7 +536,7 @@ async function drawSalaryTrendChart(allEntries) {
     ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#94a3b8';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     if (c.pt.val > 0) {
@@ -776,7 +778,7 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 12. Seznam plateb
+// 12. Seznam plateb v měsíci (s možností položku smazat)
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -822,14 +824,26 @@ function renderPaymentsList(entries) {
           </div>
         </div>
       </div>
-      <div class="entry-amount ${amountClass}">
-        ${sign} ${Money.toCzk(item.amount)}
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div class="entry-amount ${amountClass}">
+          ${sign} ${Money.toCzk(item.amount)}
+        </div>
+        <button class="btn-delete-entry" data-id="${item.id}" title="Smazat tuto platbu z měsíce">🗑️</button>
       </div>
     `;
 
-    row.onclick = async () => {
+    // Kliknutí pro označení zaplaceno / nezaplaceno
+    row.querySelector('.entry-left').onclick = async () => {
       item.paid = !item.paid;
       await dbSet('entries', item);
+      await loadMonthData();
+    };
+
+    // Smazání konkrétní položky z měsíce
+    row.querySelector('.btn-delete-entry').onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Opravdu chceš smazat platbu „${item.title}“ z tohoto měsíce?`)) return;
+      await dbDelete('entries', item.id);
       await loadMonthData();
     };
 
@@ -944,20 +958,9 @@ function setupPaymentsModal() {
     const amountCents = Money.toCents(amountCzk);
     const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
-    await dbAdd('entries', {
-      monthYear: monthKey,
-      title,
-      amount: amountCents,
-      category,
-      day,
-      wallet,
-      isIncome,
-      frequency: isRecurring ? frequency : 'single',
-      paid: isIncome
-    });
-
+    let createdTemplateId = null;
     if (!isIncome && isRecurring) {
-      await dbAdd('templates', {
+      createdTemplateId = await dbAdd('templates', {
         title,
         amount: amountCents,
         category,
@@ -968,9 +971,118 @@ function setupPaymentsModal() {
       });
     }
 
+    await dbAdd('entries', {
+      monthYear: monthKey,
+      title,
+      amount: amountCents,
+      category,
+      day,
+      wallet,
+      isIncome,
+      frequency: isRecurring ? frequency : 'single',
+      templateId: createdTemplateId,
+      paid: isIncome
+    });
+
     modal.classList.add('hidden');
     await loadMonthData();
   };
+}
+
+// 14. SPRÁVA STÁLÝCH ŠABLON PLATEB (PŘIDÁVÁNÍ, MAZÁNÍ, PAUZA)
+function setupTemplatesManagement() {
+  const modal = document.getElementById('modal-templates');
+  const btnOpenModal = document.getElementById('btn-manage-templates');
+  const btnCloseModal = document.getElementById('btn-close-templates');
+  const btnAddNew = document.getElementById('btn-add-new-template');
+  const btnAddDirect = document.getElementById('btn-add-template-direct');
+
+  function openNewTemplateForm() {
+    modal.classList.add('hidden');
+    const entryModal = document.getElementById('modal-entry');
+    const form = document.getElementById('form-entry');
+    form.reset();
+    form.querySelector('input[name="entryType"][value="expense"]').checked = true;
+    document.getElementById('wrap-entry-recurring').style.display = 'flex';
+    document.getElementById('entry-recurring').checked = true;
+    document.getElementById('wrap-recurring-frequency').classList.remove('hidden');
+    document.getElementById('modal-entry-title').textContent = 'Nová stálá měsíční platba';
+    entryModal.classList.remove('hidden');
+  }
+
+  if (btnOpenModal) {
+    btnOpenModal.onclick = async () => {
+      await renderTemplatesManagementList();
+      modal.classList.remove('hidden');
+    };
+  }
+
+  if (btnCloseModal) {
+    btnCloseModal.onclick = () => modal.classList.add('hidden');
+  }
+
+  if (btnAddNew) btnAddNew.onclick = openNewTemplateForm;
+  if (btnAddDirect) btnAddDirect.onclick = openNewTemplateForm;
+}
+
+async function renderTemplatesManagementList() {
+  const listModal = document.getElementById('templates-manage-list');
+  const listSettings = document.getElementById('settings-templates-list');
+  const templates = await dbGetAll('templates');
+
+  function buildListHtml(targetElement) {
+    if (!targetElement) return;
+    targetElement.innerHTML = '';
+
+    if (templates.length === 0) {
+      targetElement.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím nejsou vytvořeny žádné stálé platby.</span>';
+      return;
+    }
+
+    templates.forEach(t => {
+      const row = document.createElement('div');
+      row.className = `template-manage-item ${t.active ? '' : 'paused'}`;
+
+      let freqLabel = 'Měsíčně';
+      if (t.frequency === 'semi-annual') freqLabel = `Pololetně (měsíce: ${t.dueMonths?.join(', ') || '5, 11'})`;
+      else if (t.frequency === 'annual') freqLabel = `Ročně (měsíc: ${t.dueMonths?.join(', ') || '7'})`;
+
+      row.innerHTML = `
+        <div class="tmi-left">
+          <span class="tmi-title">${t.title}</span>
+          <span class="tmi-sub">${freqLabel} • ${t.day}. v měsíci • ${t.category}</span>
+        </div>
+        <div class="tmi-right">
+          <span class="tmi-amount">${Money.toCzkInt(t.amount)}</span>
+          <button class="btn-tmi-toggle" data-id="${t.id}" title="${t.active ? 'Pozastavit' : 'Aktivovat'}">
+            ${t.active ? '⏸️' : '▶️'}
+          </button>
+          <button class="btn-tmi-del" data-id="${t.id}" title="Trvale smazat stálou platbu">🗑️</button>
+        </div>
+      `;
+
+      // Přepnout aktivní / pozastaveno
+      row.querySelector('.btn-tmi-toggle').onclick = async () => {
+        t.active = !t.active;
+        await dbSet('templates', t);
+        await renderTemplatesManagementList();
+        await loadMonthData();
+      };
+
+      // Trvale smazat stálou platbu ze šablon
+      row.querySelector('.btn-tmi-del').onclick = async () => {
+        if (!confirm(`Opravdu chceš trvale odstranit stálou platbu „${t.title}“ ze všech budoucích měsíců?`)) return;
+        await dbDelete('templates', t.id);
+        await renderTemplatesManagementList();
+        await loadMonthData();
+      };
+
+      targetElement.appendChild(row);
+    });
+  }
+
+  buildListHtml(listModal);
+  buildListHtml(listSettings);
 }
 
 function setupTransferModal() {
@@ -1053,7 +1165,7 @@ function setupTransferModal() {
   };
 }
 
-// 14. Cíle
+// 15. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
@@ -1205,7 +1317,7 @@ function setupGoalsModal() {
   };
 }
 
-// 15. Dluhy: PROVIDENT & AVAFIN S DOPOČTEM DO KDY A MIMOŘÁDNOU SPLÁTKOU
+// 16. Dluhy: Provident & AvaFin
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -1244,7 +1356,6 @@ async function renderDebts() {
 
       recContainer.appendChild(card);
     } else {
-      // ZÁVAZKY: Výpočet zbývajících měsíců a přesného konce splácení
       let remainingMonths = 0;
       let endDateStr = 'Splaceno';
 
@@ -1273,7 +1384,6 @@ async function renderDebts() {
         </div>
       `;
 
-      // 1. Běžná měsíční splátka
       card.querySelector('.btn-confirm-monthly').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
@@ -1296,7 +1406,6 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // 2. Mimořádná splátka libovolné výše
       card.querySelector('.btn-open-extra-pay').onclick = () => {
         openExtraPayModal(d);
       };
@@ -1377,7 +1486,6 @@ function setupDebtTxModal() {
     await renderDebts();
   };
 
-  // MODÁLNÍ OKNO PRO MIMOŘÁDNOU SPLÁTKU
   const modalExtra = document.getElementById('modal-extra-pay');
   const formExtra = document.getElementById('form-extra-pay');
   const btnCancelExtra = document.getElementById('btn-cancel-extra-pay');
@@ -1434,7 +1542,7 @@ function openExtraPayModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// 16. Investice: Investown, Slitky & Ostatní
+// 17. Investice: Investown, Slitky & Ostatní
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -1550,1225 +1658,956 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// LOGIKA INVESTOWNU: MIMOŘÁDNÝ VKLAD LIBOVOLNÉ ČÁSTKY, PRODEJ, ZISK
 function setupInvestownSpecifics() {
-  const btnDepCustom = document.getElementById('btn-itown-deposit-custom');
-  const btnSell = document.getElementById('btn-itown-sell');
-  const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
-
-  // 1. Modální okno pro vklad libovolné částky
-  const modalDep = document.getElementById('modal-itown-deposit-custom');
-  const formDep = document.getElementById('form-itown-deposit-custom');
-  const btnCancelDep = document.getElementById('btn-cancel-itown-deposit-custom');
-  const inputDep = document.getElementById('itown-deposit-amount-input');
-
-  if (btnDepCustom) {
-    btnDepCustom.onclick = () => {
-      formDep.reset();
-      inputDep.value = 500;
-      modalDep.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancelDep) {
-    btnCancelDep.onclick = () => modalDep.classList.add('hidden');
-  }
-
-  if (formDep) {
-    formDep.onsubmit = async (e) => {
-      e.preventDefault();
-      const depositCzk = parseFloat(inputDep.value);
-      if (isNaN(depositCzk) || depositCzk <= 0) return;
-
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
-      }
-
-      const depCents = Money.toCents(depositCzk);
-      itownRecord.invested += depCents;
-      await dbSet('settings', itownRecord);
-
-      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: `Investown vklad (+${depositCzk} Kč)`,
-        amount: depCents,
-        category: 'Investice',
-        day: new Date().getDate(),
-        wallet: 'bank',
-        isIncome: false,
-        paid: true
-      });
-
-      modalDep.classList.add('hidden');
-      alert(`Částka ${depositCzk.toLocaleString('cs-CZ')} Kč byla úspěšně připsána k jistině Investownu a odečtena z bankovního účtu.`);
-      await loadMonthData();
-      await renderInvestments();
-    };
-  }
-
-  // 2. Modální okno pro zadání zisku
-  const modalProfit = document.getElementById('modal-itown-profit-direct');
-  const formProfit = document.getElementById('form-itown-profit-direct');
-  const inputProfit = document.getElementById('itown-direct-profit-input');
-  const btnCancelProfit = document.getElementById('btn-cancel-itown-profit-direct');
-
-  function openDirectProfitModal() {
-    dbGet('settings', 'itown_data').then(rec => {
-      if (rec && rec.profit) {
-        inputProfit.value = (rec.profit / 100).toFixed(2);
-      }
-      modalProfit.classList.remove('hidden');
-    });
-  }
-
-  if (btnSyncProfit) btnSyncProfit.onclick = openDirectProfitModal;
-
-  if (btnCancelProfit) {
-    btnCancelProfit.onclick = () => modalProfit.classList.add('hidden');
-  }
-
-  if (formProfit) {
-    formProfit.onsubmit = async (e) => {
-      e.preventDefault();
-      const newProfitCzk = parseFloat(inputProfit.value);
-      if (isNaN(newProfitCzk) || newProfitCzk < 0) return;
-
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
-      }
-
-      itownRecord.profit = Money.toCents(newProfitCzk);
-      await dbSet('settings', itownRecord);
-
-      modalProfit.classList.add('hidden');
-      alert(`Celkový zisk byl aktualizován na ${newProfitCzk.toLocaleString('cs-CZ')} Kč. Hodnota portfolia a graf se samy přepočítaly.`);
-      
-      await renderInvestments();
-    };
-  }
-
-  // 3. Prodej / Výběr z Investownu
-  const modalSell = document.getElementById('modal-itown-sell');
-  const formSell = document.getElementById('form-itown-sell');
-  const btnCancelSell = document.getElementById('btn-cancel-itown-sell');
-
-  if (btnSell) {
-    btnSell.onclick = () => {
-      formSell.reset();
-      modalSell.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancelSell) {
-    btnCancelSell.onclick = () => modalSell.classList.add('hidden');
-  }
-
-  if (formSell) {
-    formSell.onsubmit = async (e) => {
-      e.preventDefault();
-      const sellAmountCzk = parseFloat(document.getElementById('itown-sell-amount').value);
-      if (isNaN(sellAmountCzk) || sellAmountCzk <= 0) return;
-
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) return;
-
-      const sellCents = Money.toCents(sellAmountCzk);
-      itownRecord.invested = Math.max(0, itownRecord.invested - sellCents);
-      await dbSet('settings', itownRecord);
-
-      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: `Investown prodej/výběr (+${sellAmountCzk} Kč)`,
-        amount: sellCents,
-        category: 'Investice',
-        day: new Date().getDate(),
-        wallet: 'bank',
-        isIncome: true,
-        paid: true
-      });
-
-      modalSell.classList.add('hidden');
-      alert(`Prodej v hodnotě ${sellAmountCzk} Kč proběhl. Peníze byly připsány na bankovní účet.`);
-      await loadMonthData();
-      await renderInvestments();
-    };
-  }
-}
-
-async function renderGoldBars(goldBars) {
-  const container = document.getElementById('gold-bars-list');
-  container.innerHTML = '';
-
-  let totalGrams = 0;
-  let totalBought = 0;
-  let totalCurrent = 0;
-
-  goldBars.forEach(gb => {
-    totalGrams += gb.weight;
-    totalBought += gb.bought;
-    totalCurrent += gb.current;
-
-    const row = document.createElement('div');
-    row.className = 'gold-bar-item';
-    row.innerHTML = `
-      <div class="gb-left">
-        <span class="gb-title">${gb.name}</span>
-        <span class="gb-weight">${gb.weight} g • nákup: ${Money.toCzkInt(gb.bought)}</span>
-      </div>
-      <div class="gb-right">
-        <span class="gb-val text-yellow">${Money.toCzkInt(gb.current)}</span>
-        <button class="btn-del-reading" data-id="${gb.id}">🗑️</button>
-      </div>
-    `;
-
-    row.querySelector('.btn-del-reading').onclick = async () => {
-      await dbDelete('gold_bars', gb.id);
-      await renderInvestments();
-    };
-
-    container.appendChild(row);
-  });
-
-  document.getElementById('disp-gold-grams').textContent = `${totalGrams.toFixed(1)} g`;
-  document.getElementById('disp-gold-bought').textContent = Money.toCzkInt(totalBought);
-  document.getElementById('disp-gold-current').textContent = Money.toCzkInt(totalCurrent);
-}
-
-function setupGoldModal() {
-  const modal = document.getElementById('modal-gold');
-  const btnOpen = document.getElementById('btn-add-gold');
-  const btnCancel = document.getElementById('btn-cancel-gold');
-  const form = document.getElementById('form-gold');
-
-  if (btnOpen) {
-    btnOpen.onclick = () => {
-      form.reset();
-      modal.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancel) {
-    btnCancel.onclick = () => modal.classList.add('hidden');
-  }
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('gold-name').value.trim();
-    const weight = parseFloat(document.getElementById('gold-weight').value);
-    const boughtCzk = parseFloat(document.getElementById('gold-bought').value);
-    const currentCzk = parseFloat(document.getElementById('gold-current').value);
-
-    if (!name || isNaN(weight) || isNaN(boughtCzk) || isNaN(currentCzk)) return;
-
-    await dbAdd('gold_bars', {
-      name,
-      weight,
-      bought: Money.toCents(boughtCzk),
-      current: Money.toCents(currentCzk)
-    });
-
-    modal.classList.add('hidden');
-    await renderInvestments();
-  };
-}
-
-async function drawInvestmentTrendChart(investedCents, currentCents) {
-  const canvas = document.getElementById('invest-trend-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = 170 * dpr;
-  ctx.scale(dpr, dpr);
-
-  const width = rect.width;
-  const height = 170;
-  ctx.clearRect(0, 0, width, height);
-
-  const profit = currentCents - investedCents;
-  const badge = document.getElementById('invest-growth-badge');
-  badge.textContent = `${profit >= 0 ? '+' : ''}${Money.toCzkInt(profit)} (${investedCents > 0 ? ((profit / investedCents) * 100).toFixed(1) : 0} %)`;
-  badge.style.color = profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-
-  const months = ['Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis'];
-  const curVal = currentCents / 100;
-  const invVal = investedCents / 100;
-
-  const points = months.map((m, idx) => {
-    const factor = (idx + 1) / months.length;
-    const invPoint = Math.round(invVal - (months.length - 1 - idx) * 500);
-    return {
-      label: m,
-      inv: Math.max(1000, invPoint),
-      cur: Math.round(curVal * factor * (1 + (profit > 0 ? 0.04 * factor : 0)))
-    };
-  });
-
-  const maxVal = Math.max(curVal, invVal) * 1.25 || 10000;
-  const paddingX = 35;
-  const paddingY = 25;
-  const chartW = width - paddingX * 2;
-  const chartH = height - paddingY * 2;
-
-  ctx.strokeStyle = '#94a3b8';
-  ctx.setLineDash([4, 4]);
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  points.forEach((p, idx) => {
-    const x = paddingX + (idx / (points.length - 1)) * chartW;
-    const y = height - paddingY - (p.inv / maxVal) * chartH;
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  const coords = [];
-  points.forEach((p, idx) => {
-    const x = paddingX + (idx / (points.length - 1)) * chartW;
-    const y = height - paddingY - (p.cur / maxVal) * chartH;
-    coords.push({ x, y, p });
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
-  ctx.lineTo(coords[0].x, height - paddingY);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
-  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  coords.forEach(c => {
-    ctx.fillStyle = '#38bdf8';
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(c.p.label, c.x, height - 8);
-  });
-}
-
-async function drawWebEarningsTrendChart(allEntries) {
-  const canvas = document.getElementById('web-trend-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = 170 * dpr;
-  ctx.scale(dpr, dpr);
-
-  const width = rect.width;
-  const height = 170;
-  ctx.clearRect(0, 0, width, height);
-
-  const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
-  const months = [];
-  const now = new Date(currentDate);
-
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    months.push({ key: mKey, label: monthNames[d.getMonth()] });
-  }
-
-  const points = months.map(m => {
-    const webEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Web & Projekty');
-    const total = webEntries.reduce((acc, e) => acc + e.amount, 0);
-    return {
-      label: m.label,
-      val: total > 0 ? (total / 100) : 0
-    };
-  });
-
-  const sum = points.reduce((acc, p) => acc + p.val, 0);
-  const avg = Math.round(sum / points.length);
-
-  document.getElementById('web-avg-legend').textContent = `⚪ Průměr (${avg.toLocaleString('cs-CZ')} Kč)`;
-
-  const maxVal = Math.max(...points.map(p => p.val), 5000) * 1.25;
-  const paddingX = 35;
-  const paddingY = 25;
-  const chartW = width - paddingX * 2;
-  const chartH = height - paddingY * 2;
-
-  const avgY = height - paddingY - (avg / maxVal) * chartH;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(paddingX, avgY);
-  ctx.lineTo(width - paddingX, avgY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-
-  const coords = [];
-  points.forEach((pt, idx) => {
-    const x = paddingX + (idx / (points.length - 1)) * chartW;
-    const y = height - paddingY - (pt.val / maxVal) * chartH;
-    coords.push({ x, y, pt });
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
-  ctx.lineTo(coords[0].x, height - paddingY);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  coords.forEach(c => {
-    ctx.fillStyle = '#10b981';
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(c.pt.label, c.x, height - 8);
-  });
-}
-
-function drawDonutChart(canvasId, percent) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = 100 * dpr;
-  canvas.height = 100 * dpr;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, 100, 100);
-
-  const cx = 50;
-  const cy = 50;
-  const r = 38;
-  const lineWidth = 12;
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-
-  if (percent > 0) {
-    const end = (percent / 100) * (Math.PI * 2) - (Math.PI / 2);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, -Math.PI / 2, end);
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  }
-}
-
-function setupInvestmentModal() {
-  const modal = document.getElementById('modal-investment');
-  const btnOpen = document.getElementById('btn-add-investment');
-  const btnCancel = document.getElementById('btn-cancel-investment');
-  const form = document.getElementById('form-investment');
-
-  if (btnOpen) {
-    btnOpen.onclick = () => {
-      form.reset();
-      modal.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancel) {
-    btnCancel.onclick = () => modal.classList.add('hidden');
-  }
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('inv-name').value.trim();
-    const investedCzk = parseFloat(document.getElementById('inv-invested').value);
-    const currentCzk = parseFloat(document.getElementById('inv-current').value);
-    const note = document.getElementById('inv-note').value.trim();
-
-    if (!name || isNaN(investedCzk) || isNaN(currentCzk)) return;
-
-    await dbAdd('investments', {
-      name,
-      invested: Money.toCents(investedCzk),
-      current: Money.toCents(currentCzk),
-      note
-    });
-
-    modal.classList.add('hidden');
-    await renderInvestments();
-  };
-}
-
-// 17. Energie
-async function renderEnergy() {
-  const kwhRecord = await dbGet('settings', 'kwh_price');
-  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
-  const kwhPriceCzk = kwhPriceCents / 100;
-
-  document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
-
-  const templates = await dbGetAll('templates');
-  const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
-  const cezDepositCents = cez ? cez.amount : 300000;
-  document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
-
-  const maxKwh = ((cezDepositCents / 100) / kwhPriceCzk).toFixed(1);
-  document.getElementById('disp-max-allowed-kwh').textContent = `${maxKwh} kWh / měsíc`;
-
-  await evaluateLastMeterReading(cezDepositCents, kwhPriceCents);
-  await drawEnergyConsumptionChart();
-  await renderMeterReadingsHistory(cezDepositCents, kwhPriceCents);
-
-  const appliances = await dbGetAll('energy');
-  const container = document.getElementById('appliances-list');
-  container.innerHTML = '';
-
-  appliances.forEach(app => {
-    const kwhPerHour = app.power / 1000;
-    const kwhPerDay = kwhPerHour * app.hours;
-    const kwhPerMonth = kwhPerDay * 30;
-
-    const costHourCents = Math.round(kwhPerHour * kwhPriceCents);
-    const costDayCents = Math.round(kwhPerDay * kwhPriceCents);
-    const costMonthCents = Math.round(kwhPerMonth * kwhPriceCents);
-
-    let warrantyHtml = '';
-    if (app.purchaseDate && app.warrantyMonths) {
-      const pDate = new Date(app.purchaseDate);
-      const expiryDate = new Date(pDate.setMonth(pDate.getMonth() + parseInt(app.warrantyMonths, 10)));
-      const now = new Date();
-      const diffTime = expiryDate - now;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 0) {
-        warrantyHtml = `<span class="warranty-badge expired">⚠️ Záruka vypršela</span>`;
-      } else if (diffDays <= 60) {
-        warrantyHtml = `<span class="warranty-badge warning">⏳ Záruka končí za ${diffDays} dní</span>`;
-      } else {
-        warrantyHtml = `<span class="warranty-badge ok">🛡️ Záruka OK (${diffDays} dní)</span>`;
-      }
-    } else {
-      warrantyHtml = `<span class="warranty-badge">Bez evidence záruky</span>`;
-    }
-
-    const card = document.createElement('div');
-    card.className = 'appliance-card';
-    card.innerHTML = `
-      <div class="appliance-header">
-        <span class="appliance-name">${app.name}</span>
-        <span class="appliance-specs">${app.power} W • ${app.hours} h/den</span>
-      </div>
-
-      <div class="appliance-costs-grid">
-        <div class="cost-col">
-          <span class="c-lbl">Hodina</span>
-          <span class="c-val">${(costHourCents / 100).toFixed(2).replace('.', ',')} Kč</span>
-        </div>
-        <div class="cost-col">
-          <span class="c-lbl">Den</span>
-          <span class="c-val">${(costDayCents / 100).toFixed(2).replace('.', ',')} Kč</span>
-        </div>
-        <div class="cost-col">
-          <span class="c-lbl">Měsíc</span>
-          <span class="c-val">${Money.toCzkInt(costMonthCents)}</span>
-        </div>
-      </div>
-
-      <div class="appliance-footer">
-        ${warrantyHtml}
-        <button class="btn-delete-appliance" data-id="${app.id}">🗑️ Smazat</button>
-      </div>
-    `;
-
-    card.querySelector('.btn-delete-appliance').onclick = async () => {
-      await dbDelete('energy', app.id);
-      await renderEnergy();
-    };
-
-    container.appendChild(card);
-  });
-}
-
-async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
-  const readings = await dbGetAll('meter_readings');
-  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  const box = document.getElementById('disp-meter-eval-box');
-  const badge = document.getElementById('energy-trend-badge');
-
-  if (readings.length < 2) {
-    box.innerHTML = '<span style="font-size:0.85rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
-    badge.textContent = 'Čekám na data';
-    badge.style.color = 'var(--text-muted)';
-    return;
-  }
-
-  const latest = readings[readings.length - 1];
-  const previous = readings[readings.length - 2];
-
-  const daysDiff = (new Date(latest.date) - new Date(previous.date)) / (1000 * 60 * 60 * 24);
-  const kwhConsumed = Math.max(0, latest.value - previous.value);
-
-  const monthlyNormalizedKwh = daysDiff > 0 ? (kwhConsumed / daysDiff) * 30 : kwhConsumed;
-  const estimatedCostCents = Math.round(monthlyNormalizedKwh * kwhPriceCents);
-  const diffCents = cezDepositCents - estimatedCostCents;
-
-  const isSurplus = diffCents >= 0;
-  const sign = isSurplus ? '+' : '';
-
-  let trendText = 'Běžný trend';
-  let trendColor = 'var(--accent-blue)';
-
-  if (readings.length >= 3) {
-    const older = readings[readings.length - 3];
-    const prevDays = (new Date(previous.date) - new Date(older.date)) / (1000 * 60 * 60 * 24);
-    const prevKwh = Math.max(0, previous.value - older.value);
-    const prevNormalized = prevDays > 0 ? (prevKwh / prevDays) * 30 : prevKwh;
-
-    const delta = monthlyNormalizedKwh - prevNormalized;
-    if (delta > 30) {
-      trendText = `📈 Rostoucí tendence (+${delta.toFixed(0)} kWh oproti minule)`;
-      trendColor = 'var(--accent-red)';
-    } else if (delta < -30) {
-      trendText = `📉 Klesající tendence (${delta.toFixed(0)} kWh oproti minule)`;
-      trendColor = 'var(--accent-green)';
-    } else {
-      trendText = `➡️ Stabilní odběr (rozdíl jen ${delta.toFixed(0)} kWh)`;
-      trendColor = 'var(--accent-blue)';
-    }
-  }
-
-  badge.textContent = isSurplus ? 'Přeplatek očekáván' : 'Nedoplatek!';
-  badge.style.color = isSurplus ? 'var(--accent-green)' : 'var(--accent-red)';
-
-  box.innerHTML = `
-    <div class="eval-grid">
-      <div class="eval-item">
-        <span class="e-lbl">Spotřeba za měsíc</span>
-        <span class="e-val text-blue">${monthlyNormalizedKwh.toFixed(1)} kWh</span>
-      </div>
-      <div class="eval-item">
-        <span class="e-lbl">Reálná cena (6,50 Kč)</span>
-        <span class="e-val">${Money.toCzkInt(estimatedCostCents)}</span>
-      </div>
-      <div class="eval-item">
-        <span class="e-lbl">Výsledek vs. 3 000 Kč</span>
-        <span class="e-val" style="color: ${isSurplus ? 'var(--accent-green)' : 'var(--accent-red)'}">
-          ${sign}${Money.toCzkInt(diffCents)}
-        </span>
-      </div>
+  const btnDepCustom = document.Pro možnost správy trvalých měsíčních výdajů (šablon) – tedy jejich přidávání, mazání nebo odebrání konkrétního výdaje v daném měsíci – jsme upravili soubory aplikace.
+
+Přímo do záložky **Platby** přibyl přepínač mezi **„Položky měsíce“** a **„Stálé šablony plateb“**:
+1. **Odebrání položky z aktuálního měsíce**: U každé platby v seznamu je nyní tlačítko 🗑️, kterým ji můžeš z daného měsíce smazat.
+2. **Správa stálých šablon (Trvalé měsíční platby)**:
+   - Můžeš přidat novou trvalou platbu s libovolnou periodicitou (měsíční, pololetní, roční).
+   - Můžeš kteroukoliv stálou platbu trvale smazat nebo ji dočasně vypnout/zapnout (např. když skončí nějaké předplatné).
+
+---
+
+### 1. `index.html`
+
+V sekci `#tab-payments` přibyl přepínač zobrazení a správa šablon:
+
+```html
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Koloběžníkův finanční dispečink</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <span class="logo-badge">⚡ KD</span>
+      <h1 id="app-title">Dispečink</h1>
     </div>
-    <div class="eval-status-bar">
-      <span class="eval-trend-text" style="color: ${trendColor}">${trendText}</span>
-      <span style="font-size:0.75rem; color:var(--text-muted);">${previous.date} → ${latest.date} (${Math.round(daysDiff)} dní)</span>
+    <div class="header-right" id="month-selector-wrap">
+      <button id="prev-month" class="nav-btn">◀</button>
+      <span id="current-month-display">Listopad 2026</span>
+      <button id="next-month" class="nav-btn">▶</button>
     </div>
-  `;
-}
+  </header>
 
-function setupEnergySimulator() {
-  const kwhInput = document.getElementById('calc-kwh-input');
-  const kwhRange = document.getElementById('calc-kwh-range');
-  const rateLabel = document.getElementById('calc-unit-rate');
-  const costDisp = document.getElementById('calc-result-cost');
-  const balanceDisp = document.getElementById('calc-result-balance');
+  <main id="app-content">
+    <!-- 1. Přehled & Zůstatky -->
+    <section id="tab-overview" class="tab-panel active">
+      <div class="balances-split-card">
+        <div class="split-top-total">
+          <span class="card-label">Celková dostupná likvidita</span>
+          <div class="balance-amount" id="disp-total-liquidity">0 Kč</div>
+          <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
+        </div>
 
-  if (!kwhInput || !kwhRange) return;
+        <div class="split-accounts-grid">
+          <div class="account-pill-box">
+            <div class="acc-pill-header">
+              <span>🏦 Bankovní účet</span>
+              <span class="acc-tag">Air Bank</span>
+            </div>
+            <strong class="acc-pill-val text-blue" id="disp-bank-balance">0 Kč</strong>
+          </div>
+          <div class="account-pill-box">
+            <div class="acc-pill-header">
+              <span>💵 Hotovost</span>
+              <span class="acc-tag">Peněženka</span>
+            </div>
+            <strong class="acc-pill-val text-green" id="disp-cash-balance">0 Kč</strong>
+          </div>
+        </div>
 
-  async function updateSimulation() {
-    const kwhRecord = await dbGet('settings', 'kwh_price');
-    const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
-    const kwhPriceCzk = kwhPriceCents / 100;
-    
-    rateLabel.textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč`;
+        <div class="quick-entry-row">
+          <button id="btn-quick-add-income" class="btn-quick-action green">+ Příjem</button>
+          <button id="btn-quick-add-expense" class="btn-quick-action red">− Výdaj</button>
+          <button id="btn-quick-transfer" class="btn-quick-action blue">🔄 Převod</button>
+        </div>
 
-    const kwh = parseFloat(kwhInput.value) || 0;
-    const totalCostCents = Math.round(kwh * kwhPriceCents);
-    costDisp.textContent = Money.toCzkInt(totalCostCents);
-
-    const templates = await dbGetAll('templates');
-    const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
-    const cezDepositCents = cez ? cez.amount : 300000;
-
-    const diffCents = cezDepositCents - totalCostCents;
-    if (diffCents >= 0) {
-      balanceDisp.textContent = `+${Money.toCzkInt(diffCents)} (přeplatek)`;
-      balanceDisp.style.color = 'var(--accent-green)';
-    } else {
-      balanceDisp.textContent = `${Money.toCzkInt(diffCents)} (nedoplatek)`;
-      balanceDisp.style.color = 'var(--accent-red)';
-    }
-  }
-
-  kwhInput.oninput = () => {
-    kwhRange.value = kwhInput.value;
-    updateSimulation();
-  };
-
-  kwhRange.oninput = () => {
-    kwhInput.value = kwhRange.value;
-    updateSimulation();
-  };
-
-  updateSimulation();
-}
-
-async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
-  const container = document.getElementById('meter-readings-history');
-  container.innerHTML = '';
-
-  const readings = await dbGetAll('meter_readings');
-  readings.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  if (readings.length === 0) {
-    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím nejsou zapsány žádné odečty.</span>';
-    return;
-  }
-
-  readings.forEach((r, idx) => {
-    const row = document.createElement('div');
-    row.className = 'meter-history-item';
-
-    let diffInfo = '';
-    if (idx < readings.length - 1) {
-      const prev = readings[idx + 1];
-      const diffKwh = (r.value - prev.value);
-      const days = (new Date(r.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
-      const normMonthlyKwh = days > 0 ? (diffKwh / days) * 30 : diffKwh;
-      const monthCostCents = Math.round(normMonthlyKwh * kwhPriceCents);
-      const balanceCents = cezDepositCents - monthCostCents;
-      const isOk = balanceCents >= 0;
-
-      diffInfo = `
-        <span class="m-diff-tag ${isOk ? 'surplus' : 'deficit'}">
-          ${isOk ? '+' : ''}${Money.toCzkInt(balanceCents)} (${diffKwh.toFixed(1)} kWh)
-        </span>
-      `;
-    }
-
-    row.innerHTML = `
-      <div class="m-left">
-        <span class="m-date">${r.date}</span>
-        <span class="m-note">${r.note || 'Měsíční odečet'}</span>
+        <button id="btn-quick-salary" class="btn-quick-salary-banner">
+          💰 Zadat výplatu za tento měsíc
+        </button>
       </div>
-      <div class="m-right">
-        ${diffInfo}
-        <span class="m-kwh">${r.value.toLocaleString('cs-CZ')} kWh</span>
-        <button class="btn-del-reading" data-id="${r.id}" title="Smazat">🗑️</button>
+
+      <!-- TACHOMETRY -->
+      <div class="gauges-card">
+        <div class="gauge-subhead">Výkonnost za posledních 30 dní a výhled na příštích 7 dní</div>
+        
+        <div class="gauges-main-row">
+          <div class="gauge-box">
+            <canvas id="gauge-balance" width="130" height="90"></canvas>
+            <span class="g-lbl">ZŮSTATEK</span>
+            <strong class="g-val" id="g-val-balance">0 Kč</strong>
+          </div>
+          <div class="gauge-box">
+            <canvas id="gauge-cashflow" width="130" height="90"></canvas>
+            <span class="g-lbl">CASH FLOW</span>
+            <strong class="g-val" id="g-val-cashflow">0 Kč</strong>
+          </div>
+        </div>
+
+        <div class="gauges-mini-row">
+          <div class="gauge-mini-box">
+            <canvas id="gauge-forecast" width="70" height="50"></canvas>
+            <span class="gm-lbl">VÝHLED 7D</span>
+            <span class="gm-val" id="gm-val-forecast">0 Kč</span>
+          </div>
+          <div class="gauge-mini-box">
+            <canvas id="gauge-expenses" width="70" height="50"></canvas>
+            <span class="gm-lbl">VÝDAJE</span>
+            <span class="gm-val" id="gm-val-expenses">0 Kč</span>
+          </div>
+          <div class="gauge-mini-box">
+            <canvas id="gauge-debt" width="70" height="50"></canvas>
+            <span class="gm-lbl">DLUH %</span>
+            <span class="gm-val" id="gm-val-debt">0 %</span>
+          </div>
+        </div>
       </div>
-    `;
-
-    row.querySelector('.btn-del-reading').onclick = async () => {
-      await dbDelete('meter_readings', r.id);
-      await renderEnergy();
-    };
-
-    container.appendChild(row);
-  });
-}
-
-async function drawEnergyConsumptionChart() {
-  const canvas = document.getElementById('energy-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = 180 * dpr;
-  ctx.scale(dpr, dpr);
-
-  const width = rect.width;
-  const height = 180;
-  ctx.clearRect(0, 0, width, height);
-
-  const readings = await dbGetAll('meter_readings');
-  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  if (readings.length < 2) {
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Pro zobrazení křivky zadej alespoň 2 odečty elektroměru.', width / 2, height / 2);
-    return;
-  }
-
-  const points = [];
-  let totalDailySum = 0;
-
-  for (let i = 1; i < readings.length; i++) {
-    const prev = readings[i - 1];
-    const curr = readings[i];
-    const days = (new Date(curr.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
-
-    if (days > 0) {
-      const kwhDiff = curr.value - prev.value;
-      const kwhPerDay = Math.max(0, kwhDiff / days);
-      points.push({
-        date: curr.date.slice(5),
-        val: kwhPerDay
-      });
-      totalDailySum += kwhPerDay;
-    }
-  }
-
-  if (points.length === 0) return;
-
-  const avg = totalDailySum / points.length;
-  document.getElementById('chart-avg-label').textContent = `⚪ Průměr: ${avg.toFixed(1)} kWh/den`;
-
-  const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 10;
-  const paddingX = 35;
-  const paddingY = 25;
-  const chartW = width - paddingX * 2;
-  const chartH = height - paddingY * 2;
-
-  const avgY = height - paddingY - (avg / maxVal) * chartH;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(paddingX, avgY);
-  ctx.lineTo(width - paddingX, avgY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-
-  const coords = [];
-  points.forEach((pt, idx) => {
-    const x = paddingX + (idx / (points.length - 1 || 1)) * chartW;
-    const y = height - paddingY - (pt.val / maxVal) * chartH;
-    coords.push({ x, y, pt });
-
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
-  ctx.lineTo(coords[0].x, height - paddingY);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
-  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  coords.forEach(c => {
-    ctx.fillStyle = '#38bdf8';
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${c.pt.val.toFixed(1)}`, c.x, c.y - 8);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(c.pt.date, c.x, height - 8);
-  });
-}
-
-function setupMeterReadingModal() {
-  const modal = document.getElementById('modal-meter');
-  const btnOpen = document.getElementById('btn-add-meter-reading');
-  const btnCancel = document.getElementById('btn-cancel-meter');
-  const form = document.getElementById('form-meter');
-
-  if (btnOpen) {
-    btnOpen.onclick = () => {
-      form.reset();
-      document.getElementById('meter-date').value = new Date().toISOString().slice(0, 10);
-      modal.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancel) {
-    btnCancel.onclick = () => modal.classList.add('hidden');
-  }
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const date = document.getElementById('meter-date').value;
-    const value = parseFloat(document.getElementById('meter-value').value);
-    const note = document.getElementById('meter-note').value.trim();
-
-    if (!date || isNaN(value)) return;
-
-    await dbAdd('meter_readings', {
-      date,
-      value,
-      note
-    });
-
-    modal.classList.add('hidden');
-    await renderEnergy();
-  };
-}
-
-function setupApplianceModal() {
-  const modal = document.getElementById('modal-appliance');
-  const btnOpen = document.getElementById('btn-add-appliance');
-  const btnCancel = document.getElementById('btn-cancel-appliance');
-  const form = document.getElementById('form-appliance');
-
-  if (btnOpen) {
-    btnOpen.onclick = () => {
-      form.reset();
-      modal.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancel) {
-    btnCancel.onclick = () => modal.classList.add('hidden');
-  }
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('appliance-name').value.trim();
-    const power = parseFloat(document.getElementById('appliance-power').value);
-    const hours = parseFloat(document.getElementById('appliance-hours').value);
-    const purchaseDate = document.getElementById('appliance-warranty-date').value;
-    const warrantyMonths = parseInt(document.getElementById('appliance-warranty-months').value, 10) || 24;
-
-    if (!name || isNaN(power) || power <= 0 || isNaN(hours) || hours <= 0) return;
-
-    await dbAdd('energy', {
-      name,
-      power,
-      hours,
-      purchaseDate: purchaseDate || null,
-      warrantyMonths
-    });
-
-    modal.classList.add('hidden');
-    await renderEnergy();
-  };
-}
-
-// 18. Nastavení & Air Bank CSV Parser
-async function renderSettings() {
-  const bankCapRecord = await dbGet('settings', 'bank_capital');
-  const cashCapRecord = await dbGet('settings', 'cash_capital');
-  const initCapRecord = await dbGet('settings', 'initial_capital');
-  const paydayRecord = await dbGet('settings', 'payday');
-  const kwhRecord = await dbGet('settings', 'kwh_price');
-  const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
-
-  document.getElementById('set-bank-capital').value = bankCapRecord ? bankCapRecord.value / 100 : (initCapRecord ? initCapRecord.value / 100 : 46000);
-  document.getElementById('set-cash-capital').value = cashCapRecord ? cashCapRecord.value / 100 : 5000;
-  document.getElementById('set-payday').value = paydayRecord ? paydayRecord.value : 10;
-  document.getElementById('set-kwh-price').value = kwhRecord ? kwhRecord.value / 100 : 6.5;
-
-  if (tokenRecord && tokenRecord.value) {
-    document.getElementById('set-gh-token').value = tokenRecord.value;
-    document.getElementById('cloud-sync-status').textContent = '✅ Automatická ochrana dat je aktivní.';
-    document.getElementById('cloud-sync-status').style.color = 'var(--accent-green)';
-  }
-}
-
-function setupSettingsAndBackup() {
-  const btnSaveSync = document.getElementById('btn-save-cloud-sync');
-  const btnForceSync = document.getElementById('btn-force-cloud-sync');
-  const btnSaveSet = document.getElementById('btn-save-settings');
-  const btnExport = document.getElementById('btn-export-json');
-  const btnCopy = document.getElementById('btn-copy-json');
-  const btnTriggerRestore = document.getElementById('btn-trigger-restore');
-  const fileRestoreInput = document.getElementById('restore-file-input');
-  const btnTriggerCsv = document.getElementById('btn-trigger-csv');
-  const csvFileInput = document.getElementById('csv-file-input');
-  const btnInstall = document.getElementById('btn-install-pwa');
-
-  if (btnSaveSync) {
-    btnSaveSync.onclick = async () => {
-      const token = document.getElementById('set-gh-token').value.trim();
-      if (!token) return alert('Zadej prosím platný token.');
-
-      await dbSet('settings', { key: CLOUD_CONFIG.tokenKey, value: token });
-      localStorage.setItem(CLOUD_CONFIG.tokenKey, token);
-
-      const status = document.getElementById('cloud-sync-status');
-      status.textContent = 'Ověřuji zrcadlo na GitHubu...';
-      status.style.color = 'var(--accent-yellow)';
-
-      await autoSyncToCloud();
-      status.textContent = '✅ Ochrana aktivována! Data se automaticky zrcadlí.';
-      status.style.color = 'var(--accent-green)';
-    };
-  }
-
-  if (btnForceSync) {
-    btnForceSync.onclick = async () => {
-      await autoSyncToCloud();
-      alert('Zrcadlení do cloudu dokončeno!');
-    };
-  }
-
-  if (btnSaveSet) {
-    btnSaveSet.onclick = async () => {
-      const bankCap = parseFloat(document.getElementById('set-bank-capital').value);
-      const cashCap = parseFloat(document.getElementById('set-cash-capital').value);
-      const payday = parseInt(document.getElementById('set-payday').value, 10);
-      const kwh = parseFloat(document.getElementById('set-kwh-price').value);
-
-      if (!isNaN(bankCap)) await dbSet('settings', { key: 'bank_capital', value: Money.toCents(bankCap) });
-      if (!isNaN(cashCap)) await dbSet('settings', { key: 'cash_capital', value: Money.toCents(cashCap) });
-      if (!isNaN(payday)) await dbSet('settings', { key: 'payday', value: payday });
-      if (!isNaN(kwh)) await dbSet('settings', { key: 'kwh_price', value: Money.toCents(kwh) });
-
-      alert('Parametry uloženy!');
-      await loadMonthData();
-    };
-  }
-
-  if (btnExport) {
-    btnExport.onclick = async () => {
-      const backup = await createFullBackup();
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dispecink-zaloha-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-  }
-
-  if (btnCopy) {
-    btnCopy.onclick = async () => {
-      const backup = await createFullBackup();
-      await navigator.clipboard.writeText(JSON.stringify(backup, null, 2));
-      alert('Záloha zkopírována do schránky!');
-    };
-  }
-
-  if (btnTriggerRestore && fileRestoreInput) {
-    btnTriggerRestore.onclick = () => fileRestoreInput.click();
-
-    fileRestoreInput.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          const backupData = JSON.parse(event.target.result);
-          await restoreFromBackup(backupData);
-          alert('Data byla úspěšně obnovena!');
-          window.location.reload();
-        } catch (err) {
-          alert('Chyba: Neplatný formát souboru.');
-        }
-      };
-      reader.readAsText(file);
-    };
-  }
-
-  if (btnTriggerCsv && csvFileInput) {
-    btnTriggerCsv.onclick = () => csvFileInput.click();
-
-    csvFileInput.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const text = event.target.result;
-        const count = await parseAndImportAirBankCsv(text);
-        const status = document.getElementById('csv-import-status');
-        status.textContent = `Zpracováno a automaticky roztříděno ${count} plateb z Air Bank!`;
-        status.style.color = 'var(--accent-green)';
-        await loadMonthData();
-      };
-      reader.readAsText(file, 'windows-1250');
-    };
-  }
-
-  if (btnInstall) {
-    btnInstall.onclick = async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          deferredPrompt = null;
-          btnInstall.style.display = 'none';
-        }
-      } else {
-        alert('V nabídce prohlížeče klepni na „Přidat na plochu“.');
-      }
-    };
-  }
-}
-
-async function createFullBackup() {
-  return {
-    version: DB_VERSION,
-    date: new Date().toISOString(),
-    settings: await dbGetAll('settings'),
-    templates: await dbGetAll('templates'),
-    entries: await dbGetAll('entries'),
-    goals: await dbGetAll('goals'),
-    debts: await dbGetAll('debts'),
-    energy: await dbGetAll('energy'),
-    meter_readings: await dbGetAll('meter_readings'),
-    investments: await dbGetAll('investments'),
-    gold_bars: await dbGetAll('gold_bars')
-  };
-}
-
-async function restoreFromBackup(data) {
-  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments', 'gold_bars'];
-  for (const store of stores) {
-    if (data[store]) {
-      const tx = dbInstance.transaction(store, 'readwrite');
-      const os = tx.objectStore(store);
-      os.clear();
-      for (const item of data[store]) {
-        os.put(item);
-      }
-    }
-  }
-}
-
-function detectCategoryFromAirBank(desc, isIncome) {
-  const t = desc.toLowerCase();
-
-  if (isIncome) {
-    if (t.includes('web') || t.includes('affil') || t.includes('reklama') || t.includes('kolobeznik')) return 'Web & Projekty';
-    if (t.includes('investown') || t.includes('portu') || t.includes('rentier') || t.includes('výnos') || t.includes('dividenda')) return 'Investice';
-    if (t.includes('mzda') || t.includes('plat') || t.includes('výplata') || t.includes('datart')) return 'Výplata';
-    return 'Příjmy';
-  }
-
-  if (t.includes('čez') || t.includes('cez') || t.includes('innogy') || t.includes('e.on')) return 'Energie';
-  if (t.includes('provident') || t.includes('avafin') || t.includes('crediton') || t.includes('splátka')) return 'Závazky';
-  if (t.includes('t-mobile') || t.includes('vodafone') || t.includes('o2')) return 'Komunikace';
-  if (t.includes('sipo') || t.includes('nájem') || t.includes('odpad') || t.includes('nemovitost')) return 'Bydlení';
-  if (t.includes('spotify') || t.includes('openai') || t.includes('chatgpt') || t.includes('google') || t.includes('česká televize')) return 'Služby';
-  if (t.includes('investown') || t.includes('penzij') || t.includes('portu') || t.includes('zlato') || t.includes('slitek')) return 'Investice';
-
-  if (t.includes('albert') || t.includes('lidl') || t.includes('kaufland') || t.includes('billa') || t.includes('penny') || t.includes('tesco') || t.includes('pekař') || t.includes('potraviny')) {
-    return 'Jídlo & Potraviny';
-  }
-
-  if (t.includes('ručení') || t.includes('benzina') || t.includes('orlen') || t.includes('omv') || t.includes('shell') || t.includes('mol') || t.includes('eurooil') || t.includes('čerpací') || t.includes('nafta') || t.includes('benzín')) {
-    return 'Doprava & Benzín';
-  }
-
-  if (t.includes('dm drogerie') || t.includes('rossmann') || t.includes('teta') || t.includes('drogerie') || t.includes('action')) {
-    return 'Drogerie & Domácnost';
-  }
-
-  if (t.includes('restaurace') || t.includes('hospoda') || t.includes('bistro') || t.includes('kebab') || t.includes('pivnice') || t.includes('kavárna') || t.includes('mcdonald') || t.includes('kfc')) {
-    return 'Restaurace & Občerstvení';
-  }
-
-  if (t.includes('datart') || t.includes('alza') || t.includes('czc') || t.includes('obi') || t.includes('hornbach') || t.includes('bauhaus') || t.includes('železářství')) {
-    return 'Elektro & Nářadí';
-  }
-
-  if (t.includes('zoo') || t.includes('super zoo') || t.includes('pet center') || t.includes('zvěrokruh') || t.includes('krmiv')) {
-    return 'Zvířata';
-  }
-
-  if (t.includes('lékárna') || t.includes('dr.max') || t.includes('benu') || t.includes('optik') || t.includes('terapie')) {
-    return 'Zdraví & Lékárna';
-  }
-
-  return 'Ostatní útrata';
-}
-
-async function parseAndImportAirBankCsv(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
-  if (lines.length < 2) return 0;
-
-  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-  let importedCount = 0;
-
-  const delimiter = lines[0].includes(';') ? ';' : ',';
-  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-
-  const dateIdx = headers.findIndex(h => h.includes('datum'));
-  const amountIdx = headers.findIndex(h => h.includes('částka') || h.includes('castka') || h.includes('objem'));
-  const partyIdx = headers.findIndex(h => h.includes('protistran') || h.includes('název') || h.includes('protiúčet'));
-  const msgIdx = headers.findIndex(h => h.includes('zpráva') || h.includes('popis') || h.includes('poznámka'));
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
-    if (cols.length <= amountIdx) continue;
-
-    const rawAmount = cols[amountIdx].replace(/\s/g, '').replace(',', '.');
-    const amountNum = parseFloat(rawAmount);
-
-    if (isNaN(amountNum) || amountNum === 0) continue;
-
-    const isIncome = amountNum > 0;
-    const absAmountCents = Math.round(Math.abs(amountNum) * 100);
-
-    let title = '';
-    if (partyIdx !== -1 && cols[partyIdx]) title = cols[partyIdx];
-    if (msgIdx !== -1 && cols[msgIdx]) title = title ? `${title} (${cols[msgIdx]})` : cols[msgIdx];
-    if (!title) title = isIncome ? 'Příchozí platba' : 'Platba kartou / Převod';
-
-    let day = 10;
-    if (dateIdx !== -1 && cols[dateIdx]) {
-      const parts = cols[dateIdx].split(/[\.\-\/]/);
-      if (parts.length >= 1) {
-        const parsedDay = parseInt(parts[0], 10);
-        if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) day = parsedDay;
-      }
-    }
-
-    const category = detectCategoryFromAirBank(title, isIncome);
-
-    await dbAdd('entries', {
-      monthYear: monthKey,
-      title: title.slice(0, 50),
-      amount: absAmountCents,
-      category,
-      day,
-      wallet: 'bank',
-      isIncome,
-      paid: true
-    });
-
-    importedCount++;
-  }
-
-  return importedCount;
-}
+
+      <div class="timeframe-bar">
+        <button class="tf-btn" data-tf="7d">7D</button>
+        <button class="tf-btn active" data-tf="30d">30D</button>
+        <button class="tf-btn" data-tf="12w">12T</button>
+        <button class="tf-btn" data-tf="6m">6M</button>
+        <button class="tf-btn" data-tf="1y">1R</button>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Tendence příjmů a výdajů</h3>
+          <span class="badge-sub" id="income-expense-trend-badge">Vyhodnocení...</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="income-expense-trend-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Křivka příjmů</span>
+          <span>🔴 Křivka výdajů</span>
+        </div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Historie výplat & Měsíční průměr</h3>
+          <span class="badge-sub" id="income-trend-badge">Průměr: 0 Kč</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="salary-trend-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Skutečná čistá mzda</span>
+          <span id="salary-avg-legend">⚪ Průměr ze zadaných výplat</span>
+        </div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Vývoj Cash Flow (Trend)</h3>
+          <span class="badge-sub" id="cf-trend-net">Bilance: 0 Kč</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="cashflow-bar-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Příjmy</span>
+          <span>🔴 Výdaje</span>
+          <span>⚪ Peněžní tok</span>
+        </div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Tabulka Cash Flow</h3>
+          <span class="badge-sub">Statistiky</span>
+        </div>
+        <div class="cf-stats-table">
+          <div class="cf-tbl-row header">
+            <span>Rychlý přehled</span>
+            <span>Příjmy</span>
+            <span>Výdaje</span>
+          </div>
+          <div class="cf-tbl-row">
+            <span>Počet transakcí</span>
+            <strong id="cf-count-inc">0</strong>
+            <strong id="cf-count-exp">0</strong>
+          </div>
+          <div class="cf-tbl-row">
+            <span>Průměr / den</span>
+            <strong id="cf-avg-day-inc" class="text-green">0 Kč</strong>
+            <strong id="cf-avg-day-exp" class="text-red">0 Kč</strong>
+          </div>
+          <div class="cf-tbl-row">
+            <span>Celkem</span>
+            <strong id="cf-total-inc" class="text-green">0 Kč</strong>
+            <strong id="cf-total-exp" class="text-red">0 Kč</strong>
+          </div>
+          <div class="cf-tbl-row footer">
+            <span>Čistý peněžní tok:</span>
+            <strong id="cf-net-total" class="text-blue" style="grid-column: span 2; text-align: right;">0 Kč</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Variabilní útrata (bez stálých plateb)</h3>
+          <span class="badge-sub" id="badge-var-total">0 Kč</span>
+        </div>
+        <div id="variable-breakdown-list" class="category-bars-wrap"></div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Celková struktura výdajů</h3>
+          <span class="badge-sub">Všechny platby</span>
+        </div>
+        <div id="category-breakdown-list" class="category-bars-wrap"></div>
+      </div>
+    </section>
+
+    <!-- 2. Platby: PŘEPÍNAČ POLOŽEK VS. ŠABLON TRVALÝCH PLATEB -->
+    <section id="tab-payments" class="tab-panel">
+      <!-- PŘEPÍNAČ: POLOŽKY MĚSÍCE VS. STÁLÉ ŠABLONY -->
+      <div class="payments-view-toggle">
+        <button id="btn-toggle-month-entries" class="view-toggle-btn active">📅 Položky měsíce</button>
+        <button id="btn-toggle-templates" class="view-toggle-btn">📋 Trvalé šablony plateb</button>
+      </div>
+
+      <!-- Pohled 1: Aktuální měsíc -->
+      <div id="view-month-entries">
+        <div class="action-bar">
+          <button id="btn-add-entry" class="action-btn-main">+ Přidat položku ručně</button>
+        </div>
+
+        <div class="payments-summary-card">
+          <div class="summary-line">
+            <span>Celkové výdaje měsíce:</span>
+            <strong id="payments-total-exp">0 Kč</strong>
+          </div>
+          <div class="summary-progress-bar">
+            <div id="payments-progress-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div id="payments-list" class="entries-list"></div>
+      </div>
+
+      <!-- Pohled 2: Správa trvalých šablon měsíčních/stálých výdajů -->
+      <div id="view-templates" style="display: none;">
+        <div class="action-bar">
+          <button id="btn-add-template" class="action-btn-main" style="background-color: var(--accent-green); color:#0b0f19;">+ Vytvořit novou stálou platbu</button>
+        </div>
+
+        <div class="section-title-wrap">
+          <h2>Seznam trvalých měsíčních výdajů</h2>
+        </div>
+        <div id="templates-list" class="templates-container"></div>
+      </div>
+
+      <!-- Modální okno: Položka -->
+      <div id="modal-entry" class="modal hidden">
+        <div class="modal-content">
+          <h2 id="modal-entry-title">Nová položka</h2>
+          <form id="form-entry">
+            <div class="form-group">
+              <label>Typ položky</label>
+              <div class="radio-row">
+                <label><input type="radio" name="entryType" value="expense" checked> Výdaj</label>
+                <label><input type="radio" name="entryType" value="income"> Příjem</label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Zdroj financí</label>
+              <div class="wallet-select-row">
+                <label class="wallet-radio-box">
+                  <input type="radio" name="entryWallet" value="bank" checked>
+                  <span>🏦 Bankovní účet</span>
+                </label>
+                <label class="wallet-radio-box">
+                  <input type="radio" name="entryWallet" value="cash">
+                  <span>💵 Hotovost</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="entry-title">Název / Popis</label>
+              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd, Výplata">
+            </div>
+
+            <div class="form-group">
+              <label for="entry-amount">Částka (Kč)</label>
+              <input type="number" id="entry-amount" step="0.01" required placeholder="0.00">
+            </div>
+
+            <div class="form-group">
+              <label for="entry-category">Kategorie</label>
+              <select id="entry-category">
+                <option value="Výplata">Výplata & Hlavní příjem</option>
+                <option value="Web & Projekty">Web & Vedlejší výdělky</option>
+                <option value="Jídlo & Potraviny">Jídlo & Potraviny</option>
+                <option value="Drogerie & Domácnost">Drogerie & Domácnost</option>
+                <option value="Doprava & Benzín">Doprava & Benzín</option>
+                <option value="Restaurace & Občerstvení">Restaurace & Občerstvení</option>
+                <option value="Elektro & Nářadí">Elektro & Nářadí</option>
+                <option value="Zvířata">Zvířata & Chov</option>
+                <option value="Zdraví & Lékárna">Zdraví & Lékárna</option>
+                <option value="Energie">Energie</option>
+                <option value="Bydlení">Bydlení</option>
+                <option value="Komunikace">Komunikace</option>
+                <option value="Služby">Služby & Předplatné</option>
+                <option value="Závazky">Závazky & Splátky</option>
+                <option value="Investice">Investice & Slitky</option>
+                <option value="Ostatní">Ostatní útrata</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="entry-day">Den v měsíci (1–31)</label>
+              <input type="number" id="entry-day" min="1" max="31" value="10">
+            </div>
+
+            <div class="form-group checkbox-row" id="wrap-entry-recurring">
+              <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou platbu do šablon</label>
+            </div>
+
+            <div id="wrap-recurring-frequency" class="recurring-freq-box hidden">
+              <div class="form-group">
+                <label for="entry-frequency">Periodicita platby</label>
+                <select id="entry-frequency">
+                  <option value="monthly">Každý měsíc</option>
+                  <option value="semi-annual">Pololetně (2× za rok)</option>
+                  <option value="annual">Ročně (1× za rok)</option>
+                </select>
+              </div>
+              <div class="form-group" id="wrap-due-months" style="display: none;">
+                <label for="entry-due-months">Měsíce splatnosti (čísla oddělená čárkou, např. 5, 11 nebo 7)</label>
+                <input type="text" id="entry-due-months" placeholder="např. 1 pro leden, 7 pro červenec, 5, 11 pro květen a listopad">
+              </div>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-entry" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit položku</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modální okno: Převod -->
+      <div id="modal-transfer" class="modal hidden">
+        <div class="modal-content">
+          <h2>Převod / Výběr z bankomatu</h2>
+          <form id="form-transfer">
+            <div class="form-group">
+              <label>Směr převodu</label>
+              <select id="transfer-direction">
+                <option value="atm">Výběr z bankomatu (Účet ➡️ Hotovost)</option>
+                <option value="deposit">Vklad na účet (Hotovost ➡️ Účet)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="transfer-amount">Částka (Kč)</label>
+              <input type="number" id="transfer-amount" step="1" required placeholder="např. 2000">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-transfer" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Provést přesun</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Cíle -->
+    <section id="tab-goals" class="tab-panel">
+      <div class="action-bar">
+        <button id="btn-add-goal" class="action-btn-main">+ Přidat nový cíl</button>
+      </div>
+
+      <div class="goals-summary-card">
+        <div class="summary-line">
+          <span>K dispozici pro cíle:</span>
+          <strong id="goals-available-disp" class="text-blue">0 Kč</strong>
+        </div>
+      </div>
+
+      <div id="goals-list" class="goals-container"></div>
+
+      <div id="modal-goal" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nový cíl</h2>
+          <form id="form-goal">
+            <div class="form-group">
+              <label for="goal-title">Název cíle</label>
+              <input type="text" id="goal-title" required placeholder="např. Zlatý slitek 5g, Brikety">
+            </div>
+
+            <div class="form-group">
+              <label for="goal-target">Cílová částka (Kč)</label>
+              <input type="number" id="goal-target" step="1" required placeholder="10000">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-goal" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit cíl</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Dluhy & Pohledávky -->
+    <section id="tab-debts" class="tab-panel">
+      <div class="section-title-wrap">
+        <h2>Kdo mi dluží (Pohledávky)</h2>
+      </div>
+      <div id="receivables-list" class="debts-container"></div>
+
+      <div class="section-title-wrap" style="margin-top: 24px;">
+        <h2>Moje závazky (Půjčky)</h2>
+      </div>
+      <div id="payables-list" class="debts-container"></div>
+
+      <div id="modal-debt-tx" class="modal hidden">
+        <div class="modal-content">
+          <h2 id="modal-debt-tx-title">Upravit pohledávku</h2>
+          <form id="form-debt-tx">
+            <input type="hidden" id="debt-tx-id">
+            <input type="hidden" id="debt-tx-action">
+
+            <div class="form-group">
+              <label for="debt-tx-amount">Částka (Kč)</label>
+              <input type="number" id="debt-tx-amount" step="1" required placeholder="0">
+            </div>
+
+            <div class="form-group">
+              <label for="debt-tx-note">Důvod / Poznámka</label>
+              <input type="text" id="debt-tx-note" placeholder="např. Část úhrady">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-debt-tx" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Potvrdit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-extra-pay" class="modal hidden">
+        <div class="modal-content">
+          <h2 id="modal-extra-pay-title">Mimořádná splátka půjčky</h2>
+          <form id="form-extra-pay">
+            <input type="hidden" id="extra-pay-debt-id">
+
+            <div class="form-group">
+              <label for="extra-pay-amount">Částka mimořádné splátky (Kč)</label>
+              <input type="number" id="extra-pay-amount" step="1" required placeholder="např. 5000">
+            </div>
+
+            <p class="settings-desc">Tato částka okamžitě poníží celkový dluh, odečte se z bankovního účtu a ihned zkrátí celkovou dobu splácení.</p>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-extra-pay" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uhradit mimořádně</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Investice, Investown & Zlaté slitky -->
+    <section id="tab-invest" class="tab-panel">
+      <div class="assets-ring-card">
+        <div class="ring-left">
+          <canvas id="assets-donut-chart" width="100" height="100"></canvas>
+          <div class="ring-center-text" id="assets-ratio-text">0%</div>
+        </div>
+        <div class="ring-right">
+          <span class="ar-lbl">Celková finanční aktiva</span>
+          <strong class="ar-val" id="disp-total-networth">0 Kč</strong>
+          <span class="ar-lbl" style="margin-top: 6px;">Z toho v investicích & zlatu</span>
+          <strong class="ar-subval text-green" id="disp-total-current">0 Kč</strong>
+        </div>
+      </div>
+
+      <div class="investown-hub-card">
+        <div class="inv-hub-top">
+          <div class="inv-hub-brand">
+            <span class="diamond-icon">💎</span>
+            <strong>INVESTOWN</strong>
+          </div>
+          <span class="inv-rate-pill" id="itown-disp-roi">0 % zisk</span>
+        </div>
+
+        <div class="inv-hub-main-amount">
+          <span class="ih-lbl">Celková hodnota portfolia (Jistina + Zisk)</span>
+          <div class="ih-val" id="itown-disp-total">0 Kč</div>
+        </div>
+
+        <div class="inv-hub-metrics-grid">
+          <div class="ih-metric">
+            <span class="ih-m-lbl">Vložená jistina (vklady)</span>
+            <strong class="ih-m-val text-blue" id="itown-disp-invested">0 Kč</strong>
+          </div>
+          <div class="ih-metric">
+            <span class="ih-m-lbl">Celkový zisk (z aplikace)</span>
+            <strong class="ih-m-val text-green" id="itown-disp-profit">+ 0 Kč</strong>
+          </div>
+        </div>
+
+        <div class="itown-actions-row">
+          <button id="btn-itown-deposit-custom" class="btn-itown-action green">+ Vložit peníze</button>
+          <button id="btn-itown-sell" class="btn-itown-action orange">− Prodej / Výběr</button>
+          <button id="btn-itown-quick-sync-profit" class="btn-itown-action blue">📈 Zadat zisk z mobilu</button>
+        </div>
+      </div>
+
+      <div class="gold-hub-card" style="margin-top: 14px;">
+        <div class="gold-hub-top">
+          <div class="gold-hub-brand">
+            <span class="gold-bar-icon">🪙</span>
+            <strong>Fyzické zlato (Slitky)</strong>
+          </div>
+          <button id="btn-add-gold" class="btn-small-primary" style="background:#eab308; color:#0b0f19;">+ Zapsat slitek</button>
+        </div>
+
+        <div class="gold-metrics-grid">
+          <div class="gm-col">
+            <span class="gm-lbl">Celkem slitků</span>
+            <strong class="gm-val" id="disp-gold-grams">0 g</strong>
+          </div>
+          <div class="gm-col">
+            <span class="gm-lbl">Nákupní cena</span>
+            <strong class="gm-val" id="disp-gold-bought">0 Kč</strong>
+          </div>
+          <div class="gm-col">
+            <span class="gm-lbl">Aktuální hodnota</span>
+            <strong class="gm-val text-yellow" id="disp-gold-current">0 Kč</strong>
+          </div>
+        </div>
+
+        <div id="gold-bars-list" class="gold-bars-container" style="margin-top: 10px;"></div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Křivka růstu portfolia (Investice + Zlato)</h3>
+          <span class="badge-sub" id="invest-growth-badge">+0 Kč zisk</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="invest-trend-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🔵 Aktuální hodnota (včetně výnosů)</span>
+          <span>⚪ Pouze vložený kapitál (přírůstky)</span>
+        </div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Křivka výdělků z webu & projektů</h3>
+          <span class="badge-sub" id="web-trend-badge">Měsíční trend</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="web-trend-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Měsíční příjem z webu</span>
+          <span id="web-avg-legend">⚪ Průměr</span>
+        </div>
+      </div>
+
+      <div class="action-bar" style="margin-top: 16px;">
+        <button id="btn-add-investment" class="action-btn-main">+ Přidat další platformu (Portu, ETF...)</button>
+      </div>
+
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Ostatní finanční aktiva</h2>
+      </div>
+      <div id="investments-list" class="investments-container"></div>
+
+      <div class="analytics-card" style="margin-top: 20px;">
+        <div class="analytics-header">
+          <h3>Rozpis výdělků z webu v tomto měsíci</h3>
+          <span class="badge-sub">Koloběžník & Projekty</span>
+        </div>
+        <div class="web-earnings-summary">
+          <span>Celkový příjem z webu:</span>
+          <strong id="disp-month-web-earnings" class="text-green">0 Kč</strong>
+        </div>
+        <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
+      </div>
+
+      <div id="modal-itown-deposit-custom" class="modal hidden">
+        <div class="modal-content">
+          <h2>Vložit peníze na Investown</h2>
+          <form id="form-itown-deposit-custom">
+            <div class="form-group">
+              <label for="itown-deposit-amount-input">Částka vkladu (Kč)</label>
+              <input type="number" id="itown-deposit-amount-input" step="1" required placeholder="např. 500 nebo 2500" value="500">
+            </div>
+            <p class="settings-desc">Tato částka navýší tvou vloženou jistinu na Investownu a odečte se z bankovního účtu.</p>
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-itown-deposit-custom" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Vložit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-itown-profit-direct" class="modal hidden">
+        <div class="modal-content">
+          <h2>Aktualizovat Celkový zisk Investownu</h2>
+          <form id="form-itown-profit-direct">
+            <div class="form-group">
+              <label for="itown-direct-profit-input">Aktuální celkový zisk z mobilu (Kč)</label>
+              <input type="number" id="itown-direct-profit-input" step="0.01" required placeholder="např. 3443.02">
+            </div>
+            <p class="settings-desc">Zadej číslo „Celkový zisk“ z obrazovky Investownu. Celková hodnota portfolia, graf zhodnocení i procentuální výnos se samy okamžitě přepočítají.</p>
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-itown-profit-direct" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit a přepočítat</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-itown-sell" class="modal hidden">
+        <div class="modal-content">
+          <h2>Prodej / Výběr z Investownu</h2>
+          <form id="form-itown-sell">
+            <div class="form-group">
+              <label for="itown-sell-amount">Částka k prodeji / výběru (Kč)</label>
+              <input type="number" id="itown-sell-amount" step="1" required placeholder="např. 2500">
+            </div>
+            <p class="settings-desc">Tato částka poníží tvou zainvestovanou jistinu na Investownu a vrátí peníze zpět jako příjem na bankovní účet.</p>
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-itown-sell" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary" style="background:var(--accent-yellow); color:#0b0f19;">Prodat / Vybrat</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-gold" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nový zlatý slitek</h2>
+          <form id="form-gold">
+            <div class="form-group">
+              <label for="gold-name">Název / Rafinér</label>
+              <input type="text" id="gold-name" required placeholder="Argor-Heraeus 5g">
+            </div>
+
+            <div class="form-group">
+              <label for="gold-weight">Hmotnost v gramech (g)</label>
+              <input type="number" id="gold-weight" step="0.1" required placeholder="5">
+            </div>
+
+            <div class="form-group">
+              <label for="gold-bought">Nákupní cena (Kč)</label>
+              <input type="number" id="gold-bought" step="1" required placeholder="10500">
+            </div>
+
+            <div class="form-group">
+              <label for="gold-current">Aktuální hodnota (Kč)</label>
+              <input type="number" id="gold-current" step="1" required placeholder="11200">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-gold" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit slitek</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-investment" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nová investiční platforma</h2>
+          <form id="form-investment">
+            <div class="form-group">
+              <label for="inv-name">Název platformy / fondu</label>
+              <input type="text" id="inv-name" required placeholder="např. Portu, Rentier.cz">
+            </div>
+
+            <div class="form-group">
+              <label for="inv-invested">Vložená částka (Kč)</label>
+              <input type="number" id="inv-invested" step="1" required placeholder="5000">
+            </div>
+
+            <div class="form-group">
+              <label for="inv-current">Aktuální hodnota (Kč)</label>
+              <input type="number" id="inv-current" step="1" required placeholder="5250">
+            </div>
+
+            <div class="form-group">
+              <label for="inv-note">Poznámka / Strategie</label>
+              <input type="text" id="inv-note" placeholder="např. Konzervativní portfolio">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-investment" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Energie -->
+    <section id="tab-energy" class="tab-panel">
+      <div class="energy-overview-card">
+        <div class="energy-row">
+          <span>Cena elektřiny:</span>
+          <strong id="disp-kwh-price">6,50 Kč / kWh</strong>
+        </div>
+        <div class="energy-row">
+          <span>Měsíční záloha (ČEZ):</span>
+          <strong id="disp-cez-deposit">3 000 Kč</strong>
+        </div>
+        <div class="energy-row highlight">
+          <span>Kapacita zálohy 3 000 Kč:</span>
+          <strong id="disp-max-allowed-kwh">461,5 kWh / měsíc</strong>
+        </div>
+      </div>
+
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Měsíční vyhodnocení odečtu (vs. záloha 3 000 Kč)</h3>
+          <span class="badge-sub" id="energy-trend-badge">Vyhodnocuji...</span>
+        </div>
+        <div class="meter-evaluation-box" id="disp-meter-eval-box"></div>
+      </div>
+
+      <div class="chart-card" style="margin-top: 14px;">
+        <div class="chart-header">
+          <h3>Křivka a tendence spotřeby domu (kWh/den)</h3>
+          <button id="btn-add-meter-reading" class="btn-small-primary">+ Zadat měsíční odečet</button>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="energy-chart" width="400" height="180"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🔵 Křivka denního odběru</span>
+          <span id="chart-avg-label">⚪ Průměr: 0 kWh/den</span>
+        </div>
+      </div>
+
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Historie měsíčních odečtů & Přeplatky/Nedoplatky</h2>
+      </div>
+      <div id="meter-readings-history" class="meter-history-container"></div>
+
+      <div class="analytics-card" style="margin-top: 20px;">
+        <div class="analytics-header">
+          <h3>Kalkulačka libovolné spotřeby</h3>
+          <span class="badge-sub">Kč vs. kWh</span>
+        </div>
+        <div class="energy-calc-wrap">
+          <div class="form-group">
+            <label for="calc-kwh-input">Zadej spotřebu (kWh):</label>
+            <div class="calc-input-row">
+              <input type="number" id="calc-kwh-input" value="100" step="1" min="0">
+              <span class="unit-tag">kWh</span>
+            </div>
+            <input type="range" id="calc-kwh-range" min="0" max="1000" step="5" value="100" class="kwh-slider">
+          </div>
+          <div class="calc-results-box">
+            <div class="calc-result-item">
+              <span class="res-lbl">Náklad při ceně <strong id="calc-unit-rate">6,50 Kč</strong>/kWh</span>
+              <span class="res-val" id="calc-result-cost">650 Kč</span>
+            </div>
+            <div class="calc-result-item">
+              <span class="res-lbl">Rozdíl oproti záloze (3 000 Kč)</span>
+              <span class="res-val" id="calc-result-balance">+2 350 Kč (přeplatek)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-bar" style="margin-top: 20px;">
+        <button id="btn-add-appliance" class="action-btn-main">+ Přidat spotřebič / zařízení</button>
+      </div>
+
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Evidence spotřebičů & Náklady na provoz</h2>
+      </div>
+      <div id="appliances-list" class="appliances-container"></div>
+
+      <div id="modal-meter" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nový měsíční odečet elektroměru</h2>
+          <form id="form-meter">
+            <div class="form-group">
+              <label for="meter-date">Datum odečtu</label>
+              <input type="date" id="meter-date" required>
+            </div>
+
+            <div class="form-group">
+              <label for="meter-value">Stav na elektroměru (kWh)</label>
+              <input type="number" id="meter-value" step="0.1" required placeholder="např. 13250.0">
+            </div>
+
+            <div class="form-group">
+              <label for="meter-note">Poznámka</label>
+              <input type="text" id="meter-note" placeholder="volitelná poznámka">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-meter" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit a vyhodnotit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="modal-appliance" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nový spotřebič</h2>
+          <form id="form-appliance">
+            <div class="form-group">
+              <label for="appliance-name">Název spotřebiče</label>
+              <input type="text" id="appliance-name" required placeholder="např. Bojler, Přímotop">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-power">Příkon ve Wattech (W)</label>
+              <input type="number" id="appliance-power" required placeholder="např. 2000">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-hours">Denní provoz v hodinách (h)</label>
+              <input type="number" id="appliance-hours" step="0.1" value="2" required placeholder="např. 2.5">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-warranty-date">Datum nákupu</label>
+              <input type="date" id="appliance-warranty-date">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-warranty-months">Záruka (měsíce)</label>
+              <input type="number" id="appliance-warranty-months" value="24">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-appliance" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Nastavení & Ochrana dat -->
+    <section id="tab-settings" class="tab-panel">
+      <div class="settings-card" style="border-color: rgba(56, 189, 248, 0.4);">
+        <h3>🛡️ Nezávislé cloud zrcadlení (Ochrana proti smazání)</h3>
+        <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu.</p>
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="set-gh-token">GitHub Token (Classic, oprávnění: gist)</label>
+          <input type="password" id="set-gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        </div>
+        <div class="settings-btns-grid">
+          <button id="btn-save-cloud-sync" class="btn-primary">Aktivovat ochranu</button>
+          <button id="btn-force-cloud-sync" class="btn-secondary">Zrcadlit ihned ⚡</button>
+        </div>
+        <div id="cloud-sync-status" class="import-status"></div>
+      </div>
+
+      <div class="settings-card" style="margin-top: 14px;">
+        <h3>Propojení s Air Bank (Inteligentní CSV Import)</h3>
+        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky roztřídí transakce do kategorií (všechny se automaticky připíší k bankovnímu účtu).</p>
+        <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
+        <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Importovat CSV výpis z Air Bank</button>
+        <div id="csv-import-status" class="import-status"></div>
+      </div>
+
+      <div class="settings-card" style="margin-top: 14px;">
+        <h3>Finanční parametry (Počáteční stavy peněženek)</h3>
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="set-bank-capital">Výchozí zůstatek na účtu (Air Bank v Kč)</label>
+          <input type="number" id="set-bank-capital" step="1">
+        </div>
+        <div class="form-group">
+          <label for="set-cash-capital">Výchozí hotovost (Peněženka v Kč)</label>
+          <input type="number" id="set-cash-capital" step="1">
+        </div>
+        <div class="form-group">
+          <label for="set-payday">Den výplaty v měsíci (1–31)</label>
+          <input type="number" id="set-payday" min="1" max="31">
+        </div>
+        <div class="form-group">
+          <label for="set-kwh-price">Cena elektřiny (Kč za kWh)</label>
+          <input type="number" id="set-kwh-price" step="0.01">
+        </div>
+        <button id="btn-save-settings" class="action-btn-main" style="margin-top: 8px;">Uložit parametry</button>
+      </div>
+
+      <div class="settings-card" style="margin-top: 14px;">
+        <h3>Ruční záloha a obnova databáze</h3>
+        <p class="settings-desc">Jednorázová záloha všech tabulek do souboru JSON.</p>
+        <div class="settings-btns-grid" style="margin-top: 10px;">
+          <button id="btn-export-json" class="btn-secondary">📤 Stáhnout JSON</button>
+          <button id="btn-copy-json" class="btn-secondary">📋 Kopírovat JSON</button>
+        </div>
+        <input type="file" id="restore-file-input" accept=".json" style="display: none;">
+        <button id="btn-trigger-restore" class="btn-secondary" style="margin-top: 8px; width: 100%;">📥 Obnovit ze souboru JSON</button>
+      </div>
+
+      <div class="settings-card" style="margin-top: 14px; text-align: center;">
+        <h3>Mobilní aplikace (PWA)</h3>
+        <p class="settings-desc">Spouštěj aplikaci offline přímo z plochy telefonu.</p>
+        <button id="btn-install-pwa" class="btn-secondary" style="margin-top: 10px; width: 100%;">📲 Přidat na plochu mobilu</button>
+      </div>
+    </section>
+  </main>
+
+  <button id="fab-add-btn" class="fab-btn" title="Rychle přidat položku">+</button>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="overview">
+      <span class="icon">📊</span>
+      <span class="label">Přehled</span>
+    </button>
+    <button class="nav-item" data-tab="payments">
+      <span class="icon">💳</span>
+      <span class="label">Platby</span>
+    </button>
+    <button class="nav-item" data-tab="goals">
+      <span class="icon">🎯</span>
+      <span class="label">Cíle</span>
+    </button>
+    <button class="nav-item" data-tab="debts">
+      <span class="icon">🤝</span>
+      <span class="label">Dluhy</span>
+    </button>
+    <button class="nav-item" data-tab="invest">
+      <span class="icon">📈</span>
+      <span class="label">Investice</span>
+    </button>
+    <button class="nav-item" data-tab="energy">
+      <span class="icon">⚡</span>
+      <span class="label">Energie</span>
+    </button>
+    <button class="nav-item" data-tab="settings">
+      <span class="icon">⚙️</span>
+      <span class="label">Nastavení</span>
+    </button>
+  </nav>
+
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
