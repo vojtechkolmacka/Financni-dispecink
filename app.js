@@ -1,3 +1,12 @@
+// Registrace Service Workeru pro plnohodnotný offline režim
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('PWA Service Worker úspěšně zaregistrován:', reg.scope))
+      .catch(err => console.log('Registrace Service Workeru selhala:', err));
+  });
+}
+
 // Stav aplikace
 let currentDate = new Date(2026, 10, 1); // Listopad 2026
 let deferredPrompt = null;
@@ -738,7 +747,6 @@ async function renderSettings() {
 }
 
 function setupSettingsAndBackup() {
-  // Uložení finančních parametrů
   document.getElementById('btn-save-settings').addEventListener('click', async () => {
     const initCap = parseFloat(document.getElementById('set-initial-capital').value);
     const payday = parseInt(document.getElementById('set-payday').value, 10);
@@ -752,7 +760,6 @@ function setupSettingsAndBackup() {
     await loadMonthData();
   });
 
-  // Export JSON do souboru
   document.getElementById('btn-export-json').addEventListener('click', async () => {
     const backup = await createFullBackup();
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
@@ -764,14 +771,12 @@ function setupSettingsAndBackup() {
     URL.revokeObjectURL(url);
   });
 
-  // Kopírování JSON do schránky
   document.getElementById('btn-copy-json').addEventListener('click', async () => {
     const backup = await createFullBackup();
     await navigator.clipboard.writeText(JSON.stringify(backup, null, 2));
     alert('Záloha byla zkopírována do schránky!');
   });
 
-  // Obnova ze souboru JSON
   const fileRestoreInput = document.getElementById('restore-file-input');
   document.getElementById('btn-trigger-restore').addEventListener('click', () => fileRestoreInput.click());
 
@@ -793,7 +798,6 @@ function setupSettingsAndBackup() {
     reader.readAsText(file);
   });
 
-  // Import bankovního výpisu CSV
   const csvFileInput = document.getElementById('csv-file-input');
   document.getElementById('btn-trigger-csv').addEventListener('click', () => csvFileInput.click());
 
@@ -813,7 +817,6 @@ function setupSettingsAndBackup() {
     reader.readAsText(file);
   });
 
-  // Tlačítko instalace PWA
   const btnInstall = document.getElementById('btn-install-pwa');
   btnInstall.addEventListener('click', async () => {
     if (deferredPrompt) {
@@ -829,7 +832,6 @@ function setupSettingsAndBackup() {
   });
 }
 
-// Pomocné funkce pro zálohu
 async function createFullBackup() {
   return {
     version: DB_VERSION,
@@ -857,7 +859,6 @@ async function restoreFromBackup(data) {
   }
 }
 
-// Parser bankovního CSV
 async function parseAndImportCsv(csvText) {
   const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
   if (lines.length < 2) return 0;
@@ -865,11 +866,9 @@ async function parseAndImportCsv(csvText) {
   const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   let importedCount = 0;
 
-  // Hledání oddělovače (středník nebo čárka)
   const delimiter = lines[0].includes(';') ? ';' : ',';
   const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
 
-  // Najdeme indexy klíčových sloupců
   const dateIdx = headers.findIndex(h => h.includes('datum') || h.includes('date'));
   const amountIdx = headers.findIndex(h => h.includes('částka') || h.includes('castka') || h.includes('objem') || h.includes('amount'));
   const noteIdx = headers.findIndex(h => h.includes('název') || h.includes('popis') || h.includes('zpráva') || h.includes('poznámka') || h.includes('protiúčet'));
@@ -878,7 +877,6 @@ async function parseAndImportCsv(csvText) {
     const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
     if (cols.length <= amountIdx) continue;
 
-    // Normalizace částky (nahrazení mezer a desetinné čárky tečkou)
     const rawAmount = cols[amountIdx].replace(/\s/g, '').replace(',', '.');
     const amountNum = parseFloat(rawAmount);
 
@@ -904,7 +902,7 @@ async function parseAndImportCsv(csvText) {
       category: isIncome ? 'Příjmy' : 'Ostatní',
       day,
       isIncome,
-      paid: true // Bankovní transakce už reálně proběhla
+      paid: true
     });
 
     importedCount++;
