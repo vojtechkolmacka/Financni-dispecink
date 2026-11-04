@@ -751,7 +751,82 @@ body {
 .gb-right { display: flex; align-items: center; gap: 10px; }
 .gb-val { font-weight: 800; font-size: 0.95rem; }
 
-/* Karta závazku: Rozpis položek a plán */
+/* KARTA DLUHŮ: SOUHRN, ROZPIS DLUŽNÍKŮ & POLOŽEK */
+.debts-top-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.debts-sum-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.debts-sum-card.red {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.debts-sum-card.green {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dsc-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.debts-sum-card.red .dsc-val {
+  color: var(--accent-red);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.debts-sum-card.green .dsc-val {
+  color: var(--accent-green);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.dsc-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.section-title-row h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.btn-small-secondary {
+  background: var(--bg-card-sub);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .debt-sub-items-list {
   display: flex;
   flex-direction: column;
@@ -825,6 +900,19 @@ body {
   background: rgba(245, 158, 11, 0.15);
   color: var(--accent-yellow);
   border-color: rgba(245, 158, 11, 0.35);
+}
+
+.btn-del-debtor {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+}
+
+.btn-del-debtor:hover {
+  color: var(--accent-red);
 }
 
 /* Analytika a grafy */
