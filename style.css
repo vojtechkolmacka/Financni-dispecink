@@ -75,10 +75,10 @@ body {
   background: var(--bg-card-sub);
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 /* Hlavní obsah */
@@ -157,6 +157,245 @@ body {
 .metric-box.green .m-val { color: var(--accent-green); }
 .metric-box.red .m-val { color: var(--accent-red); }
 .metric-box.yellow .m-val { color: var(--accent-yellow); }
+
+/* Záložka Platby */
+.action-bar {
+  margin-bottom: 14px;
+}
+
+.action-btn-main {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--accent-blue);
+  color: #0b0f19;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.payments-summary-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.summary-progress-bar {
+  height: 8px;
+  background: var(--bg-card-sub);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#payments-progress-fill {
+  height: 100%;
+  background: var(--accent-green);
+  transition: width 0.3s ease;
+}
+
+/* Seznam položek */
+.entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entry-item {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.entry-item.paid {
+  opacity: 0.6;
+}
+
+.entry-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.check-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.entry-item.paid .check-circle {
+  background-color: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #0b0f19;
+}
+
+.entry-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.entry-item.paid .entry-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.entry-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.entry-badge {
+  background: var(--bg-card-sub);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.entry-amount {
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.entry-amount.expense {
+  color: var(--accent-red);
+}
+
+.entry-amount.income {
+  color: var(--accent-green);
+}
+
+/* Modální okno */
+.modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 200;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  padding: 20px;
+}
+
+.modal-content h2 {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select {
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.radio-row {
+  display: flex;
+  gap: 20px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-row label {
+  color: var(--text-main);
+  font-size: 0.85rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-primary {
+  flex: 1;
+  background-color: var(--accent-blue);
+  color: #0b0f19;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  flex: 1;
+  background-color: var(--bg-card-sub);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* Spodní navigace */
 .bottom-nav {
