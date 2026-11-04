@@ -101,7 +101,7 @@ function setupMonthSelector() {
   updateMonthLabel();
 }
 
-// 3. Načtení dat měsíce a analytiky
+// 3. Načtení dat měsíce
 async function loadMonthData() {
   const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
@@ -794,9 +794,8 @@ async function renderInvestments() {
     `;
 
     card.querySelector('.btn-del-reading').addEventListener('click', async () => {
-      const tx = dbInstance.transaction('investments', 'readwrite');
-      tx.objectStore('investments').delete(inv.id);
-      tx.oncomplete = () => renderInvestments();
+      await dbDelete('investments', inv.id);
+      await renderInvestments();
     });
 
     container.appendChild(card);
@@ -873,7 +872,7 @@ function setupInvestmentModal() {
   });
 }
 
-// 12. Modul Energie & Simulátor spotřeby
+// 12. Modul Energie, Měsíční vyhodnocovač & Tendence
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -886,14 +885,18 @@ async function renderEnergy() {
   const cezDepositCents = cez ? cez.amount : 300000;
   document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
 
-  await drawEnergyConsumptionChart();
-  await renderMeterReadingsHistory();
+  // Maximální měsíční spotřeba krytá zálohou
+  const maxKwh = ((cezDepositCents / 100) / kwhPriceCzk).toFixed(1);
+  document.getElementById('disp-max-allowed-kwh').textContent = `${maxKwh} kWh / měsíc`;
 
+  await evaluateLastMeterReading(cezDepositCents, kwhPriceCents);
+  await drawEnergyConsumptionChart();
+  await renderMeterReadingsHistory(cezDepositCents, kwhPriceCents);
+
+  // Spotřebiče
   const appliances = await dbGetAll('energy');
   const container = document.getElementById('appliances-list');
   container.innerHTML = '';
-
-  let totalMonthlyCostCents = 0;
 
   appliances.forEach(app => {
     const kwhPerHour = app.power / 1000;
@@ -903,8 +906,6 @@ async function renderEnergy() {
     const costHourCents = Math.round(kwhPerHour * kwhPriceCents);
     const costDayCents = Math.round(kwhPerDay * kwhPriceCents);
     const costMonthCents = Math.round(kwhPerMonth * kwhPriceCents);
-
-    totalMonthlyCostCents += costMonthCents;
 
     let warrantyHtml = '';
     if (app.purchaseDate && app.warrantyMonths) {
@@ -955,29 +956,94 @@ async function renderEnergy() {
     `;
 
     card.querySelector('.btn-delete-appliance').addEventListener('click', async () => {
-      const tx = dbInstance.transaction('energy', 'readwrite');
-      tx.objectStore('energy').delete(app.id);
-      tx.oncomplete = () => renderEnergy();
+      await dbDelete('energy', app.id);
+      await renderEnergy();
     });
 
     container.appendChild(card);
   });
-
-  document.getElementById('disp-expected-energy-cost').textContent = Money.toCzkInt(totalMonthlyCostCents);
-
-  const diffCents = cezDepositCents - totalMonthlyCostCents;
-  const diffDisplay = document.getElementById('disp-energy-diff');
-
-  if (diffCents >= 0) {
-    diffDisplay.textContent = `Přeplatek cca +${Money.toCzkInt(diffCents)} / měsíc`;
-    diffDisplay.style.color = 'var(--accent-green)';
-  } else {
-    diffDisplay.textContent = `Nedoplatek cca ${Money.toCzkInt(diffCents)} / měsíc`;
-    diffDisplay.style.color = 'var(--accent-red)';
-  }
 }
 
-// Simulátor nákladů při zvolené spotřebě
+// Vyhodnocení posledního měsíčního odečtu
+async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
+  const readings = await dbGetAll('meter_readings');
+  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const box = document.getElementById('disp-meter-eval-box');
+  const badge = document.getElementById('energy-trend-badge');
+
+  if (readings.length < 2) {
+    box.innerHTML = '<span style="font-size:0.85rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
+    badge.textContent = 'Čekám na data';
+    badge.style.color = 'var(--text-muted)';
+    return;
+  }
+
+  const latest = readings[readings.length - 1];
+  const previous = readings[readings.length - 2];
+
+  const daysDiff = (new Date(latest.date) - new Date(previous.date)) / (1000 * 60 * 60 * 24);
+  const kwhConsumed = Math.max(0, latest.value - previous.value);
+
+  // Normalizace na 30 dní, pokud odečet nebyl přesně po 30 dnech
+  const monthlyNormalizedKwh = daysDiff > 0 ? (kwhConsumed / daysDiff) * 30 : kwhConsumed;
+  const estimatedCostCents = Math.round(monthlyNormalizedKwh * kwhPriceCents);
+  const diffCents = cezDepositCents - estimatedCostCents;
+
+  const isSurplus = diffCents >= 0;
+  const sign = isSurplus ? '+' : '';
+
+  // Tendence vůči před-předchozímu měsíci
+  let trendText = 'Běžný trend';
+  let trendColor = 'var(--accent-blue)';
+
+  if (readings.length >= 3) {
+    const older = readings[readings.length - 3];
+    const prevDays = (new Date(previous.date) - new Date(older.date)) / (1000 * 60 * 60 * 24);
+    const prevKwh = Math.max(0, previous.value - older.value);
+    const prevNormalized = prevDays > 0 ? (prevKwh / prevDays) * 30 : prevKwh;
+
+    const delta = monthlyNormalizedKwh - prevNormalized;
+    if (delta > 30) {
+      trendText = `📈 Rostoucí tendence (+${delta.toFixed(0)} kWh oproti minule)`;
+      trendColor = 'var(--accent-red)';
+    } else if (delta < -30) {
+      trendText = `📉 Klesající tendence (${delta.toFixed(0)} kWh oproti minule)`;
+      trendColor = 'var(--accent-green)';
+    } else {
+      trendText = `➡️ Stabilní odběr (rozdíl jen ${delta.toFixed(0)} kWh)`;
+      trendColor = 'var(--accent-blue)';
+    }
+  }
+
+  badge.textContent = isSurplus ? 'Přeplatek očekáván' : 'Nedoplatek!';
+  badge.style.color = isSurplus ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  box.innerHTML = `
+    <div class="eval-grid">
+      <div class="eval-item">
+        <span class="e-lbl">Spotřeba za měsíc</span>
+        <span class="e-val text-blue">${monthlyNormalizedKwh.toFixed(1)} kWh</span>
+      </div>
+      <div class="eval-item">
+        <span class="e-lbl">Reálná cena (6,50 Kč)</span>
+        <span class="e-val">${Money.toCzkInt(estimatedCostCents)}</span>
+      </div>
+      <div class="eval-item">
+        <span class="e-lbl">Výsledek vs. 3 000 Kč</span>
+        <span class="e-val" style="color: ${isSurplus ? 'var(--accent-green)' : 'var(--accent-red)'}">
+          ${sign}${Money.toCzkInt(diffCents)}
+        </span>
+      </div>
+    </div>
+    <div class="eval-status-bar">
+      <span class="eval-trend-text" style="color: ${trendColor}">${trendText}</span>
+      <span style="font-size:0.75rem; color:var(--text-muted);">${previous.date} → ${latest.date} (${Math.round(daysDiff)} dní)</span>
+    </div>
+  `;
+}
+
+// Simulátor libovolné spotřeby
 function setupEnergySimulator() {
   const kwhInput = document.getElementById('calc-kwh-input');
   const kwhRange = document.getElementById('calc-kwh-range');
@@ -1025,7 +1091,8 @@ function setupEnergySimulator() {
   updateSimulation();
 }
 
-async function renderMeterReadingsHistory() {
+// Historie odečtů s vyčíslením přeplatku/nedoplatku každého měsíce
+async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
   const container = document.getElementById('meter-readings-history');
   container.innerHTML = '';
 
@@ -1041,35 +1108,45 @@ async function renderMeterReadingsHistory() {
     const row = document.createElement('div');
     row.className = 'meter-history-item';
 
-    let deltaHtml = '';
+    let diffInfo = '';
     if (idx < readings.length - 1) {
       const prev = readings[idx + 1];
-      const diff = (r.value - prev.value).toFixed(1);
-      deltaHtml = `<span class="m-delta">+${diff} kWh</span>`;
+      const diffKwh = (r.value - prev.value);
+      const days = (new Date(r.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
+      const normMonthlyKwh = days > 0 ? (diffKwh / days) * 30 : diffKwh;
+      const monthCostCents = Math.round(normMonthlyKwh * kwhPriceCents);
+      const balanceCents = cezDepositCents - monthCostCents;
+      const isOk = balanceCents >= 0;
+
+      diffInfo = `
+        <span class="m-diff-tag ${isOk ? 'surplus' : 'deficit'}">
+          ${isOk ? '+' : ''}${Money.toCzkInt(balanceCents)} (${diffKwh.toFixed(1)} kWh)
+        </span>
+      `;
     }
 
     row.innerHTML = `
       <div class="m-left">
         <span class="m-date">${r.date}</span>
-        <span class="m-note">${r.note || 'Pravidelný odečet'}</span>
+        <span class="m-note">${r.note || 'Měsíční odečet'}</span>
       </div>
       <div class="m-right">
-        ${deltaHtml}
+        ${diffInfo}
         <span class="m-kwh">${r.value.toLocaleString('cs-CZ')} kWh</span>
         <button class="btn-del-reading" data-id="${r.id}" title="Smazat">🗑️</button>
       </div>
     `;
 
     row.querySelector('.btn-del-reading').addEventListener('click', async () => {
-      const tx = dbInstance.transaction('meter_readings', 'readwrite');
-      tx.objectStore('meter_readings').delete(r.id);
-      tx.oncomplete = () => renderEnergy();
+      await dbDelete('meter_readings', r.id);
+      await renderEnergy();
     });
 
     container.appendChild(row);
   });
 }
 
+// Křivka spotřeby
 async function drawEnergyConsumptionChart() {
   const canvas = document.getElementById('energy-chart');
   if (!canvas) return;
@@ -1250,18 +1327,47 @@ function setupApplianceModal() {
   });
 }
 
-// 13. Nastavení, Zálohování & Air Bank CSV Parser
+// 13. Nastavení, Zálohování & Cloud Sync
 async function renderSettings() {
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
   const kwhRecord = await dbGet('settings', 'kwh_price');
+  const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
 
   document.getElementById('set-initial-capital').value = initCapRecord ? initCapRecord.value / 100 : 51000;
   document.getElementById('set-payday').value = paydayRecord ? paydayRecord.value : 10;
   document.getElementById('set-kwh-price').value = kwhRecord ? kwhRecord.value / 100 : 6.5;
+
+  if (tokenRecord && tokenRecord.value) {
+    document.getElementById('set-gh-token').value = tokenRecord.value;
+    document.getElementById('cloud-sync-status').textContent = '✅ Automatická ochrana dat je aktivní.';
+    document.getElementById('cloud-sync-status').style.color = 'var(--accent-green)';
+  }
 }
 
 function setupSettingsAndBackup() {
+  // Aktivace cloud zrcadlení
+  document.getElementById('btn-save-cloud-sync').addEventListener('click', async () => {
+    const token = document.getElementById('set-gh-token').value.trim();
+    if (!token) return alert('Zadej prosím platný token.');
+
+    await dbSet('settings', { key: CLOUD_CONFIG.tokenKey, value: token });
+    localStorage.setItem(CLOUD_CONFIG.tokenKey, token);
+
+    const status = document.getElementById('cloud-sync-status');
+    status.textContent = 'Ověřuji zrcadlo na GitHubu...';
+    status.style.color = 'var(--accent-yellow)';
+
+    await autoSyncToCloud();
+    status.textContent = '✅ Ochrana aktivována! Data se automaticky zrcadlí.';
+    status.style.color = 'var(--accent-green)';
+  });
+
+  document.getElementById('btn-force-cloud-sync').addEventListener('click', async () => {
+    await autoSyncToCloud();
+    alert('Zrcadlení do cloudu dokončeno!');
+  });
+
   document.getElementById('btn-save-settings').addEventListener('click', async () => {
     const initCap = parseFloat(document.getElementById('set-initial-capital').value);
     const payday = parseInt(document.getElementById('set-payday').value, 10);
