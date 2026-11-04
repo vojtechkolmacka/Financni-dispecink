@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbInstance = null;
 
@@ -10,7 +10,6 @@ const Money = {
   toCzkInt: (cents) => Math.round(cents / 100).toLocaleString('cs-CZ') + ' Kč'
 };
 
-// Konfigurace tichého cloudu proti smazání prohlížeče
 const CLOUD_CONFIG = {
   tokenKey: 'dispecink_gh_token',
   gistKey: 'dispecink_gist_id'
@@ -61,12 +60,15 @@ function initDB() {
       if (!db.objectStoreNames.contains('investments')) {
         db.createObjectStore('investments', { keyPath: 'id', autoIncrement: true });
       }
+
+      if (!db.objectStoreNames.contains('gold_bars')) {
+        db.createObjectStore('gold_bars', { keyPath: 'id', autoIncrement: true });
+      }
     };
 
     request.onsuccess = async (event) => {
       dbInstance = event.target.result;
-      
-      // Zkouška automatické obnovy ze zrcadla, pokud došlo k výmazu paměti
+
       const restored = await autoRestoreFromCloud();
       if (!restored) {
         await seedInitialData();
@@ -83,29 +85,51 @@ function initDB() {
 
 async function seedInitialData() {
   const settings = await dbGet('settings', 'initial_capital');
-  if (settings) return;
+  if (settings) {
+    // Aktualizace šablon pokud již existují data
+    await ensureUpdatedTemplates();
+    return;
+  }
 
   console.log('Inicializace výchozích dat dispečinku...');
 
   await dbSetInternal('settings', { key: 'initial_capital', value: 5100000 });
+  await dbSetInternal('settings', { key: 'bank_capital', value: 4600000 });
+  await dbSetInternal('settings', { key: 'cash_capital', value: 500000 });
   await dbSetInternal('settings', { key: 'payday', value: 10 });
   await dbSetInternal('settings', { key: 'kwh_price', value: 650 });
 
+  await dbSetInternal('settings', {
+    key: 'itown_data',
+    invested: 718116,
+    profit: 344302
+  });
+
   const templates = [
-    { title: 'ČEZ (elektřina)', amount: 300000, category: 'Energie', day: 15, active: true },
-    { title: 'Terapie', amount: 200000, category: 'Zdraví', day: 1, active: true },
-    { title: 'Provident (splátka)', amount: 150000, category: 'Závazky', day: 10, active: true },
-    { title: 'AvaFin / Crediton (splátka)', amount: 110000, category: 'Závazky', day: 10, active: true },
-    { title: 'Investown (pravidelná investice)', amount: 50000, category: 'Investice', day: 10, active: true },
-    { title: 'T-Mobile (internet)', amount: 45000, category: 'Komunikace', day: 20, active: true },
-    { title: 'PVZP (pojištění)', amount: 40000, category: 'Pojištění', day: 20, active: true },
-    { title: 'Vodafone (telefon)', amount: 26600, category: 'Komunikace', day: 15, active: true },
-    { title: 'ChatGPT Go', amount: 20000, category: 'Služby', day: 1, active: true },
-    { title: 'Spotify', amount: 18500, category: 'Zábava', day: 5, active: true },
-    { title: 'Česká televize', amount: 15000, category: 'Služby', day: 15, active: true },
-    { title: 'Google AI Pro', amount: 13990, category: 'Služby', day: 8, active: true },
-    { title: 'Penzijní příspěvek', amount: 10000, category: 'Investice', day: 15, active: true },
-    { title: 'SIPO', amount: 7700, category: 'Bydlení', day: 12, active: true }
+    // 1. Měsíční mandatorní platby
+    { title: 'ČEZ (elektřina)', amount: 300000, category: 'Energie', day: 15, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Terapie', amount: 200000, category: 'Zdraví & Lékárna', day: 1, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Provident (splátka)', amount: 150000, category: 'Závazky', day: 10, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'AvaFin / Crediton (splátka)', amount: 110000, category: 'Závazky', day: 10, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Investown (pravidelná investice)', amount: 50000, category: 'Investice', day: 10, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'T-Mobile (internet)', amount: 45000, category: 'Komunikace', day: 20, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Vodafone (telefon)', amount: 26600, category: 'Komunikace', day: 15, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'ChatGPT Go', amount: 20000, category: 'Služby', day: 1, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Spotify', amount: 18500, category: 'Služby', day: 5, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Česká televize', amount: 15000, category: 'Služby', day: 15, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Google AI Pro', amount: 13990, category: 'Služby', day: 8, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'Penzijní příspěvek', amount: 10000, category: 'Investice', day: 15, frequency: 'monthly', dueMonths: [], active: true },
+    { title: 'SIPO', amount: 7700, category: 'Bydlení', day: 12, frequency: 'monthly', dueMonths: [], active: true },
+
+    // 2. Pololetní platby
+    // Pojištění nemovitosti: 1 559 Kč v 11 (listopad) a 5 (květen)
+    { title: 'Pojištění nemovitosti', amount: 155900, category: 'Bydlení', day: 20, frequency: 'semi-annual', dueMonths: [5, 11], active: true },
+
+    // 3. Roční platby
+    // Povinné ručení: 651 Kč v červenci (7)
+    { title: 'Povinné ručení', amount: 65100, category: 'Doprava & Benzín', day: 15, frequency: 'annual', dueMonths: [7], active: true },
+    // Svoz odpadu: 821 Kč v lednu (1)
+    { title: 'Svoz odpadu', amount: 82100, category: 'Bydlení', day: 15, frequency: 'annual', dueMonths: [1], active: true }
   ];
   for (const t of templates) await dbAddInternal('templates', t);
 
@@ -128,22 +152,83 @@ async function seedInitialData() {
   ];
   for (const d of debts) await dbAddInternal('debts', d);
 
-  // Měsíční odečty elektroměru pro simulaci tendence
   const meterReadings = [
     { date: '2026-08-31', value: 12100.0, note: 'Konec léta' },
     { date: '2026-09-30', value: 12480.0, note: 'Začátek podzimu' },
     { date: '2026-10-31', value: 12940.0, note: 'Topná sezóna začala' }
   ];
   for (const m of meterReadings) await dbAddInternal('meter_readings', m);
-
-  const investments = [
-    { name: 'Investown nemovitosti', invested: 1500000, current: 1585000, note: 'Měsíční výnosy reinvestovány' },
-    { name: 'Doplňkové penzijní spoření', invested: 1200000, current: 1240000, note: 'Příspěvek 100 Kč/měsíc' }
-  ];
-  for (const inv of investments) await dbAddInternal('investments', inv);
 }
 
-// Čtení a zápis
+// Pomocná migrace šablon, pokud uživatel již v IndexedDB šablony má
+async function ensureUpdatedTemplates() {
+  const templates = await dbGetAll('templates');
+  let changed = false;
+
+  // Odstranění původního PVZP 400 Kč měsíčně
+  const pvzp = templates.find(t => t.title.includes('PVZP'));
+  if (pvzp) {
+    await dbDelete('templates', pvzp.id);
+    changed = true;
+  }
+
+  // Kontrola pojištění nemovitosti (1 559 Kč)
+  if (!templates.some(t => t.title.includes('Pojištění nemovitosti'))) {
+    await dbAddInternal('templates', {
+      title: 'Pojištění nemovitosti',
+      amount: 155900,
+      category: 'Bydlení',
+      day: 20,
+      frequency: 'semi-annual',
+      dueMonths: [5, 11],
+      active: true
+    });
+    changed = true;
+  }
+
+  // Kontrola povinného ručení (651 Kč v červenci)
+  if (!templates.some(t => t.title.includes('Povinné ručení'))) {
+    await dbAddInternal('templates', {
+      title: 'Povinné ručení',
+      amount: 65100,
+      category: 'Doprava & Benzín',
+      day: 15,
+      frequency: 'annual',
+      dueMonths: [7],
+      active: true
+    });
+    changed = true;
+  }
+
+  // Kontrola svozu odpadu (821 Kč v lednu)
+  if (!templates.some(t => t.title.includes('Svoz odpadu'))) {
+    await dbAddInternal('templates', {
+      title: 'Svoz odpadu',
+      amount: 82100,
+      category: 'Bydlení',
+      day: 15,
+      frequency: 'annual',
+      dueMonths: [1],
+      active: true
+    });
+    changed = true;
+  }
+
+  // Nastavení výchozí frekvence u starých šablon
+  for (const t of templates) {
+    if (!t.frequency) {
+      t.frequency = 'monthly';
+      t.dueMonths = [];
+      await dbSetInternal('templates', t);
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    triggerAutoCloudSync();
+  }
+}
+
 function dbGet(storeName, key) {
   return new Promise((resolve, reject) => {
     const tx = dbInstance.transaction(storeName, 'readonly');
@@ -184,7 +269,6 @@ function dbAddInternal(storeName, val) {
   });
 }
 
-// Zápis s automatickým tichým cloud zrcadlením
 async function dbSet(storeName, val) {
   const res = await dbSetInternal(storeName, val);
   triggerAutoCloudSync();
@@ -210,7 +294,6 @@ async function dbDelete(storeName, key) {
   });
 }
 
-// TICHÉ CLOUD ZRCADLENÍ (AUTO-SYNC & AUTO-RESTORE)
 let syncTimeout = null;
 function triggerAutoCloudSync() {
   clearTimeout(syncTimeout);
@@ -284,7 +367,7 @@ async function autoRestoreFromCloud() {
       await restoreFromBackup(backupData);
       await dbSetInternal('settings', { key: CLOUD_CONFIG.tokenKey, value: localToken });
       await dbSetInternal('settings', { key: CLOUD_CONFIG.gistKey, value: localGistId });
-      console.log('⚡ Data byla okamžitě obnovena ze zrcadla po vymazání prohlížeče.');
+      console.log('⚡ Data byla obnovena ze zrcadla po vymazání paměti prohlížeče.');
       return true;
     }
   } catch (err) {
