@@ -82,7 +82,6 @@ body {
   font-size: 0.85rem;
 }
 
-/* Hlavní obsah */
 #app-content {
   padding: 16px;
   flex: 1;
@@ -91,7 +90,137 @@ body {
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-/* KARTA TACHOMETRŮ (WALLET GAUGES) */
+/* KARTA DVOJITÉHO ZŮSTATKU: ÚČET VS. HOTOVOST */
+.balances-split-card {
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  margin-bottom: 14px;
+}
+
+.split-top-total {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.card-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.balance-amount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 6px 0;
+}
+
+.balance-sub {
+  font-size: 0.9rem;
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.split-accounts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.account-pill-box {
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acc-pill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.acc-tag {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+}
+
+.acc-pill-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.transfer-quick-bar {
+  margin-top: 12px;
+  display: flex;
+}
+
+.btn-transfer-action {
+  width: 100%;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px dashed rgba(56, 189, 248, 0.4);
+  color: var(--accent-blue);
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* VÝBĚR PENĚŽENKY VE FORMULÁŘI */
+.wallet-select-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wallet-radio-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.wallet-radio-box input[type="radio"] {
+  accent-color: var(--accent-blue);
+}
+
+/* TAG PENĚŽENKY V SEZNAMU POLOŽEK */
+.entry-wallet-tag {
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.entry-wallet-tag.bank {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-blue);
+}
+
+.entry-wallet-tag.cash {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+/* KARTA TACHOMETRŮ */
 .gauges-card {
   background: linear-gradient(135deg, #182235, #0f172a);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -288,20 +417,9 @@ body {
   border-radius: 8px;
 }
 
-.inv-hub-main-amount {
-  margin: 12px 0;
-}
-
-.ih-lbl {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.ih-val {
-  font-size: 1.7rem;
-  font-weight: 800;
-  color: #ffffff;
-}
+.inv-hub-main-amount { margin: 12px 0; }
+.ih-lbl { font-size: 0.72rem; color: var(--text-muted); }
+.ih-val { font-size: 1.7rem; font-weight: 800; color: #ffffff; }
 
 .inv-hub-metrics-grid {
   display: grid;
@@ -312,12 +430,7 @@ body {
   border-radius: 10px;
 }
 
-.ih-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
+.ih-metric { display: flex; flex-direction: column; gap: 2px; }
 .ih-m-lbl { font-size: 0.68rem; color: var(--text-muted); }
 .ih-m-val { font-size: 0.92rem; font-weight: 800; }
 
@@ -367,11 +480,7 @@ body {
 .gm-lbl { font-size: 0.65rem; color: var(--text-muted); }
 .gm-val { font-size: 0.95rem; font-weight: 800; }
 
-.gold-bars-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.gold-bars-container { display: flex; flex-direction: column; gap: 8px; }
 
 .gold-bar-item {
   background: var(--bg-card-sub);
@@ -389,7 +498,7 @@ body {
 .gb-right { display: flex; align-items: center; gap: 10px; }
 .gb-val { font-weight: 800; font-size: 0.95rem; }
 
-/* Zbytek stylů */
+/* Analytika & Křivky */
 .analytics-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -680,7 +789,7 @@ body {
 .entry-info { display: flex; flex-direction: column; }
 .entry-title { font-weight: 600; font-size: 0.95rem; }
 .entry-item.paid .entry-title { text-decoration: line-through; color: var(--text-muted); }
-.entry-sub { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; margin-top: 2px; }
+.entry-sub { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
 .entry-badge { background: var(--bg-card-sub); padding: 2px 6px; border-radius: 4px; }
 .entry-amount { font-weight: 700; font-size: 1rem; white-space: nowrap; }
 .entry-amount.expense { color: var(--accent-red); }
