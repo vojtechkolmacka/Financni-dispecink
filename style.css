@@ -26,7 +26,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 75px;
+  padding-bottom: 85px;
 }
 
 /* Hlavička */
@@ -202,30 +202,34 @@ body {
   border-color: rgba(56, 189, 248, 0.4);
 }
 
-/* PLOVOUCÍ TLAČÍTKO + (FAB) */
+/* PLOVOUCÍ TLAČÍTKO + (FAB) - PEVNĚ FIXOVÁNO A ZAJIŠTĚNO */
 .fab-btn {
   position: fixed;
   bottom: 80px;
   right: 20px;
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: var(--accent-blue);
   color: #0b0f19;
-  border: none;
-  font-size: 2rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  font-size: 2.2rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
   cursor: pointer;
-  z-index: 150;
-  transition: transform 0.15s ease;
+  z-index: 999;
+  touch-action: manipulation;
+  pointer-events: auto;
+  user-select: none;
+  transition: transform 0.15s ease, background-color 0.2s ease;
 }
 
 .fab-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.90);
+  background-color: #0284c7;
 }
 
 /* VÝBĚR PENĚŽENKY VE FORMULÁŘI */
@@ -485,25 +489,36 @@ body {
 
 .itown-actions-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
   margin-top: 12px;
 }
 
 .btn-itown-action {
-  padding: 9px;
+  padding: 10px 4px;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   border: 1px solid var(--border-color);
   cursor: pointer;
   text-align: center;
+  transition: transform 0.1s ease;
+}
+
+.btn-itown-action:active {
+  transform: scale(0.97);
 }
 
 .btn-itown-action.green {
   background: rgba(16, 185, 129, 0.2);
   color: var(--accent-green);
   border-color: rgba(16, 185, 129, 0.4);
+}
+
+.btn-itown-action.orange {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--accent-yellow);
+  border-color: rgba(245, 158, 11, 0.4);
 }
 
 .btn-itown-action.blue {
@@ -971,7 +986,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  z-index: 200;
+  z-index: 2000;
 }
 .modal.hidden { display: none; }
 .modal-content {
