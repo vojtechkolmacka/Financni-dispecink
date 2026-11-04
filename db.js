@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbInstance = null;
 
@@ -18,60 +18,38 @@ const CLOUD_CONFIG = {
 function initDB() {
   return new Promise((resolve, reject) => {
     if (navigator.storage && navigator.storage.persist) {
-      navigator.storage.persist().then(persisted => {
-        console.log(`Perzistence úložiště: ${persisted ? 'Povolena' : 'Standardní'}`);
-      });
+      navigator.storage.persist().catch(() => {});
     }
 
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-
-      if (!db.objectStoreNames.contains('settings')) {
-        db.createObjectStore('settings', { keyPath: 'key' });
-      }
-
-      if (!db.objectStoreNames.contains('templates')) {
-        db.createObjectStore('templates', { keyPath: 'id', autoIncrement: true });
-      }
-
-      if (!db.objectStoreNames.contains('entries')) {
-        const entryStore = db.createObjectStore('entries', { keyPath: 'id', autoIncrement: true });
-        entryStore.createIndex('monthYear', 'monthYear', { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains('goals')) {
-        db.createObjectStore('goals', { keyPath: 'id', autoIncrement: true });
-      }
-
-      if (!db.objectStoreNames.contains('debts')) {
-        db.createObjectStore('debts', { keyPath: 'id', autoIncrement: true });
-      }
-
-      if (!db.objectStoreNames.contains('energy')) {
-        db.createObjectStore('energy', { keyPath: 'id', autoIncrement: true });
-      }
-
-      if (!db.objectStoreNames.contains('meter_readings')) {
-        db.createObjectStore('meter_readings', { keyPath: 'id', autoIncrement: true });
-      }
-
-      if (!db.objectStoreNames.contains('investments')) {
-        db.createObjectStore('investments', { keyPath: 'id', autoIncrement: true });
-      }
-
-      if (!db.objectStoreNames.contains('gold_bars')) {
-        db.createObjectStore('gold_bars', { keyPath: 'id', autoIncrement: true });
-      }
+      const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments', 'gold_bars'];
+      
+      stores.forEach(s => {
+        if (!db.objectStoreNames.contains(s)) {
+          if (s === 'settings') {
+            db.createObjectStore(s, { keyPath: 'key' });
+          } else {
+            const os = db.createObjectStore(s, { keyPath: 'id', autoIncrement: true });
+            if (s === 'entries') {
+              os.createIndex('monthYear', 'monthYear', { unique: false });
+            }
+          }
+        }
+      });
     };
 
     request.onsuccess = async (event) => {
       dbInstance = event.target.result;
-
-      const restored = await autoRestoreFromCloud();
-      if (!restored) {
-        await seedInitialData();
+      try {
+        const restored = await autoRestoreFromCloud();
+        if (!restored) {
+          await seedInitialData();
+        }
+      } catch (e) {
+        console.warn('Init seed error:', e);
       }
       resolve(dbInstance);
     };
@@ -86,12 +64,9 @@ function initDB() {
 async function seedInitialData() {
   const settings = await dbGet('settings', 'initial_capital');
   if (settings) {
-    // Aktualizace šablon pokud již existují data
     await ensureUpdatedTemplates();
     return;
   }
-
-  console.log('Inicializace výchozích dat dispečinku...');
 
   await dbSetInternal('settings', { key: 'initial_capital', value: 5100000 });
   await dbSetInternal('settings', { key: 'bank_capital', value: 4600000 });
@@ -106,7 +81,6 @@ async function seedInitialData() {
   });
 
   const templates = [
-    // 1. Měsíční mandatorní platby
     { title: 'ČEZ (elektřina)', amount: 300000, category: 'Energie', day: 15, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Terapie', amount: 200000, category: 'Zdraví & Lékárna', day: 1, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Provident (splátka)', amount: 150000, category: 'Závazky', day: 10, frequency: 'monthly', dueMonths: [], active: true },
@@ -120,15 +94,8 @@ async function seedInitialData() {
     { title: 'Google AI Pro', amount: 13990, category: 'Služby', day: 8, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Penzijní příspěvek', amount: 10000, category: 'Investice', day: 15, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'SIPO', amount: 7700, category: 'Bydlení', day: 12, frequency: 'monthly', dueMonths: [], active: true },
-
-    // 2. Pololetní platby
-    // Pojištění nemovitosti: 1 559 Kč v 11 (listopad) a 5 (květen)
     { title: 'Pojištění nemovitosti', amount: 155900, category: 'Bydlení', day: 20, frequency: 'semi-annual', dueMonths: [5, 11], active: true },
-
-    // 3. Roční platby
-    // Povinné ručení: 651 Kč v červenci (7)
     { title: 'Povinné ručení', amount: 65100, category: 'Doprava & Benzín', day: 15, frequency: 'annual', dueMonths: [7], active: true },
-    // Svoz odpadu: 821 Kč v lednu (1)
     { title: 'Svoz odpadu', amount: 82100, category: 'Bydlení', day: 15, frequency: 'annual', dueMonths: [1], active: true }
   ];
   for (const t of templates) await dbAddInternal('templates', t);
@@ -160,20 +127,17 @@ async function seedInitialData() {
   for (const m of meterReadings) await dbAddInternal('meter_readings', m);
 }
 
-// Pomocná migrace šablon, pokud uživatel již v IndexedDB šablony má
 async function ensureUpdatedTemplates() {
   const templates = await dbGetAll('templates');
   let changed = false;
 
-  // Odstranění původního PVZP 400 Kč měsíčně
-  const pvzp = templates.find(t => t.title.includes('PVZP'));
+  const pvzp = templates.find(t => t.title && t.title.includes('PVZP'));
   if (pvzp) {
     await dbDelete('templates', pvzp.id);
     changed = true;
   }
 
-  // Kontrola pojištění nemovitosti (1 559 Kč)
-  if (!templates.some(t => t.title.includes('Pojištění nemovitosti'))) {
+  if (!templates.some(t => t.title && t.title.includes('Pojištění nemovitosti'))) {
     await dbAddInternal('templates', {
       title: 'Pojištění nemovitosti',
       amount: 155900,
@@ -186,8 +150,7 @@ async function ensureUpdatedTemplates() {
     changed = true;
   }
 
-  // Kontrola povinného ručení (651 Kč v červenci)
-  if (!templates.some(t => t.title.includes('Povinné ručení'))) {
+  if (!templates.some(t => t.title && t.title.includes('Povinné ručení'))) {
     await dbAddInternal('templates', {
       title: 'Povinné ručení',
       amount: 65100,
@@ -200,8 +163,7 @@ async function ensureUpdatedTemplates() {
     changed = true;
   }
 
-  // Kontrola svozu odpadu (821 Kč v lednu)
-  if (!templates.some(t => t.title.includes('Svoz odpadu'))) {
+  if (!templates.some(t => t.title && t.title.includes('Svoz odpadu'))) {
     await dbAddInternal('templates', {
       title: 'Svoz odpadu',
       amount: 82100,
@@ -214,58 +176,64 @@ async function ensureUpdatedTemplates() {
     changed = true;
   }
 
-  // Nastavení výchozí frekvence u starých šablon
-  for (const t of templates) {
-    if (!t.frequency) {
-      t.frequency = 'monthly';
-      t.dueMonths = [];
-      await dbSetInternal('templates', t);
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    triggerAutoCloudSync();
-  }
+  if (changed) triggerAutoCloudSync();
 }
 
 function dbGet(storeName, key) {
-  return new Promise((resolve, reject) => {
-    const tx = dbInstance.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const req = store.get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+  return new Promise((resolve) => {
+    if (!dbInstance || !dbInstance.objectStoreNames.contains(storeName)) return resolve(null);
+    try {
+      const tx = dbInstance.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch (e) {
+      resolve(null);
+    }
   });
 }
 
 function dbGetAll(storeName) {
-  return new Promise((resolve, reject) => {
-    const tx = dbInstance.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+  return new Promise((resolve) => {
+    if (!dbInstance || !dbInstance.objectStoreNames.contains(storeName)) return resolve([]);
+    try {
+      const tx = dbInstance.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    } catch (e) {
+      resolve([]);
+    }
   });
 }
 
 function dbSetInternal(storeName, val) {
   return new Promise((resolve, reject) => {
-    const tx = dbInstance.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.put(val);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = dbInstance.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const req = store.put(val);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
 function dbAddInternal(storeName, val) {
   return new Promise((resolve, reject) => {
-    const tx = dbInstance.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.add(val);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    try {
+      const tx = dbInstance.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const req = store.add(val);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
@@ -282,15 +250,19 @@ async function dbAdd(storeName, val) {
 }
 
 async function dbDelete(storeName, key) {
-  return new Promise((resolve, reject) => {
-    const tx = dbInstance.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const req = store.delete(key);
-    req.onsuccess = () => {
-      triggerAutoCloudSync();
-      resolve(true);
-    };
-    req.onerror = () => reject(req.error);
+  return new Promise((resolve) => {
+    try {
+      const tx = dbInstance.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const req = store.delete(key);
+      req.onsuccess = () => {
+        triggerAutoCloudSync();
+        resolve(true);
+      };
+      req.onerror = () => resolve(false);
+    } catch (e) {
+      resolve(false);
+    }
   });
 }
 
@@ -343,11 +315,8 @@ async function autoSyncToCloud() {
         await dbSetInternal('settings', { key: CLOUD_CONFIG.gistKey, value: data.id });
         localStorage.setItem(CLOUD_CONFIG.gistKey, data.id);
       }
-      console.log('⚡ Tiché zrcadlení do cloudu proběhlo úspěšně.');
     }
-  } catch (err) {
-    console.warn('AutoSync selhal (možná offline):', err);
-  }
+  } catch (err) {}
 }
 
 async function autoRestoreFromCloud() {
@@ -367,11 +336,8 @@ async function autoRestoreFromCloud() {
       await restoreFromBackup(backupData);
       await dbSetInternal('settings', { key: CLOUD_CONFIG.tokenKey, value: localToken });
       await dbSetInternal('settings', { key: CLOUD_CONFIG.gistKey, value: localGistId });
-      console.log('⚡ Data byla obnovena ze zrcadla po vymazání paměti prohlížeče.');
       return true;
     }
-  } catch (err) {
-    console.warn('AutoRestore selhal:', err);
-  }
+  } catch (err) {}
   return false;
 }
