@@ -22,12 +22,24 @@
   </header>
 
   <main id="app-content">
-    <!-- 1. Přehled -->
+    <!-- 1. Přehled & Měsíční bilance pohybů -->
     <section id="tab-overview" class="tab-panel active">
       <div class="balance-card">
         <span class="card-label">Disponibilní zůstatek na účtu</span>
         <div class="balance-amount" id="disp-account-balance">0 Kč</div>
         <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
+      </div>
+
+      <!-- MĚSÍČNÍ BILANCE POHYBŮ NA ÚČTU -->
+      <div class="month-balance-card">
+        <div class="mb-header">
+          <span>Čistá bilance měsíce (Pohyby na účtu)</span>
+          <strong id="disp-month-net" class="mb-val">+0 Kč</strong>
+        </div>
+        <div class="mb-subgrid">
+          <div>Příchozí: <strong id="disp-month-inflow" class="text-green">0 Kč</strong></div>
+          <div>Odchozí: <strong id="disp-month-outflow" class="text-red">0 Kč</strong></div>
+        </div>
       </div>
 
       <div class="metrics-grid">
@@ -45,8 +57,18 @@
         </div>
       </div>
 
-      <!-- ANALÝZA 1: PREDIKCE CASHFLOW -->
-      <div class="analytics-card">
+      <!-- GRAF: VARIABILNÍ SPOTŘEBA (VYJMA STÁLÝCH PLATEB) -->
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Variabilní útrata (mimo stálé platby)</h3>
+          <span class="badge-sub" id="badge-var-total">0 Kč celkem</span>
+        </div>
+        <p class="settings-desc" style="margin-bottom: 10px;">Čisté nákupy, jídlo, nafta, drogerie a běžný život bez nájmu, energií a splátek.</p>
+        <div id="variable-breakdown-list" class="category-bars-wrap"></div>
+      </div>
+
+      <!-- ANALÝZA: PREDIKCE CASHFLOW -->
+      <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Predikce vývoje cashflow (do konce měsíce)</h3>
           <span class="badge-sub">Křivka zůstatku</span>
@@ -60,11 +82,11 @@
         </div>
       </div>
 
-      <!-- ANALÝZA 2: STRUKTURA VÝDAJŮ -->
+      <!-- CELKOVÁ STRUKTURA VÝDAJŮ -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Kam jdou peníze (Struktura výdajů)</h3>
-          <span class="badge-sub">Žrouti rozpočtu</span>
+          <h3>Celková struktura výdajů (včetně paušálů)</h3>
+          <span class="badge-sub">Všechny kategorie</span>
         </div>
         <div id="category-breakdown-list" class="category-bars-wrap"></div>
       </div>
@@ -78,7 +100,7 @@
 
       <div class="payments-summary-card">
         <div class="summary-line">
-          <span>Celkové výdaje měsíce:</span>
+          <span>Celkové plánované výdaje:</span>
           <strong id="payments-total-exp">0 Kč</strong>
         </div>
         <div class="summary-progress-bar">
@@ -103,7 +125,7 @@
 
             <div class="form-group">
               <label for="entry-title">Název</label>
-              <input type="text" id="entry-title" required placeholder="např. Nákup, Výplata">
+              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Výplata">
             </div>
 
             <div class="form-group">
@@ -116,17 +138,20 @@
               <select id="entry-category">
                 <option value="Výplata">Výplata & Hlavní příjem</option>
                 <option value="Web & Projekty">Web & Vedlejší výdělky</option>
-                <option value="Investice">Investice & Výnosy</option>
-                <option value="Bydlení">Bydlení</option>
+                <option value="Jídlo & Potraviny">Jídlo & Potraviny</option>
+                <option value="Drogerie & Domácnost">Drogerie & Domácnost</option>
+                <option value="Doprava & Benzín">Doprava & Benzín</option>
+                <option value="Restaurace & Občerstvení">Restaurace & Občerstvení</option>
+                <option value="Elektro & Nářadí">Elektro & Nářadí</option>
+                <option value="Zvířata">Zvířata & Chov</option>
+                <option value="Zdraví & Lékárna">Zdraví & Lékárna</option>
                 <option value="Energie">Energie</option>
+                <option value="Bydlení">Bydlení</option>
                 <option value="Komunikace">Komunikace</option>
-                <option value="Služby">Služby</option>
-                <option value="Závazky">Závazky / Splátky</option>
-                <option value="Jídlo & Drogerie">Jídlo & Drogerie</option>
-                <option value="Doprava & Koloběžka">Doprava & Koloběžka</option>
-                <option value="Zvířata">Zvířata</option>
-                <option value="Zdraví">Zdraví & Terapie</option>
-                <option value="Ostatní">Ostatní</option>
+                <option value="Služby">Služby & Předplatné</option>
+                <option value="Závazky">Závazky & Splátky</option>
+                <option value="Investice">Investice</option>
+                <option value="Ostatní">Ostatní útrata</option>
               </select>
             </div>
 
@@ -163,7 +188,6 @@
 
       <div id="goals-list" class="goals-container"></div>
 
-      <!-- Modální okno: Cíl -->
       <div id="modal-goal" class="modal hidden">
         <div class="modal-content">
           <h2>Nový cíl</h2>
@@ -296,9 +320,8 @@
       </div>
     </section>
 
-    <!-- 6. Energie & Měsíční vyhodnocovač záloh ČEZ -->
+    <!-- 6. Energie -->
     <section id="tab-energy" class="tab-panel">
-      <!-- Finanční parametry -->
       <div class="energy-overview-card">
         <div class="energy-row">
           <span>Cena elektřiny:</span>
@@ -314,18 +337,14 @@
         </div>
       </div>
 
-      <!-- HLAVNÍ VYHODNOCOVACÍ KARTA POSLEDNÍHO ODEČTU -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Měsíční vyhodnocení odečtu (vs. záloha 3 000 Kč)</h3>
           <span class="badge-sub" id="energy-trend-badge">Vyhodnocuji...</span>
         </div>
-        <div class="meter-evaluation-box" id="disp-meter-eval-box">
-          <!-- Dynamicky naplněno podle posledního měsíčního odečtu -->
-        </div>
+        <div class="meter-evaluation-box" id="disp-meter-eval-box"></div>
       </div>
 
-      <!-- KŘIVKA A TREND SPOTŘEBY DOMU -->
       <div class="chart-card" style="margin-top: 14px;">
         <div class="chart-header">
           <h3>Křivka a tendence spotřeby domu (kWh/den)</h3>
@@ -340,13 +359,11 @@
         </div>
       </div>
 
-      <!-- HISTORIE MĚSÍČNÍCH ODEČTŮ A BILANCÍ -->
       <div class="section-title-wrap" style="margin-top: 16px;">
         <h2>Historie měsíčních odečtů & Přeplatky/Nedoplatky</h2>
       </div>
       <div id="meter-readings-history" class="meter-history-container"></div>
 
-      <!-- SIMULÁTOR NÁKLADŮ PODLE SPOTŘEBY -->
       <div class="analytics-card" style="margin-top: 20px;">
         <div class="analytics-header">
           <h3>Kalkulačka libovolné spotřeby</h3>
@@ -383,7 +400,6 @@
       </div>
       <div id="appliances-list" class="appliances-container"></div>
 
-      <!-- Modální okno: Odečet elektroměru -->
       <div id="modal-meter" class="modal hidden">
         <div class="modal-content">
           <h2>Nový měsíční odečet elektroměru</h2>
@@ -399,7 +415,7 @@
             </div>
 
             <div class="form-group">
-              <label for="meter-note">Poznámka (např. Zapnuto topení, přímotop v dílně)</label>
+              <label for="meter-note">Poznámka</label>
               <input type="text" id="meter-note" placeholder="volitelná poznámka">
             </div>
 
@@ -411,7 +427,6 @@
         </div>
       </div>
 
-      <!-- Modální okno: Spotřebič -->
       <div id="modal-appliance" class="modal hidden">
         <div class="modal-content">
           <h2>Nový spotřebič</h2>
@@ -450,9 +465,8 @@
       </div>
     </section>
 
-    <!-- 7. Nastavení & Ochrana dat proti smazání prohlížeče -->
+    <!-- 7. Nastavení & Ochrana dat -->
     <section id="tab-settings" class="tab-panel">
-      <!-- OCHRANA DAT PROTI SMAZÁNÍ CACHE -->
       <div class="settings-card" style="border-color: rgba(56, 189, 248, 0.4);">
         <h3>🛡️ Nezávislé cloud zrcadlení (Ochrana proti smazání)</h3>
         <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu. I když v Chrome smažeš veškerá data, aplikace se po otevření okamžitě sama obnoví.</p>
@@ -468,8 +482,8 @@
       </div>
 
       <div class="settings-card" style="margin-top: 14px;">
-        <h3>Propojení s Air Bank (Výpisy & Pohyby)</h3>
-        <p class="settings-desc">Nahraj vyexportovaný soubor CSV z bankovnictví My Air. Dispečink automaticky zpracuje všechny transakce a zařadí je.</p>
+        <h3>Propojení s Air Bank (Inteligentní CSV Import)</h3>
+        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky podle názvu obchodu/popisu zařadí transakce do správných kategorií (Jídlo, Benzín, Drogerie, Elektro, Restaurace...) a oddělí je od stálých plateb.</p>
         <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
         <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Importovat CSV výpis z Air Bank</button>
         <div id="csv-import-status" class="import-status"></div>
