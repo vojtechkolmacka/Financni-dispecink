@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupMeterReadingModal();
     setupEnergySimulator();
     setupInvestmentModal();
+    setupGoldModal();
     setupSettingsAndBackup();
     await loadMonthData();
   } catch (err) {
@@ -286,7 +287,6 @@ async function drawSalaryTrendChart(allEntries) {
   const height = 170;
   ctx.clearRect(0, 0, width, height);
 
-  // Získáme posledních 6 měsíců
   const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
   const months = [];
   const now = new Date(currentDate);
@@ -297,11 +297,9 @@ async function drawSalaryTrendChart(allEntries) {
     months.push({ key: mKey, label: `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
   }
 
-  // Sečteme mzdu pro každý měsíc
   const points = months.map(m => {
     const salaryEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Výplata');
     const total = salaryEntries.reduce((acc, e) => acc + e.amount, 0);
-    // Pokud v databázi ještě není záznam, použijeme výchozí základ pro zobrazení
     return {
       label: m.label,
       val: total > 0 ? (total / 100) : 32000
@@ -323,7 +321,6 @@ async function drawSalaryTrendChart(allEntries) {
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
-  // Průměrná horizontální linka
   const avgY = height - paddingY - ((avg - minVal) / range) * chartH;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
   ctx.setLineDash([4, 4]);
@@ -333,7 +330,6 @@ async function drawSalaryTrendChart(allEntries) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Křivka výplaty
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -349,7 +345,6 @@ async function drawSalaryTrendChart(allEntries) {
   });
   ctx.stroke();
 
-  // Plocha pod křivkou
   ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
@@ -359,7 +354,6 @@ async function drawSalaryTrendChart(allEntries) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Body a popisky
   coords.forEach(c => {
     ctx.fillStyle = '#10b981';
     ctx.beginPath();
@@ -994,15 +988,17 @@ function setupDebtTxModal() {
   });
 }
 
-// 14. Investice, Křivky růstu & Web výdělky
+// 14. Investice, Zlaté slitky, Křivky růstu & Web výdělky
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
+  const goldBars = await dbGetAll('gold_bars') || [];
   const container = document.getElementById('investments-list');
   container.innerHTML = '';
 
   let totalInvested = 0;
   let totalCurrent = 0;
 
+  // Investiční platformy
   investments.forEach(inv => {
     totalInvested += inv.invested;
     totalCurrent += inv.current;
@@ -1041,6 +1037,13 @@ async function renderInvestments() {
     });
 
     container.appendChild(card);
+  });
+
+  // Zlaté slitky
+  await renderGoldBars(goldBars);
+  goldBars.forEach(g => {
+    totalInvested += g.bought;
+    totalCurrent += g.current;
   });
 
   const liquidCash = await getCalculatedBalance();
@@ -1082,6 +1085,83 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
+// Zobrazení a správa zlatých slitků
+async function renderGoldBars(goldBars) {
+  const container = document.getElementById('gold-bars-list');
+  container.innerHTML = '';
+
+  let totalGrams = 0;
+  let totalBought = 0;
+  let totalCurrent = 0;
+
+  goldBars.forEach(gb => {
+    totalGrams += gb.weight;
+    totalBought += gb.bought;
+    totalCurrent += gb.current;
+
+    const row = document.createElement('div');
+    row.className = 'gold-bar-item';
+    row.innerHTML = `
+      <div class="gb-left">
+        <span class="gb-title">${gb.name}</span>
+        <span class="gb-weight">${gb.weight} g • nákup: ${Money.toCzkInt(gb.bought)}</span>
+      </div>
+      <div class="gb-right">
+        <span class="gb-val text-yellow">${Money.toCzkInt(gb.current)}</span>
+        <button class="btn-del-reading" data-id="${gb.id}">🗑️</button>
+      </div>
+    `;
+
+    row.querySelector('.btn-del-reading').addEventListener('click', async () => {
+      await dbDelete('gold_bars', gb.id);
+      await renderInvestments();
+    });
+
+    container.appendChild(row);
+  });
+
+  document.getElementById('disp-gold-grams').textContent = `${totalGrams.toFixed(1)} g`;
+  document.getElementById('disp-gold-bought').textContent = Money.toCzkInt(totalBought);
+  document.getElementById('disp-gold-current').textContent = Money.toCzkInt(totalCurrent);
+}
+
+function setupGoldModal() {
+  const modal = document.getElementById('modal-gold');
+  const btnOpen = document.getElementById('btn-add-gold');
+  const btnCancel = document.getElementById('btn-cancel-gold');
+  const form = document.getElementById('form-gold');
+
+  btnOpen.addEventListener('click', () => {
+    form.reset();
+    modal.classList.remove('hidden');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('gold-name').value.trim();
+    const weight = parseFloat(document.getElementById('gold-weight').value);
+    const boughtCzk = parseFloat(document.getElementById('gold-bought').value);
+    const currentCzk = parseFloat(document.getElementById('gold-current').value);
+
+    if (!name || isNaN(weight) || isNaN(boughtCzk) || isNaN(currentCzk)) return;
+
+    await dbAdd('gold_bars', {
+      name,
+      weight,
+      bought: Money.toCents(boughtCzk),
+      current: Money.toCents(currentCzk)
+    });
+
+    modal.classList.add('hidden');
+    await renderInvestments();
+  });
+}
+
 // KŘIVKA INVESTIČNÍHO PORTFOLIA
 async function drawInvestmentTrendChart(investedCents, currentCents) {
   const canvas = document.getElementById('invest-trend-chart');
@@ -1103,7 +1183,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   badge.textContent = `${profit >= 0 ? '+' : ''}${Money.toCzkInt(profit)} (${investedCents > 0 ? ((profit / investedCents) * 100).toFixed(1) : 0} %)`;
   badge.style.color = profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 
-  // Simulovaná trajektorie zhodnocení za 6 měsíců
   const months = ['Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis'];
   const curVal = currentCents / 100;
   const invVal = investedCents / 100;
@@ -1123,7 +1202,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
-  // 1. Linka vložené jistiny (šedá)
   ctx.strokeStyle = '#94a3b8';
   ctx.setLineDash([3, 3]);
   ctx.lineWidth = 2;
@@ -1137,7 +1215,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // 2. Křivka reálné hodnoty portfolia (modrá)
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1151,7 +1228,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   });
   ctx.stroke();
 
-  // Plocha pod křivkou
   ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
@@ -1174,7 +1250,7 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   });
 }
 
-// KŘIVKA VÝDĚLKŮ Z WEBU A PROJEKTŮ
+// KŘIVKA VÝDĚLKŮ Z WEBU
 async function drawWebEarningsTrendChart(allEntries) {
   const canvas = document.getElementById('web-trend-chart');
   if (!canvas) return;
@@ -1220,7 +1296,6 @@ async function drawWebEarningsTrendChart(allEntries) {
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
-  // Průměrná linka
   const avgY = height - paddingY - (avg / maxVal) * chartH;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.setLineDash([4, 4]);
@@ -1230,7 +1305,6 @@ async function drawWebEarningsTrendChart(allEntries) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Křivka příjmů z webu
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1245,7 +1319,6 @@ async function drawWebEarningsTrendChart(allEntries) {
   });
   ctx.stroke();
 
-  // Vyplnění plochy
   ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
@@ -1924,12 +1997,13 @@ async function createFullBackup() {
     debts: await dbGetAll('debts'),
     energy: await dbGetAll('energy'),
     meter_readings: await dbGetAll('meter_readings'),
-    investments: await dbGetAll('investments')
+    investments: await dbGetAll('investments'),
+    gold_bars: await dbGetAll('gold_bars')
   };
 }
 
 async function restoreFromBackup(data) {
-  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments'];
+  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments', 'gold_bars'];
   for (const store of stores) {
     if (data[store]) {
       const tx = dbInstance.transaction(store, 'readwrite');
@@ -1959,7 +2033,7 @@ function detectCategoryFromAirBank(desc, isIncome) {
   if (t.includes('t-mobile') || t.includes('vodafone') || t.includes('o2')) return 'Komunikace';
   if (t.includes('sipo') || t.includes('nájem')) return 'Bydlení';
   if (t.includes('spotify') || t.includes('openai') || t.includes('chatgpt') || t.includes('google') || t.includes('česká televize')) return 'Služby';
-  if (t.includes('investown') || t.includes('penzij') || t.includes('portu')) return 'Investice';
+  if (t.includes('investown') || t.includes('penzij') || t.includes('portu') || t.includes('zlato') || t.includes('slitek')) return 'Investice';
 
   // Variabilní spotřeba
   if (t.includes('albert') || t.includes('lidl') || t.includes('kaufland') || t.includes('billa') || t.includes('penny') || t.includes('tesco') || t.includes('pekař') || t.includes('potraviny')) {
