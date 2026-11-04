@@ -132,11 +132,12 @@ async function loadMonthData() {
 
   await calculateOverview(currentMonthEntries);
   renderPaymentsList(currentMonthEntries);
+  renderVariableExpensesBreakdown(currentMonthEntries);
   await drawCashflowForecast(currentMonthEntries);
   renderCategoryBreakdown(currentMonthEntries);
 }
 
-// 4. Výpočty přehledu a bezpečné kapesné
+// 4. Výpočty přehledu a měsíční bilance pohybů
 async function calculateOverview(entries) {
   const currentBalance = await getCalculatedBalance(entries);
   const paydayRecord = await dbGet('settings', 'payday');
@@ -157,6 +158,16 @@ async function calculateOverview(entries) {
       }
     }
   });
+
+  // Měsíční čistá bilance reálných pohybů (Příjmy minus Zaplacené výdaje)
+  const netMonthMovement = totalIncome - totalPaid;
+  const netSign = netMonthMovement >= 0 ? '+' : '';
+  const netDisp = document.getElementById('disp-month-net');
+  netDisp.textContent = `${netSign}${Money.toCzkInt(netMonthMovement)}`;
+  netDisp.style.color = netMonthMovement >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  document.getElementById('disp-month-inflow').textContent = `+${Money.toCzkInt(totalIncome)}`;
+  document.getElementById('disp-month-outflow').textContent = `-${Money.toCzkInt(totalPaid)}`;
 
   document.getElementById('disp-account-balance').textContent = Money.toCzk(currentBalance);
   document.getElementById('metric-income').textContent = Money.toCzkInt(totalIncome);
@@ -210,7 +221,67 @@ function calculateSafeSpend(balance, unpaidBills, paydayDay) {
   }
 }
 
-// 5. Predikce cashflow do konce měsíce
+// 5. GRAF / ROZPAD VARIABILNÍ SPOTŘEBY (VYJMA STÁLÝCH PAUŠÁLŮ A ZÁVAZKŮ)
+function renderVariableExpensesBreakdown(entries) {
+  const container = document.getElementById('variable-breakdown-list');
+  const badgeTotal = document.getElementById('badge-var-total');
+  container.innerHTML = '';
+
+  // Kategorie stálých plateb, které VYLOUČÍME z variabilní spotřeby
+  const excludedCategories = ['Bydlení', 'Energie', 'Závazky', 'Komunikace', 'Investice'];
+
+  const varSums = {};
+  let totalVarAmount = 0;
+
+  entries.forEach(e => {
+    if (!e.isIncome && !excludedCategories.includes(e.category)) {
+      varSums[e.category] = (varSums[e.category] || 0) + e.amount;
+      totalVarAmount += e.amount;
+    }
+  });
+
+  badgeTotal.textContent = `${Money.toCzkInt(totalVarAmount)} celkem`;
+
+  if (totalVarAmount === 0) {
+    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">V tomto měsíci zatím nejsou zaevidovány žádné variabilní nákupy (jídlo, benzín, drogerie...).</span>';
+    return;
+  }
+
+  const sorted = Object.keys(varSums).sort((a, b) => varSums[b] - varSums[a]);
+
+  const varColors = {
+    'Jídlo & Potraviny': '#10b981',
+    'Doprava & Benzín': '#f97316',
+    'Drogerie & Domácnost': '#38bdf8',
+    'Restaurace & Občerstvení': '#fbbf24',
+    'Elektro & Nářadí': '#a855f7',
+    'Zvířata & Chov': '#84cc16',
+    'Zdraví & Lékárna': '#14b8a6',
+    'Služby & Předplatné': '#ec4899',
+    'Ostatní útrata': '#64748b'
+  };
+
+  sorted.forEach(cat => {
+    const sum = varSums[cat];
+    const percent = Math.round((sum / totalVarAmount) * 100);
+    const color = varColors[cat] || '#38bdf8';
+
+    const row = document.createElement('div');
+    row.className = 'cat-bar-item';
+    row.innerHTML = `
+      <div class="cat-bar-header">
+        <span class="cat-bar-name">${cat} (${percent} %)</span>
+        <span class="cat-bar-sum">${Money.toCzkInt(sum)}</span>
+      </div>
+      <div class="cat-bar-track">
+        <div class="cat-bar-fill" style="width: ${percent}%; background-color: ${color};"></div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// 6. Predikce cashflow
 async function drawCashflowForecast(entries) {
   const canvas = document.getElementById('cashflow-forecast-chart');
   if (!canvas) return;
@@ -308,7 +379,7 @@ async function drawCashflowForecast(entries) {
   ctx.fillText(`${daysInMonth}.`, width - paddingX, height - 8);
 }
 
-// 6. Struktura výdajů podle kategorií
+// 7. Celková struktura všech výdajů
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
   container.innerHTML = '';
@@ -324,7 +395,7 @@ function renderCategoryBreakdown(entries) {
   });
 
   if (totalExpenses === 0) {
-    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím žádné výdaje v tomto měsíci.</span>';
+    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím žádné výdaje.</span>';
     return;
   }
 
@@ -336,10 +407,10 @@ function renderCategoryBreakdown(entries) {
     'Bydlení': '#0ea5e9',
     'Komunikace': '#8b5cf6',
     'Služby': '#ec4899',
-    'Jídlo & Drogerie': '#10b981',
-    'Zdraví': '#14b8a6',
-    'Doprava & Koloběžka': '#f97316',
-    'Investice': '#06b6d4',
+    'Jídlo & Potraviny': '#10b981',
+    'Drogerie & Domácnost': '#06b6d4',
+    'Doprava & Benzín': '#f97316',
+    'Investice': '#6366f1',
     'Zvířata': '#84cc16'
   };
 
@@ -363,7 +434,7 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 7. Vykreslení plateb
+// 8. Seznam plateb
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -414,7 +485,7 @@ function renderPaymentsList(entries) {
   document.getElementById('payments-progress-fill').style.width = `${percent}%`;
 }
 
-// 8. Modální okno plateb
+// 9. Modální okna pro položky
 function setupPaymentsModal() {
   const modal = document.getElementById('modal-entry');
   const btnOpen = document.getElementById('btn-add-entry');
@@ -479,7 +550,7 @@ function setupPaymentsModal() {
   });
 }
 
-// 9. Modul Cíle
+// 10. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
@@ -610,7 +681,7 @@ function setupGoalsModal() {
   });
 }
 
-// 10. Modul Dluhy & Pohledávky
+// 11. Dluhy
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -752,7 +823,7 @@ function setupDebtTxModal() {
   });
 }
 
-// 11. Modul Investice & Web výdělky
+// 12. Investice
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const container = document.getElementById('investments-list');
@@ -818,7 +889,7 @@ async function renderInvestments() {
   let webSum = 0;
 
   if (webEntries.length === 0) {
-    webContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">V tomto měsíci zatím není zaevidován příjem z webu. Přidej jej v záložce Platby (+ Položka -> Příjem -> Web & Projekty).</span>';
+    webContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">V tomto měsíci zatím není zaevidován příjem z webu.</span>';
   } else {
     webEntries.forEach(we => {
       webSum += we.amount;
@@ -872,7 +943,7 @@ function setupInvestmentModal() {
   });
 }
 
-// 12. Modul Energie, Měsíční vyhodnocovač & Tendence
+// 13. Energie
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -885,7 +956,6 @@ async function renderEnergy() {
   const cezDepositCents = cez ? cez.amount : 300000;
   document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
 
-  // Maximální měsíční spotřeba krytá zálohou
   const maxKwh = ((cezDepositCents / 100) / kwhPriceCzk).toFixed(1);
   document.getElementById('disp-max-allowed-kwh').textContent = `${maxKwh} kWh / měsíc`;
 
@@ -893,7 +963,6 @@ async function renderEnergy() {
   await drawEnergyConsumptionChart();
   await renderMeterReadingsHistory(cezDepositCents, kwhPriceCents);
 
-  // Spotřebiče
   const appliances = await dbGetAll('energy');
   const container = document.getElementById('appliances-list');
   container.innerHTML = '';
@@ -964,7 +1033,6 @@ async function renderEnergy() {
   });
 }
 
-// Vyhodnocení posledního měsíčního odečtu
 async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   const readings = await dbGetAll('meter_readings');
   readings.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -985,7 +1053,6 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   const daysDiff = (new Date(latest.date) - new Date(previous.date)) / (1000 * 60 * 60 * 24);
   const kwhConsumed = Math.max(0, latest.value - previous.value);
 
-  // Normalizace na 30 dní, pokud odečet nebyl přesně po 30 dnech
   const monthlyNormalizedKwh = daysDiff > 0 ? (kwhConsumed / daysDiff) * 30 : kwhConsumed;
   const estimatedCostCents = Math.round(monthlyNormalizedKwh * kwhPriceCents);
   const diffCents = cezDepositCents - estimatedCostCents;
@@ -993,7 +1060,6 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   const isSurplus = diffCents >= 0;
   const sign = isSurplus ? '+' : '';
 
-  // Tendence vůči před-předchozímu měsíci
   let trendText = 'Běžný trend';
   let trendColor = 'var(--accent-blue)';
 
@@ -1043,7 +1109,6 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   `;
 }
 
-// Simulátor libovolné spotřeby
 function setupEnergySimulator() {
   const kwhInput = document.getElementById('calc-kwh-input');
   const kwhRange = document.getElementById('calc-kwh-range');
@@ -1091,7 +1156,6 @@ function setupEnergySimulator() {
   updateSimulation();
 }
 
-// Historie odečtů s vyčíslením přeplatku/nedoplatku každého měsíce
 async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
   const container = document.getElementById('meter-readings-history');
   container.innerHTML = '';
@@ -1146,7 +1210,6 @@ async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
   });
 }
 
-// Křivka spotřeby
 async function drawEnergyConsumptionChart() {
   const canvas = document.getElementById('energy-chart');
   if (!canvas) return;
@@ -1327,7 +1390,7 @@ function setupApplianceModal() {
   });
 }
 
-// 13. Nastavení, Zálohování & Cloud Sync
+// 14. Nastavení, Zálohování & Inteligentní CSV Parser pro Air Bank
 async function renderSettings() {
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
@@ -1346,7 +1409,6 @@ async function renderSettings() {
 }
 
 function setupSettingsAndBackup() {
-  // Aktivace cloud zrcadlení
   document.getElementById('btn-save-cloud-sync').addEventListener('click', async () => {
     const token = document.getElementById('set-gh-token').value.trim();
     if (!token) return alert('Zadej prosím platný token.');
@@ -1431,7 +1493,7 @@ function setupSettingsAndBackup() {
       const text = event.target.result;
       const count = await parseAndImportAirBankCsv(text);
       const status = document.getElementById('csv-import-status');
-      status.textContent = `Zpracováno a importováno ${count} plateb z Air Bank!`;
+      status.textContent = `Zpracováno a automaticky roztříděno ${count} plateb z Air Bank!`;
       status.style.color = 'var(--accent-green)';
       await loadMonthData();
     };
@@ -1482,6 +1544,57 @@ async function restoreFromBackup(data) {
   }
 }
 
+// INTELIGENTNÍ AUTOMATICKÉ ROZPOZNÁVÁNÍ KATEGORIÍ Z CSV AIR BANK
+function detectCategoryFromAirBank(desc, isIncome) {
+  const t = desc.toLowerCase();
+
+  if (isIncome) {
+    if (t.includes('web') || t.includes('affil') || t.includes('reklama') || t.includes('kolobeznik')) return 'Web & Projekty';
+    if (t.includes('investown') || t.includes('výnos') || t.includes('dividenda')) return 'Investice';
+    if (t.includes('mzda') || t.includes('plat') || t.includes('výplata') || t.includes('datart')) return 'Výplata';
+    return 'Příjmy';
+  }
+
+  // Výdaje: Stálé platby a mandatorní položky
+  if (t.includes('čez') || t.includes('cez') || t.includes('innogy') || t.includes('e.on')) return 'Energie';
+  if (t.includes('provident') || t.includes('avafin') || t.includes('crediton') || t.includes('půjčka') || t.includes('splátka')) return 'Závazky';
+  if (t.includes('t-mobile') || t.includes('vodafone') || t.includes('o2')) return 'Komunikace';
+  if (t.includes('sipo') || t.includes('nájem')) return 'Bydlení';
+  if (t.includes('spotify') || t.includes('openai') || t.includes('chatgpt') || t.includes('google') || t.includes('televize') || t.includes('čt poplatek')) return 'Služby';
+  if (t.includes('investown') || t.includes('penzij')) return 'Investice';
+
+  // Výdaje: Variabilní běžná spotřeba
+  if (t.includes('albert') || t.includes('lidl') || t.includes('kaufland') || t.includes('billa') || t.includes('penny') || t.includes('tesco') || t.includes('potraviny') || t.includes('pekař') || t.includes('řeznictví')) {
+    return 'Jídlo & Potraviny';
+  }
+
+  if (t.includes('benzina') || t.includes('orlen') || t.includes('omv') || t.includes('shell') || t.includes('mol') || t.includes('eurooil') || t.includes('čerpací') || t.includes('nafta') || t.includes('benzín')) {
+    return 'Doprava & Benzín';
+  }
+
+  if (t.includes('dm drogerie') || t.includes('rossmann') || t.includes('teta') || t.includes('drogerie') || t.includes('action')) {
+    return 'Drogerie & Domácnost';
+  }
+
+  if (t.includes('restaurace') || t.includes('hospoda') || t.includes('bistro') || t.includes('kebab') || t.includes('pivnice') || t.includes('kavárna') || t.includes('mcdonald') || t.includes('kfc')) {
+    return 'Restaurace & Občerstvení';
+  }
+
+  if (t.includes('datart') || t.includes('alza') || t.includes('czc') || t.includes('obi') || t.includes('hornbach') || t.includes('bauhaus') || t.includes('železářství')) {
+    return 'Elektro & Nářadí';
+  }
+
+  if (t.includes('zoo') || t.includes('super zoo') || t.includes('pet center') || t.includes('zvěrokruh') || t.includes('krmiv')) {
+    return 'Zvířata';
+  }
+
+  if (t.includes('lékárna') || t.includes('dr.max') || t.includes('benu') || t.includes('optik') || t.includes('terapie')) {
+    return 'Zdraví & Lékárna';
+  }
+
+  return 'Ostatní útrata';
+}
+
 async function parseAndImportAirBankCsv(csvText) {
   const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
   if (lines.length < 2) return 0;
@@ -1523,17 +1636,8 @@ async function parseAndImportAirBankCsv(csvText) {
       }
     }
 
-    let category = isIncome ? 'Příjmy' : 'Ostatní';
-    const lowerTitle = title.toLowerCase();
-    if (isIncome) {
-      if (lowerTitle.includes('web') || lowerTitle.includes('affil') || lowerTitle.includes('reklama') || lowerTitle.includes('kolobeznik')) {
-        category = 'Web & Projekty';
-      } else if (lowerTitle.includes('investown') || lowerTitle.includes('výnos') || lowerTitle.includes('dividenda')) {
-        category = 'Investice';
-      } else if (lowerTitle.includes('mzda') || lowerTitle.includes('plat') || lowerTitle.includes('výplata')) {
-        category = 'Výplata';
-      }
-    }
+    // Automatická detekce kategorie
+    const category = detectCategoryFromAirBank(title, isIncome);
 
     await dbAdd('entries', {
       monthYear: monthKey,
