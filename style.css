@@ -494,6 +494,150 @@ body {
   border-color: rgba(56, 189, 248, 0.3);
 }
 
+/* Modul Energie & Spotřebiče */
+.energy-overview-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.energy-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.energy-row strong {
+  color: var(--text-main);
+}
+
+.energy-row.highlight {
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.energy-row.highlight strong {
+  color: var(--accent-yellow);
+  font-size: 1.05rem;
+}
+
+.energy-row.balance {
+  border-top: 1px dashed var(--border-color);
+  padding-top: 10px;
+  font-weight: 700;
+}
+
+.appliances-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appliance-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appliance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.appliance-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.appliance-specs {
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  background: var(--bg-card-sub);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.appliance-costs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: var(--bg-card-sub);
+  padding: 8px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.cost-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cost-col .c-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.cost-col .c-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.appliance-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.warranty-badge {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.warranty-badge.ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.warranty-badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+}
+
+.warranty-badge.expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.btn-delete-appliance {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-delete-appliance:hover {
+  color: var(--accent-red);
+}
+
 /* Modální okno */
 .modal {
   position: fixed;
@@ -538,6 +682,7 @@ body {
 
 .form-group input[type="text"],
 .form-group input[type="number"],
+.form-group input[type="date"],
 .form-group select {
   background: var(--bg-card-sub);
   border: 1px solid var(--border-color);
