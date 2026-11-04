@@ -227,7 +227,6 @@
 
     <!-- 5. Investice & Web výdělky -->
     <section id="tab-invest" class="tab-panel">
-      <!-- Souhrnná karta portfolia -->
       <div class="invest-summary-card">
         <div class="inv-metric">
           <span class="inv-lbl">Celkem zainvestováno</span>
@@ -252,7 +251,6 @@
       </div>
       <div id="investments-list" class="investments-container"></div>
 
-      <!-- Karta pro Web výdělky v aktuálním měsíci -->
       <div class="analytics-card" style="margin-top: 20px;">
         <div class="analytics-header">
           <h3>Výdělky z webu v tomto měsíci</h3>
@@ -265,7 +263,6 @@
         <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
       </div>
 
-      <!-- Modální okno pro investici -->
       <div id="modal-investment" class="modal hidden">
         <div class="modal-content">
           <h2>Nová investice / aktivum</h2>
@@ -299,7 +296,7 @@
       </div>
     </section>
 
-    <!-- 6. Energie -->
+    <!-- 6. Energie, Simulátor & Křivka spotřeby -->
     <section id="tab-energy" class="tab-panel">
       <div class="energy-overview-card">
         <div class="energy-row">
@@ -320,6 +317,35 @@
         </div>
       </div>
 
+      <!-- SIMULÁTOR NÁKLADŮ PODLE SPOTŘEBY -->
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Simulátor nákladů při spotřebě</h3>
+          <span class="badge-sub">Kč vs. kWh</span>
+        </div>
+        <div class="energy-calc-wrap">
+          <div class="form-group">
+            <label for="calc-kwh-input">Zadej spotřebu (kWh):</label>
+            <div class="calc-input-row">
+              <input type="number" id="calc-kwh-input" value="100" step="1" min="0">
+              <span class="unit-tag">kWh</span>
+            </div>
+            <input type="range" id="calc-kwh-range" min="0" max="1000" step="5" value="100" class="kwh-slider">
+          </div>
+          <div class="calc-results-box">
+            <div class="calc-result-item">
+              <span class="res-lbl">Náklad při ceně <strong id="calc-unit-rate">6,50 Kč</strong>/kWh</span>
+              <span class="res-val" id="calc-result-cost">650 Kč</span>
+            </div>
+            <div class="calc-result-item">
+              <span class="res-lbl">Bilance vs. záloha ČEZ (3 000 Kč)</span>
+              <span class="res-val" id="calc-result-balance">+2 350 Kč (přeplatek)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KŘIVKA SPOTŘEBY DOMU -->
       <div class="chart-card" style="margin-top: 14px;">
         <div class="chart-header">
           <h3>Křivka spotřeby domu (kWh/den)</h3>
