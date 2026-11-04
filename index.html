@@ -67,7 +67,7 @@
         <button class="tf-btn" data-tf="1y">1R</button>
       </div>
 
-      <!-- KŘIVKA VÝPLATY & PRAVIDELNÝCH PŘÍJMŮ -->
+      <!-- KŘIVKA VÝPLATY -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Monitoring mzdy & pravidelných příjmů</h3>
@@ -132,7 +132,7 @@
         </div>
       </div>
 
-      <!-- VARIABILNÍ SPOTŘEBA (BEZ STÁLÝCH PAUŠÁLŮ) -->
+      <!-- VARIABILNÍ SPOTŘEBA -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Variabilní útrata (bez stálých plateb)</h3>
@@ -208,7 +208,7 @@
                 <option value="Komunikace">Komunikace</option>
                 <option value="Služby">Služby & Předplatné</option>
                 <option value="Závazky">Závazky & Splátky</option>
-                <option value="Investice">Investice</option>
+                <option value="Investice">Investice & Slitky</option>
                 <option value="Ostatní">Ostatní útrata</option>
               </select>
             </div>
@@ -252,7 +252,7 @@
           <form id="form-goal">
             <div class="form-group">
               <label for="goal-title">Název cíle</label>
-              <input type="text" id="goal-title" required placeholder="např. Brikety na zimu">
+              <input type="text" id="goal-title" required placeholder="např. Zlatý slitek 5g, Brikety">
             </div>
 
             <div class="form-group">
@@ -307,7 +307,7 @@
       </div>
     </section>
 
-    <!-- 5. Investice, Web výdělky & Křivky růstu -->
+    <!-- 5. Investice, Investown & Zlaté slitky -->
     <section id="tab-invest" class="tab-panel">
       <!-- DONUT GRAF AKTIV -->
       <div class="assets-ring-card">
@@ -318,23 +318,90 @@
         <div class="ring-right">
           <span class="ar-lbl">Celková finanční aktiva</span>
           <strong class="ar-val" id="disp-total-networth">0 Kč</strong>
-          <span class="ar-lbl" style="margin-top: 6px;">Z toho v investicích</span>
+          <span class="ar-lbl" style="margin-top: 6px;">Z toho v investicích & zlatu</span>
           <strong class="ar-subval text-green" id="disp-total-current">0 Kč</strong>
         </div>
       </div>
 
-      <!-- KŘIVKA HODNOTY INVESTIČNÍHO PORTFOLIA -->
+      <!-- SPECIÁLNÍ INVESTOWN KARTA PODLE SCREENSHOTU -->
+      <div class="investown-hub-card">
+        <div class="inv-hub-top">
+          <div class="inv-hub-brand">
+            <span class="diamond-icon">💎</span>
+            <strong>INVESTOWN</strong>
+          </div>
+          <span class="inv-rate-pill">8,65 % p.a.</span>
+        </div>
+
+        <div class="inv-hub-main-amount">
+          <span class="ih-lbl">Celková hodnota</span>
+          <div class="ih-val">10 624,18 Kč</div>
+        </div>
+
+        <div class="inv-hub-metrics-grid">
+          <div class="ih-metric">
+            <span class="ih-m-lbl">Celkový zisk</span>
+            <strong class="ih-m-val text-green">+ 3 443,02 Kč</strong>
+          </div>
+          <div class="ih-metric">
+            <span class="ih-m-lbl">Volné peníze</span>
+            <strong class="ih-m-val text-blue">285,64 Kč</strong>
+          </div>
+          <div class="ih-metric">
+            <span class="ih-m-lbl">V projektech</span>
+            <strong class="ih-m-val">10 338,54 Kč</strong>
+          </div>
+          <div class="ih-metric">
+            <span class="ih-m-lbl">Výplata za měsíc</span>
+            <strong class="ih-m-val text-yellow">70,20 Kč</strong>
+          </div>
+        </div>
+
+        <div class="inv-hub-status-row">
+          <span>🛡️ 22 investic: <strong>21 splácí řádně</strong>, 1 vymáhání</span>
+        </div>
+      </div>
+
+      <!-- KARTA FYZICKÉ ZLATO & SLITKY -->
+      <div class="gold-hub-card" style="margin-top: 14px;">
+        <div class="gold-hub-top">
+          <div class="gold-hub-brand">
+            <span class="gold-bar-icon">🪙</span>
+            <strong>Fyzické zlato (Slitky)</strong>
+          </div>
+          <button id="btn-add-gold" class="btn-small-primary" style="background:#eab308; color:#0b0f19;">+ Zapsat slitek</button>
+        </div>
+
+        <div class="gold-metrics-grid">
+          <div class="gm-col">
+            <span class="gm-lbl">Celkem slitků</span>
+            <strong class="gm-val" id="disp-gold-grams">0 g</strong>
+          </div>
+          <div class="gm-col">
+            <span class="gm-lbl">Nákupní cena</span>
+            <strong class="gm-val" id="disp-gold-bought">0 Kč</strong>
+          </div>
+          <div class="gm-col">
+            <span class="gm-lbl">Aktuální hodnota</span>
+            <strong class="gm-val text-yellow" id="disp-gold-current">0 Kč</strong>
+          </div>
+        </div>
+
+        <div id="gold-bars-list" class="gold-bars-container" style="margin-top: 10px;"></div>
+      </div>
+
+      <!-- KŘIVKA RŮSTU INVESTIČNÍHO PORTFOLIA -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Křivka růstu portfolia (Vloženo vs. Hodnota)</h3>
+          <h3>Křivka růstu portfolia (Investice + Zlato)</h3>
           <span class="badge-sub" id="invest-growth-badge">+0 Kč zisk</span>
         </div>
         <div class="canvas-wrapper">
           <canvas id="invest-trend-chart" width="400" height="170"></canvas>
         </div>
         <div class="chart-legend">
-          <span>🔵 Aktuální hodnota</span>
-          <span>⚪ Vložená jistina</span>
+          <span>🔵 Aktuální tržní hodnota</span>
+          <span>⚪ Vložený kapitál</span>
         </div>
       </div>
 
@@ -354,11 +421,11 @@
       </div>
 
       <div class="action-bar" style="margin-top: 16px;">
-        <button id="btn-add-investment" class="action-btn-main">+ Přidat investiční platformu / aktivum</button>
+        <button id="btn-add-investment" class="action-btn-main">+ Přidat další platformu (Portu, ETF...)</button>
       </div>
 
       <div class="section-title-wrap" style="margin-top: 16px;">
-        <h2>Investiční aktiva (Investown, Portu, Rentier...)</h2>
+        <h2>Ostatní finanční aktiva</h2>
       </div>
       <div id="investments-list" class="investments-container"></div>
 
@@ -374,28 +441,62 @@
         <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
       </div>
 
+      <!-- Modální okno pro zlatý slitek -->
+      <div id="modal-gold" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nový zlatý slitek</h2>
+          <form id="form-gold">
+            <div class="form-group">
+              <label for="gold-name">Název / Rafinér (např. Argor-Heraeus, Valcambi)</label>
+              <input type="text" id="gold-name" required placeholder="Argor-Heraeus 5g">
+            </div>
+
+            <div class="form-group">
+              <label for="gold-weight">Hmotnost v gramech (g)</label>
+              <input type="number" id="gold-weight" step="0.1" required placeholder="5">
+            </div>
+
+            <div class="form-group">
+              <label for="gold-bought">Nákupní cena (Kč)</label>
+              <input type="number" id="gold-bought" step="1" required placeholder="10500">
+            </div>
+
+            <div class="form-group">
+              <label for="gold-current">Aktuální odhadovaná hodnota (Kč)</label>
+              <input type="number" id="gold-current" step="1" required placeholder="11200">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-gold" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit slitek</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modální okno pro investici -->
       <div id="modal-investment" class="modal hidden">
         <div class="modal-content">
-          <h2>Nová investice / aktivum</h2>
+          <h2>Nová investiční platforma</h2>
           <form id="form-investment">
             <div class="form-group">
-              <label for="inv-name">Název platformy / aktiva</label>
-              <input type="text" id="inv-name" required placeholder="např. Investown, Portu, Rentier.cz">
+              <label for="inv-name">Název platformy / fondu</label>
+              <input type="text" id="inv-name" required placeholder="např. Portu, Rentier.cz, Penzijko">
             </div>
 
             <div class="form-group">
               <label for="inv-invested">Vložená částka (Kč)</label>
-              <input type="number" id="inv-invested" step="1" required placeholder="21000">
+              <input type="number" id="inv-invested" step="1" required placeholder="5000">
             </div>
 
             <div class="form-group">
               <label for="inv-current">Aktuální hodnota (Kč)</label>
-              <input type="number" id="inv-current" step="1" required placeholder="21500">
+              <input type="number" id="inv-current" step="1" required placeholder="5250">
             </div>
 
             <div class="form-group">
               <label for="inv-note">Poznámka / Strategie</label>
-              <input type="text" id="inv-note" placeholder="např. Měsíční renta, reinvestice">
+              <input type="text" id="inv-note" placeholder="např. Konzervativní portfolio">
             </div>
 
             <div class="modal-actions">
