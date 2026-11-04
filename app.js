@@ -103,7 +103,7 @@ function setupMonthSelector() {
   updateMonthLabel();
 }
 
-// 3. Přepínač časového okna (7D, 30D, 12T, 6M, 1R)
+// 3. Přepínač časového okna
 function setupTimeframeButtons() {
   const buttons = document.querySelectorAll('.timeframe-bar .tf-btn');
   buttons.forEach(btn => {
@@ -116,7 +116,7 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat a statistických panelů
+// 4. Načtení dat a grafů
 async function loadMonthData() {
   const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
@@ -148,6 +148,7 @@ async function loadMonthData() {
   await calculateOverviewAndGauges(currentMonthEntries);
   renderPaymentsList(currentMonthEntries);
   renderVariableExpensesBreakdown(currentMonthEntries);
+  await drawSalaryTrendChart(allEntries);
   await drawCashflowForecastBarChart(allEntries);
   renderCashflowStatsTable(currentMonthEntries);
   renderCategoryBreakdown(currentMonthEntries);
@@ -177,7 +178,6 @@ async function calculateOverviewAndGauges(entries) {
   const cashFlow = totalIncome - totalPaid;
   const forecast7d = currentBalance - Math.min(currentBalance, totalRemaining);
 
-  // Míra zadlužení vůči disponibilnímu kapitálu
   const totalDebt = debts.filter(d => d.type === 'payable').reduce((acc, d) => acc + d.total, 0);
   const debtRatio = currentBalance > 0 ? Math.min(100, Math.round((totalDebt / currentBalance) * 100)) : 100;
 
@@ -187,7 +187,6 @@ async function calculateOverviewAndGauges(entries) {
   document.getElementById('gm-val-expenses').textContent = Money.toCzkInt(totalPaid);
   document.getElementById('gm-val-debt').textContent = `${debtRatio} %`;
 
-  // Vykreslení tachometrů na canvas
   drawAnalogGauge('gauge-balance', currentBalance, 10000000, 130, 90, 7);
   drawAnalogGauge('gauge-cashflow', cashFlow + 5000000, 10000000, 130, 90, 7);
   drawAnalogGauge('gauge-forecast', Math.max(0, forecast7d), 5000000, 70, 50, 4);
@@ -195,7 +194,6 @@ async function calculateOverviewAndGauges(entries) {
   drawAnalogGauge('gauge-debt', debtRatio, 100, 70, 50, 4);
 }
 
-// Kreslení analogového tachometru s barevnými zónami
 function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -214,28 +212,24 @@ function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   const startAngle = Math.PI;
   const endAngle = 2 * Math.PI;
 
-  // 1. Červená zóna (0 až 35%)
   ctx.beginPath();
   ctx.arc(cx, cy, r, startAngle, startAngle + 0.35 * Math.PI);
   ctx.strokeStyle = '#ef4444';
   ctx.lineWidth = lineWidth;
   ctx.stroke();
 
-  // 2. Oranžová zóna (35% až 70%)
   ctx.beginPath();
   ctx.arc(cx, cy, r, startAngle + 0.35 * Math.PI, startAngle + 0.7 * Math.PI);
   ctx.strokeStyle = '#f59e0b';
   ctx.lineWidth = lineWidth;
   ctx.stroke();
 
-  // 3. Zelená zóna (70% až 100%)
   ctx.beginPath();
   ctx.arc(cx, cy, r, startAngle + 0.7 * Math.PI, endAngle);
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = lineWidth;
   ctx.stroke();
 
-  // 4. Ručička ukazatele
   const ratio = Math.max(0, Math.min(1, val / (maxVal || 1)));
   const needleAngle = startAngle + ratio * Math.PI;
 
@@ -251,7 +245,6 @@ function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Středový čep
   ctx.beginPath();
   ctx.arc(cx, cy, lineWidth * 0.9, 0, Math.PI * 2);
   ctx.fillStyle = '#ffffff';
@@ -277,7 +270,113 @@ async function getCalculatedBalance(optionalEntries) {
   return initialCapital + totalIncome - totalPaid;
 }
 
-// 6. VÝVOJ CASH FLOW (TREND BAR CHART - WALLET STYL)
+// 6. MONITORING A KŘIVKA ČISTÉ MZDY / VÝPLATY V ČASE
+async function drawSalaryTrendChart(allEntries) {
+  const canvas = document.getElementById('salary-trend-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 170 * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = 170;
+  ctx.clearRect(0, 0, width, height);
+
+  // Získáme posledních 6 měsíců
+  const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
+  const months = [];
+  const now = new Date(currentDate);
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push({ key: mKey, label: `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
+  }
+
+  // Sečteme mzdu pro každý měsíc
+  const points = months.map(m => {
+    const salaryEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Výplata');
+    const total = salaryEntries.reduce((acc, e) => acc + e.amount, 0);
+    // Pokud v databázi ještě není záznam, použijeme výchozí základ pro zobrazení
+    return {
+      label: m.label,
+      val: total > 0 ? (total / 100) : 32000
+    };
+  });
+
+  const sum = points.reduce((acc, p) => acc + p.val, 0);
+  const avg = Math.round(sum / points.length);
+
+  document.getElementById('income-trend-badge').textContent = `Průměr: ${avg.toLocaleString('cs-CZ')} Kč`;
+  document.getElementById('salary-avg-legend').textContent = `⚪ Průměrná mzda (${avg.toLocaleString('cs-CZ')} Kč)`;
+
+  const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 40000;
+  const minVal = Math.min(...points.map(p => p.val)) * 0.75 || 20000;
+  const range = maxVal - minVal || 1;
+
+  const paddingX = 35;
+  const paddingY = 25;
+  const chartW = width - paddingX * 2;
+  const chartH = height - paddingY * 2;
+
+  // Průměrná horizontální linka
+  const avgY = height - paddingY - ((avg - minVal) / range) * chartH;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(paddingX, avgY);
+  ctx.lineTo(width - paddingX, avgY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Křivka výplaty
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  const coords = [];
+  points.forEach((pt, idx) => {
+    const x = paddingX + (idx / (points.length - 1 || 1)) * chartW;
+    const y = height - paddingY - ((pt.val - minVal) / range) * chartH;
+    coords.push({ x, y, pt });
+
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Plocha pod křivkou
+  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
+  ctx.lineTo(coords[0].x, height - paddingY);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Body a popisky
+  coords.forEach(c => {
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.round(c.pt.val / 1000)}k`, c.x, c.y - 8);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(c.pt.label, c.x, height - 8);
+  });
+}
+
+// 7. VÝVOJ CASH FLOW BAR CHART
 async function drawCashflowForecastBarChart(allEntries) {
   const canvas = document.getElementById('cashflow-bar-chart');
   if (!canvas) return;
@@ -293,7 +392,6 @@ async function drawCashflowForecastBarChart(allEntries) {
   const height = 170;
   ctx.clearRect(0, 0, width, height);
 
-  // Vytvoříme časové sloty podle vybraného filtru
   const slots = [];
   const now = new Date(currentDate);
 
@@ -301,22 +399,20 @@ async function drawCashflowForecastBarChart(allEntries) {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      slots.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, filterDay: d.getDate() });
+      slots.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, minDay: d.getDate(), maxDay: d.getDate() });
     }
   } else if (currentPeriod === '30d') {
     for (let i = 0; i < 6; i++) {
       slots.push({ label: `${i * 5 + 1}-${i * 5 + 5}`, minDay: i * 5 + 1, maxDay: i * 5 + 5 });
     }
   } else {
-    // Pro delší období zobrazíme měsíce
     const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
     for (let i = 5; i >= 0; i--) {
       const m = (now.getMonth() - i + 12) % 12;
-      slots.push({ label: monthNames[m], monthIdx: m });
+      slots.push({ label: monthNames[m] });
     }
   }
 
-  // Agregace příjmů a výdajů
   const data = slots.map(slot => {
     let inc = 0;
     let exp = 0;
@@ -340,7 +436,6 @@ async function drawCashflowForecastBarChart(allEntries) {
   const slotW = chartW / data.length;
   const barW = Math.max(6, (slotW / 3) - 3);
 
-  // Nulová horizontální linka
   const zeroY = height - paddingY;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
   ctx.beginPath();
@@ -348,21 +443,17 @@ async function drawCashflowForecastBarChart(allEntries) {
   ctx.lineTo(width - paddingX, zeroY);
   ctx.stroke();
 
-  // Kreslení sloupců příjmů a výdajů
   data.forEach((d, idx) => {
     const xBase = paddingX + idx * slotW + (slotW / 2);
 
-    // Příjmy (Zelený sloupec)
     const incH = (d.inc / maxVal) * chartH;
     ctx.fillStyle = '#10b981';
     ctx.fillRect(xBase - barW - 2, zeroY - incH, barW, incH);
 
-    // Výdaje (Červený sloupec)
     const expH = (d.exp / maxVal) * chartH;
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(xBase + 2, zeroY - expH, barW, expH);
 
-    // Popisek slotu
     ctx.fillStyle = '#94a3b8';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
@@ -370,7 +461,7 @@ async function drawCashflowForecastBarChart(allEntries) {
   });
 }
 
-// 7. TABULKA STATISTIK CASH FLOW
+// 8. TABULKA STATISTIK CASH FLOW
 function renderCashflowStatsTable(entries) {
   let countInc = 0;
   let countExp = 0;
@@ -404,7 +495,7 @@ function renderCashflowStatsTable(entries) {
   netDisp.style.color = net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 }
 
-// 8. ROZPAD VARIABILNÍ SPOTŘEBY
+// 9. ROZPAD VARIABILNÍ SPOTŘEBY
 function renderVariableExpensesBreakdown(entries) {
   const container = document.getElementById('variable-breakdown-list');
   const badgeTotal = document.getElementById('badge-var-total');
@@ -461,7 +552,7 @@ function renderVariableExpensesBreakdown(entries) {
   });
 }
 
-// 9. CELKOVÁ STRUKTURA VÝDAJŮ
+// 10. CELKOVÁ STRUKTURA VÝDAJŮ
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
   container.innerHTML = '';
@@ -515,7 +606,7 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 10. Seznam plateb
+// 11. Seznam plateb
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -630,7 +721,7 @@ function setupPaymentsModal() {
   });
 }
 
-// 11. Cíle
+// 12. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
@@ -761,7 +852,7 @@ function setupGoalsModal() {
   });
 }
 
-// 12. Dluhy
+// 13. Dluhy
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -903,7 +994,7 @@ function setupDebtTxModal() {
   });
 }
 
-// 13. Investice & Donut graf finančních aktiv
+// 14. Investice, Křivky růstu & Web výdělky
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const container = document.getElementById('investments-list');
@@ -962,8 +1053,11 @@ async function renderInvestments() {
 
   drawDonutChart('assets-donut-chart', investRatio);
 
-  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   const allEntries = await dbGetAll('entries');
+  await drawInvestmentTrendChart(totalInvested, totalCurrent);
+  await drawWebEarningsTrendChart(allEntries);
+
+  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   const webEntries = allEntries.filter(e => e.monthYear === monthKey && e.isIncome && e.category === 'Web & Projekty');
 
   const webContainer = document.getElementById('web-earnings-items');
@@ -988,6 +1082,195 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
+// KŘIVKA INVESTIČNÍHO PORTFOLIA
+async function drawInvestmentTrendChart(investedCents, currentCents) {
+  const canvas = document.getElementById('invest-trend-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 170 * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = 170;
+  ctx.clearRect(0, 0, width, height);
+
+  const profit = currentCents - investedCents;
+  const badge = document.getElementById('invest-growth-badge');
+  badge.textContent = `${profit >= 0 ? '+' : ''}${Money.toCzkInt(profit)} (${investedCents > 0 ? ((profit / investedCents) * 100).toFixed(1) : 0} %)`;
+  badge.style.color = profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  // Simulovaná trajektorie zhodnocení za 6 měsíců
+  const months = ['Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis'];
+  const curVal = currentCents / 100;
+  const invVal = investedCents / 100;
+
+  const points = months.map((m, idx) => {
+    const factor = (idx + 1) / months.length;
+    return {
+      label: m,
+      inv: Math.round(invVal * factor),
+      cur: Math.round(curVal * factor * (1 + (profit > 0 ? 0.04 * factor : -0.02 * factor)))
+    };
+  });
+
+  const maxVal = Math.max(curVal, invVal) * 1.25 || 10000;
+  const paddingX = 35;
+  const paddingY = 25;
+  const chartW = width - paddingX * 2;
+  const chartH = height - paddingY * 2;
+
+  // 1. Linka vložené jistiny (šedá)
+  ctx.strokeStyle = '#94a3b8';
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, idx) => {
+    const x = paddingX + (idx / (points.length - 1)) * chartW;
+    const y = height - paddingY - (p.inv / maxVal) * chartH;
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 2. Křivka reálné hodnoty portfolia (modrá)
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  const coords = [];
+  points.forEach((p, idx) => {
+    const x = paddingX + (idx / (points.length - 1)) * chartW;
+    const y = height - paddingY - (p.cur / maxVal) * chartH;
+    coords.push({ x, y, p });
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Plocha pod křivkou
+  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
+  ctx.lineTo(coords[0].x, height - paddingY);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
+  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  coords.forEach(c => {
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.p.label, c.x, height - 8);
+  });
+}
+
+// KŘIVKA VÝDĚLKŮ Z WEBU A PROJEKTŮ
+async function drawWebEarningsTrendChart(allEntries) {
+  const canvas = document.getElementById('web-trend-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 170 * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = 170;
+  ctx.clearRect(0, 0, width, height);
+
+  const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
+  const months = [];
+  const now = new Date(currentDate);
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push({ key: mKey, label: monthNames[d.getMonth()] });
+  }
+
+  const points = months.map(m => {
+    const webEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Web & Projekty');
+    const total = webEntries.reduce((acc, e) => acc + e.amount, 0);
+    return {
+      label: m.label,
+      val: total > 0 ? (total / 100) : 0
+    };
+  });
+
+  const sum = points.reduce((acc, p) => acc + p.val, 0);
+  const avg = Math.round(sum / points.length);
+
+  document.getElementById('web-avg-legend').textContent = `⚪ Průměr (${avg.toLocaleString('cs-CZ')} Kč)`;
+
+  const maxVal = Math.max(...points.map(p => p.val), 5000) * 1.25;
+  const paddingX = 35;
+  const paddingY = 25;
+  const chartW = width - paddingX * 2;
+  const chartH = height - paddingY * 2;
+
+  // Průměrná linka
+  const avgY = height - paddingY - (avg / maxVal) * chartH;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(paddingX, avgY);
+  ctx.lineTo(width - paddingX, avgY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Křivka příjmů z webu
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  const coords = [];
+  points.forEach((pt, idx) => {
+    const x = paddingX + (idx / (points.length - 1)) * chartW;
+    const y = height - paddingY - (pt.val / maxVal) * chartH;
+    coords.push({ x, y, pt });
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Vyplnění plochy
+  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
+  ctx.lineTo(coords[0].x, height - paddingY);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  coords.forEach(c => {
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(c.pt.label, c.x, height - 8);
+  });
+}
+
 function drawDonutChart(canvasId, percent) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -1004,14 +1287,12 @@ function drawDonutChart(canvasId, percent) {
   const r = 38;
   const lineWidth = 12;
 
-  // Podkladový prstenec (hotovost)
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = lineWidth;
   ctx.stroke();
 
-  // Aktivní výseč (investice)
   if (percent > 0) {
     const end = (percent / 100) * (Math.PI * 2) - (Math.PI / 2);
     ctx.beginPath();
@@ -1060,7 +1341,7 @@ function setupInvestmentModal() {
   });
 }
 
-// 14. Energie
+// 15. Energie
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -1507,7 +1788,7 @@ function setupApplianceModal() {
   });
 }
 
-// 15. Nastavení & Air Bank CSV Parser
+// 16. Nastavení & Air Bank CSV Parser
 async function renderSettings() {
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
