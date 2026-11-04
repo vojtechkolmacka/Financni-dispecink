@@ -281,7 +281,23 @@
             </div>
 
             <div class="form-group checkbox-row" id="wrap-entry-recurring">
-              <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou měsíční platbu</label>
+              <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou platbu</label>
+            </div>
+
+            <!-- PERIODICITA PRO TRVALÉ PLATBY -->
+            <div id="wrap-recurring-frequency" class="recurring-freq-box hidden">
+              <div class="form-group">
+                <label for="entry-frequency">Periodicita platby</label>
+                <select id="entry-frequency">
+                  <option value="monthly">Každý měsíc</option>
+                  <option value="semi-annual">Pololetně (2× za rok)</option>
+                  <option value="annual">Ročně (1× za rok)</option>
+                </select>
+              </div>
+              <div class="form-group" id="wrap-due-months" style="display: none;">
+                <label for="entry-due-months">Měsíce splatnosti (čísla oddělená čárkou, např. 5, 11 nebo 7)</label>
+                <input type="text" id="entry-due-months" placeholder="např. 1 pro leden, 7 pro červenec, 5, 11 pro květen a listopad">
+              </div>
             </div>
 
             <div class="modal-actions">
@@ -411,7 +427,7 @@
         </div>
       </div>
 
-      <!-- INVESTOWN KARTA: POUZE REÁLNÁ DATA BEZ FIKTIVNÍCH POLOŽEK -->
+      <!-- INVESTOWN KARTA: ČISTÁ DATA -->
       <div class="investown-hub-card">
         <div class="inv-hub-top">
           <div class="inv-hub-brand">
