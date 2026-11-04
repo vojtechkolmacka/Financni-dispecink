@@ -438,7 +438,7 @@ body {
 .ring-right .ar-val { font-size: 1.25rem; font-weight: 800; }
 .ring-right .ar-subval { font-size: 1rem; font-weight: 800; }
 
-/* INVESTOWN DEDIKOVANÁ KARTA */
+/* INVESTOWN DEDIKOVANÁ KARTA (ČISTÁ VERZE BEZ FIKTIVNÍCH POLOŽEK) */
 .investown-hub-card {
   background: linear-gradient(135deg, #1b1e38, #10142b);
   border: 1px solid rgba(99, 102, 241, 0.4);
@@ -466,7 +466,7 @@ body {
   color: var(--accent-green);
   font-weight: 800;
   font-size: 0.75rem;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 8px;
 }
 
@@ -485,7 +485,7 @@ body {
 
 .ih-metric { display: flex; flex-direction: column; gap: 2px; }
 .ih-m-lbl { font-size: 0.68rem; color: var(--text-muted); }
-.ih-m-val { font-size: 0.92rem; font-weight: 800; }
+.ih-m-val { font-size: 0.95rem; font-weight: 800; }
 
 .itown-actions-row {
   display: grid;
@@ -525,15 +525,6 @@ body {
   background: rgba(56, 189, 248, 0.15);
   color: var(--accent-blue);
   border-color: rgba(56, 189, 248, 0.4);
-}
-
-.inv-hub-status-row {
-  margin-top: 10px;
-  font-size: 0.78rem;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 /* FYZICKÉ ZLATO & SLITKY */
