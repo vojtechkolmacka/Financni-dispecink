@@ -22,71 +22,117 @@
   </header>
 
   <main id="app-content">
-    <!-- 1. Přehled & Měsíční bilance pohybů -->
+    <!-- 1. Přehled & Wallet Dispečink -->
     <section id="tab-overview" class="tab-panel active">
-      <div class="balance-card">
-        <span class="card-label">Disponibilní zůstatek na účtu</span>
-        <div class="balance-amount" id="disp-account-balance">0 Kč</div>
-        <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
+      <!-- DASHBOARD TACHOMETRY (GAUGES) -->
+      <div class="gauges-card">
+        <div class="gauge-subhead">Výkonnost za posledních 30 dní a výhled na příštích 7 dní</div>
+        
+        <div class="gauges-main-row">
+          <div class="gauge-box">
+            <canvas id="gauge-balance" width="130" height="90"></canvas>
+            <span class="g-lbl">ZŮSTATEK</span>
+            <strong class="g-val" id="g-val-balance">0 Kč</strong>
+          </div>
+          <div class="gauge-box">
+            <canvas id="gauge-cashflow" width="130" height="90"></canvas>
+            <span class="g-lbl">CASH FLOW</span>
+            <strong class="g-val" id="g-val-cashflow">0 Kč</strong>
+          </div>
+        </div>
+
+        <div class="gauges-mini-row">
+          <div class="gauge-mini-box">
+            <canvas id="gauge-forecast" width="70" height="50"></canvas>
+            <span class="gm-lbl">VÝHLED 7D</span>
+            <span class="gm-val" id="gm-val-forecast">0 Kč</span>
+          </div>
+          <div class="gauge-mini-box">
+            <canvas id="gauge-expenses" width="70" height="50"></canvas>
+            <span class="gm-lbl">VÝDAJE</span>
+            <span class="gm-val" id="gm-val-expenses">0 Kč</span>
+          </div>
+          <div class="gauge-mini-box">
+            <canvas id="gauge-debt" width="70" height="50"></canvas>
+            <span class="gm-lbl">DLUH %</span>
+            <span class="gm-val" id="gm-val-debt">0 %</span>
+          </div>
+        </div>
       </div>
 
-      <!-- MĚSÍČNÍ BILANCE POHYBŮ NA ÚČTU -->
-      <div class="month-balance-card">
-        <div class="mb-header">
-          <span>Čistá bilance měsíce (Pohyby na účtu)</span>
-          <strong id="disp-month-net" class="mb-val">+0 Kč</strong>
-        </div>
-        <div class="mb-subgrid">
-          <div>Příchozí: <strong id="disp-month-inflow" class="text-green">0 Kč</strong></div>
-          <div>Odchozí: <strong id="disp-month-outflow" class="text-red">0 Kč</strong></div>
-        </div>
+      <!-- ČASOVÝ PŘEPÍNAČ OBDOBÍ (7D, 30D, 12T, 6M, 1R) -->
+      <div class="timeframe-bar">
+        <button class="tf-btn" data-tf="7d">7D</button>
+        <button class="tf-btn active" data-tf="30d">30D</button>
+        <button class="tf-btn" data-tf="12w">12T</button>
+        <button class="tf-btn" data-tf="6m">6M</button>
+        <button class="tf-btn" data-tf="1y">1R</button>
       </div>
 
-      <div class="metrics-grid">
-        <div class="metric-box green">
-          <span class="m-label">Příjmy</span>
-          <span class="m-val" id="metric-income">0 Kč</span>
-        </div>
-        <div class="metric-box red">
-          <span class="m-label">Zaplaceno</span>
-          <span class="m-val" id="metric-paid">0 Kč</span>
-        </div>
-        <div class="metric-box yellow">
-          <span class="m-label">Zbývá doplatit</span>
-          <span class="m-val" id="metric-remaining">0 Kč</span>
-        </div>
-      </div>
-
-      <!-- GRAF: VARIABILNÍ SPOTŘEBA (VYJMA STÁLÝCH PLATEB) -->
+      <!-- SROVNÁNÍ CASH FLOW (BAR CHART TREND) -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Variabilní útrata (mimo stálé platby)</h3>
-          <span class="badge-sub" id="badge-var-total">0 Kč celkem</span>
+          <h3>Vývoj Cash Flow (Trend)</h3>
+          <span class="badge-sub" id="cf-trend-net">Bilance: 0 Kč</span>
         </div>
-        <p class="settings-desc" style="margin-bottom: 10px;">Čisté nákupy, jídlo, nafta, drogerie a běžný život bez nájmu, energií a splátek.</p>
+        <div class="canvas-wrapper">
+          <canvas id="cashflow-bar-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Příjmy</span>
+          <span>🔴 Výdaje</span>
+          <span>⚪ Peněžní tok</span>
+        </div>
+      </div>
+
+      <!-- TABULKA CASH FLOW STATISTIKY -->
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Tabulka Cash Flow</h3>
+          <span class="badge-sub">Statistiky</span>
+        </div>
+        <div class="cf-stats-table">
+          <div class="cf-tbl-row header">
+            <span>Rychlý přehled</span>
+            <span>Příjmy</span>
+            <span>Výdaje</span>
+          </div>
+          <div class="cf-tbl-row">
+            <span>Počet transakcí</span>
+            <strong id="cf-count-inc">0</strong>
+            <strong id="cf-count-exp">0</strong>
+          </div>
+          <div class="cf-tbl-row">
+            <span>Průměr / den</span>
+            <strong id="cf-avg-day-inc" class="text-green">0 Kč</strong>
+            <strong id="cf-avg-day-exp" class="text-red">0 Kč</strong>
+          </div>
+          <div class="cf-tbl-row">
+            <span>Celkem</span>
+            <strong id="cf-total-inc" class="text-green">0 Kč</strong>
+            <strong id="cf-total-exp" class="text-red">0 Kč</strong>
+          </div>
+          <div class="cf-tbl-row footer">
+            <span>Čistý peněžní tok:</span>
+            <strong id="cf-net-total" class="text-blue" style="grid-column: span 2; text-align: right;">0 Kč</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- VARIABILNÍ SPOTŘEBA (BEZ STÁLÝCH PAUŠÁLŮ) -->
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Variabilní útrata (bez stálých plateb)</h3>
+          <span class="badge-sub" id="badge-var-total">0 Kč</span>
+        </div>
         <div id="variable-breakdown-list" class="category-bars-wrap"></div>
       </div>
 
-      <!-- ANALÝZA: PREDIKCE CASHFLOW -->
+      <!-- STRUKTURA VŠECH VÝDAJŮ -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Predikce vývoje cashflow (do konce měsíce)</h3>
-          <span class="badge-sub">Křivka zůstatku</span>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="cashflow-forecast-chart" width="400" height="180"></canvas>
-        </div>
-        <div class="chart-legend">
-          <span>📉 Odhad minima: <strong id="forecast-min-val" class="text-blue">0 Kč</strong></span>
-          <span id="forecast-safety-tag">🛡️ Rezerva OK</span>
-        </div>
-      </div>
-
-      <!-- CELKOVÁ STRUKTURA VÝDAJŮ -->
-      <div class="analytics-card" style="margin-top: 14px;">
-        <div class="analytics-header">
-          <h3>Celková struktura výdajů (včetně paušálů)</h3>
-          <span class="badge-sub">Všechny kategorie</span>
+          <h3>Celková struktura výdajů</h3>
+          <span class="badge-sub">Všechny platby</span>
         </div>
         <div id="category-breakdown-list" class="category-bars-wrap"></div>
       </div>
@@ -100,7 +146,7 @@
 
       <div class="payments-summary-card">
         <div class="summary-line">
-          <span>Celkové plánované výdaje:</span>
+          <span>Celkové výdaje:</span>
           <strong id="payments-total-exp">0 Kč</strong>
         </div>
         <div class="summary-progress-bar">
@@ -110,7 +156,6 @@
 
       <div id="payments-list" class="entries-list"></div>
 
-      <!-- Modální okno položky -->
       <div id="modal-entry" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-entry-title">Nová položka</h2>
@@ -249,29 +294,28 @@
       </div>
     </section>
 
-    <!-- 5. Investice & Web výdělky -->
+    <!-- 5. Investice & Finanční aktiva (Wallet styl) -->
     <section id="tab-invest" class="tab-panel">
-      <div class="invest-summary-card">
-        <div class="inv-metric">
-          <span class="inv-lbl">Celkem zainvestováno</span>
-          <span class="inv-val" id="disp-total-invested">0 Kč</span>
+      <!-- DONUT GRAF: PODÍL INVESTIC Z CELKOVÝCH AKTIV -->
+      <div class="assets-ring-card">
+        <div class="ring-left">
+          <canvas id="assets-donut-chart" width="100" height="100"></canvas>
+          <div class="ring-center-text" id="assets-ratio-text">0%</div>
         </div>
-        <div class="inv-metric">
-          <span class="inv-lbl">Aktuální hodnota</span>
-          <span class="inv-val text-blue" id="disp-total-current">0 Kč</span>
-        </div>
-        <div class="inv-metric">
-          <span class="inv-lbl">Čistý zisk / výnos</span>
-          <span class="inv-val" id="disp-total-profit">+0 Kč</span>
+        <div class="ring-right">
+          <span class="ar-lbl">Celková finanční aktiva</span>
+          <strong class="ar-val" id="disp-total-networth">0 Kč</strong>
+          <span class="ar-lbl" style="margin-top: 6px;">Z toho v investicích</span>
+          <strong class="ar-subval text-green" id="disp-total-current">0 Kč</strong>
         </div>
       </div>
 
       <div class="action-bar" style="margin-top: 14px;">
-        <button id="btn-add-investment" class="action-btn-main">+ Přidat investici / aktivum</button>
+        <button id="btn-add-investment" class="action-btn-main">+ Přidat investiční platformu / aktivum</button>
       </div>
 
       <div class="section-title-wrap" style="margin-top: 16px;">
-        <h2>Přehled investičních aktiv (Investown, Penzijko...)</h2>
+        <h2>Investiční aktiva (Investown, Portu, Rentier...)</h2>
       </div>
       <div id="investments-list" class="investments-container"></div>
 
@@ -293,22 +337,22 @@
           <form id="form-investment">
             <div class="form-group">
               <label for="inv-name">Název platformy / aktiva</label>
-              <input type="text" id="inv-name" required placeholder="např. Investown, ETF">
+              <input type="text" id="inv-name" required placeholder="např. Investown, Portu, Rentier.cz">
             </div>
 
             <div class="form-group">
               <label for="inv-invested">Vložená částka (Kč)</label>
-              <input type="number" id="inv-invested" step="1" required placeholder="15000">
+              <input type="number" id="inv-invested" step="1" required placeholder="21000">
             </div>
 
             <div class="form-group">
               <label for="inv-current">Aktuální hodnota (Kč)</label>
-              <input type="number" id="inv-current" step="1" required placeholder="15850">
+              <input type="number" id="inv-current" step="1" required placeholder="21500">
             </div>
 
             <div class="form-group">
               <label for="inv-note">Poznámka / Strategie</label>
-              <input type="text" id="inv-note" placeholder="např. 10 % p.a.">
+              <input type="text" id="inv-note" placeholder="např. Měsíční renta, reinvestice">
             </div>
 
             <div class="modal-actions">
@@ -469,7 +513,7 @@
     <section id="tab-settings" class="tab-panel">
       <div class="settings-card" style="border-color: rgba(56, 189, 248, 0.4);">
         <h3>🛡️ Nezávislé cloud zrcadlení (Ochrana proti smazání)</h3>
-        <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu. I když v Chrome smažeš veškerá data, aplikace se po otevření okamžitě sama obnoví.</p>
+        <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu.</p>
         <div class="form-group" style="margin-top: 10px;">
           <label for="set-gh-token">GitHub Token (Classic, oprávnění: gist)</label>
           <input type="password" id="set-gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
@@ -483,7 +527,7 @@
 
       <div class="settings-card" style="margin-top: 14px;">
         <h3>Propojení s Air Bank (Inteligentní CSV Import)</h3>
-        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky podle názvu obchodu/popisu zařadí transakce do správných kategorií (Jídlo, Benzín, Drogerie, Elektro, Restaurace...) a oddělí je od stálých plateb.</p>
+        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky podle popisu roztřídí transakce do kategorií a oddělí variabilní nákupy od paušálů.</p>
         <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
         <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Importovat CSV výpis z Air Bank</button>
         <div id="csv-import-status" class="import-status"></div>
