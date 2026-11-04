@@ -208,7 +208,6 @@
 
     <!-- 5. Energie & Spotřebiče & Záruky -->
     <section id="tab-energy" class="tab-panel">
-      <!-- Energetický přehled -->
       <div class="energy-overview-card">
         <div class="energy-row">
           <span>Cena elektřiny:</span>
@@ -237,7 +236,7 @@
       </div>
 
       <div id="appliances-list" class="appliances-container">
-        <!-- Dynamický seznam spotřebičů s cenou za h/den/měsíc a zárukou -->
+        <!-- Dynamický seznam spotřebičů -->
       </div>
 
       <!-- Modální okno: Přidat spotřebič -->
@@ -279,8 +278,54 @@
       </div>
     </section>
 
-    <!-- 6. Nastavení -->
-    <section id="tab-settings" class="tab-panel"></section>
+    <!-- 6. Nastavení, Zálohování & Import -->
+    <section id="tab-settings" class="tab-panel">
+      <!-- Finanční parametry -->
+      <div class="settings-card">
+        <h3>Finanční a energetické parametry</h3>
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="set-initial-capital">Výchozí disponibilní kapitál (Kč)</label>
+          <input type="number" id="set-initial-capital" step="1">
+        </div>
+        <div class="form-group">
+          <label for="set-payday">Den výplaty v měsíci (1–31)</label>
+          <input type="number" id="set-payday" min="1" max="31">
+        </div>
+        <div class="form-group">
+          <label for="set-kwh-price">Cena elektřiny (Kč za kWh)</label>
+          <input type="number" id="set-kwh-price" step="0.01">
+        </div>
+        <button id="btn-save-settings" class="action-btn-main" style="margin-top: 8px;">Uložit parametry</button>
+      </div>
+
+      <!-- Import bankovního výpisu CSV -->
+      <div class="settings-card" style="margin-top: 14px;">
+        <h3>Import bankovního výpisu (CSV)</h3>
+        <p class="settings-desc">Nahraj vyexportovaný soubor CSV z internetového bankovnictví. Aplikace automaticky načte položky do aktuálního měsíce.</p>
+        <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
+        <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Nahrát bankovní výpis CSV</button>
+        <div id="csv-import-status" class="import-status"></div>
+      </div>
+
+      <!-- Záloha a obnova databáze -->
+      <div class="settings-card" style="margin-top: 14px;">
+        <h3>Záloha a obnova databáze</h3>
+        <p class="settings-desc">Kompletní záloha všech tabulek, plateb, dluhů, cílů i spotřebičů do formátu JSON.</p>
+        <div class="settings-btns-grid" style="margin-top: 10px;">
+          <button id="btn-export-json" class="btn-secondary">📤 Stáhnout zálohu JSON</button>
+          <button id="btn-copy-json" class="btn-secondary">📋 Kopírovat JSON</button>
+        </div>
+        <input type="file" id="restore-file-input" accept=".json" style="display: none;">
+        <button id="btn-trigger-restore" class="btn-secondary" style="margin-top: 8px; width: 100%;">📥 Obnovit ze souboru JSON</button>
+      </div>
+
+      <!-- Instalace PWA -->
+      <div class="settings-card" style="margin-top: 14px; text-align: center;">
+        <h3>Mobilní aplikace (PWA)</h3>
+        <p class="settings-desc">Nainstaluj si dispečink přímo na plochu telefonu pro rychlé spuštění offline bez lišt prohlížeče.</p>
+        <button id="btn-install-pwa" class="btn-secondary" style="margin-top: 10px; width: 100%;">📲 Přidat na plochu mobilu</button>
+      </div>
+    </section>
   </main>
 
   <nav class="bottom-nav">
