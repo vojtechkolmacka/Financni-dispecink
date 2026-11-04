@@ -161,7 +161,7 @@ body {
   font-weight: 800;
 }
 
-/* Rychlá tlačítka na ploše */
+/* Rychlá tlačítka */
 .quick-entry-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -201,7 +201,6 @@ body {
   border-color: rgba(56, 189, 248, 0.4);
 }
 
-/* Tlačítko pro zadání měsíční výplaty */
 .btn-quick-salary-banner {
   width: 100%;
   margin-top: 10px;
@@ -429,7 +428,7 @@ body {
 
 .cf-tbl-row strong { text-align: right; }
 
-/* Donut karta v investicích */
+/* Donut karta */
 .assets-ring-card {
   background: linear-gradient(135deg, #182235, #0f172a);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -658,6 +657,27 @@ body {
 .gb-weight { font-size: 0.75rem; color: var(--text-muted); }
 .gb-right { display: flex; align-items: center; gap: 10px; }
 .gb-val { font-weight: 800; font-size: 0.95rem; }
+
+/* Karta závazku (Provident & AvaFin): detaily a mimořádné splátky */
+.debt-plan-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  margin: 4px 0 6px 0;
+}
+
+.debt-plan-box span { color: var(--text-muted); }
+.debt-plan-box strong { color: var(--accent-yellow); }
+
+.debt-btn.btn-extra {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+  border-color: rgba(245, 158, 11, 0.35);
+}
 
 /* Analytika a grafy */
 .analytics-card {
@@ -1018,7 +1038,7 @@ body {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 .debt-card-header { display: flex; justify-content: space-between; align-items: center; }
 .debt-name { font-weight: 700; font-size: 1.05rem; }
@@ -1026,16 +1046,16 @@ body {
 .debt-total.receivable { color: var(--accent-green); }
 .debt-total.payable { color: var(--accent-red); }
 .debt-sub-info { font-size: 0.8rem; color: var(--text-muted); }
-.debt-actions-row { display: flex; gap: 8px; margin-top: 2px; }
+.debt-actions-row { display: flex; gap: 8px; margin-top: 4px; }
 .debt-btn {
   flex: 1;
-  padding: 8px;
+  padding: 8px 6px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background: var(--bg-card-sub);
   color: var(--text-main);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   cursor: pointer;
 }
 .debt-btn.btn-pay { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border-color: rgba(16, 185, 129, 0.3); }
