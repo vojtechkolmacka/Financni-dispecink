@@ -22,7 +22,7 @@
   </header>
 
   <main id="app-content">
-    <!-- 1. Přehled & Zůstatky (Účet vs. Hotovost) -->
+    <!-- 1. Přehled & Wallet Dispečink -->
     <section id="tab-overview" class="tab-panel active">
       <!-- DVOJITÁ KARTA ZŮSTATKŮ: ÚČET VS. HOTOVOST -->
       <div class="balances-split-card">
@@ -49,8 +49,11 @@
           </div>
         </div>
 
-        <div class="transfer-quick-bar">
-          <button id="btn-quick-transfer" class="btn-transfer-action">🔄 Převod / Výběr z bankomatu</button>
+        <!-- RYCHLÁ TLAČÍTKA NA RUČNÍ ZADÁNÍ NA HLAVNÍ PLOŠE -->
+        <div class="quick-entry-row">
+          <button id="btn-quick-add-income" class="btn-quick-action green">+ Příjem</button>
+          <button id="btn-quick-add-expense" class="btn-quick-action red">− Výdaj</button>
+          <button id="btn-quick-transfer" class="btn-quick-action blue">🔄 Převod</button>
         </div>
       </div>
 
@@ -96,6 +99,21 @@
         <button class="tf-btn" data-tf="12w">12T</button>
         <button class="tf-btn" data-tf="6m">6M</button>
         <button class="tf-btn" data-tf="1y">1R</button>
+      </div>
+
+      <!-- KŘIVKA TENDENCE PŘÍJMŮ A VÝDAJŮ (SROVNÁNÍ TENDENCÍ) -->
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Tendence příjmů a výdajů</h3>
+          <span class="badge-sub" id="income-expense-trend-badge">Vyhodnocení...</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="income-expense-trend-chart" width="400" height="170"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Křivka příjmů</span>
+          <span>🔴 Křivka výdajů</span>
+        </div>
       </div>
 
       <!-- KŘIVKA VÝPLATY -->
@@ -200,7 +218,7 @@
 
       <div id="payments-list" class="entries-list"></div>
 
-      <!-- Modální okno: Ruční přidání položky -->
+      <!-- Modální okno položky -->
       <div id="modal-entry" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-entry-title">Nová položka</h2>
@@ -213,7 +231,6 @@
               </div>
             </div>
 
-            <!-- VÝBĚR PENĚŽENKY: ÚČET NEBO HOTOVOST -->
             <div class="form-group">
               <label>Zdroj financí (Kde proběhl pohyb)</label>
               <div class="wallet-select-row">
@@ -230,7 +247,7 @@
 
             <div class="form-group">
               <label for="entry-title">Název / Popis</label>
-              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd hotově, Výplata">
+              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd, Výplata">
             </div>
 
             <div class="form-group">
@@ -277,7 +294,7 @@
         </div>
       </div>
 
-      <!-- Modální okno: Převod mezi účtem a hotovostí -->
+      <!-- Modální okno: Převod -->
       <div id="modal-transfer" class="modal hidden">
         <div class="modal-content">
           <h2>Převod / Výběr z bankomatu</h2>
@@ -462,7 +479,7 @@
         <div id="gold-bars-list" class="gold-bars-container" style="margin-top: 10px;"></div>
       </div>
 
-      <!-- KŘIVKA RŮSTU INVESTIČNÍHO PORTFOLIA -->
+      <!-- KŘIVKA RŮSTU PORTFOLIA -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Křivka růstu portfolia (Investice + Zlato)</h3>
@@ -786,6 +803,9 @@
       </div>
     </section>
   </main>
+
+  <!-- PLOVOUCÍ TLAČÍTKO + (FAB) V PRAVÉM DOLNÍM ROHU (WALLET STYL) -->
+  <button id="fab-add-btn" class="fab-btn" title="Rychle přidat položku">+</button>
 
   <nav class="bottom-nav">
     <button class="nav-item active" data-tab="overview">
