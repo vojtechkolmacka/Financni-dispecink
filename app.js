@@ -1281,14 +1281,13 @@ async function renderInvestments() {
   let totalInvested = 0;
   let totalCurrent = 0;
 
-  // 1. INVESTOWN: Vložená jistina + Zisk = Celková hodnota
+  // 1. INVESTOWN: Vložená jistina + Zisk = Celková hodnota (Čistá data)
   let itownRecord = await dbGet('settings', 'itown_data');
   if (!itownRecord) {
     itownRecord = {
       key: 'itown_data',
-      invested: 718116, // Vložená jistina (10 624 - 3 443)[span_1](start_span)[span_1](end_span)
-      profit: 344302,   // Čistý zisk[span_2](start_span)[span_2](end_span)
-      free: 28564       // Volné peníze[span_3](start_span)[span_3](end_span)
+      invested: 718116, // Vložená jistina (10 624 - 3 443)[span_0](start_span)[span_0](end_span)
+      profit: 344302    // Čistý zisk[span_1](start_span)[span_1](end_span)
     };
     await dbSet('settings', itownRecord);
   }
@@ -1299,7 +1298,6 @@ async function renderInvestments() {
   document.getElementById('itown-disp-total').textContent = Money.toCzk(itownTotal);
   document.getElementById('itown-disp-invested').textContent = Money.toCzk(itownRecord.invested);
   document.getElementById('itown-disp-profit').textContent = `+ ${Money.toCzk(itownRecord.profit)}`;
-  document.getElementById('itown-disp-free').textContent = Money.toCzk(itownRecord.free);
   document.getElementById('itown-disp-roi').textContent = `${itownRoi} % zisk celkem`;
 
   totalInvested += itownRecord.invested;
@@ -1397,7 +1395,6 @@ function setupInvestownSpecifics() {
   const btnDep = document.getElementById('btn-itown-deposit-500');
   const btnSell = document.getElementById('btn-itown-sell');
   const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
-  const btnEditPill = document.getElementById('btn-itown-edit-profit');
 
   // Modální okno pro přímé zadání zisku
   const modalProfit = document.getElementById('modal-itown-profit-direct');
@@ -1415,7 +1412,6 @@ function setupInvestownSpecifics() {
   }
 
   if (btnSyncProfit) btnSyncProfit.onclick = openDirectProfitModal;
-  if (btnEditPill) btnEditPill.onclick = openDirectProfitModal;
 
   if (btnCancelProfit) {
     btnCancelProfit.onclick = () => modalProfit.classList.add('hidden');
@@ -1430,10 +1426,9 @@ function setupInvestownSpecifics() {
 
       let itownRecord = await dbGet('settings', 'itown_data');
       if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302, free: 28564 };
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
       }
 
-      // Nastavíme nový celkový zisk
       itownRecord.profit = Money.toCents(newProfitCzk);
       await dbSet('settings', itownRecord);
 
@@ -1449,7 +1444,7 @@ function setupInvestownSpecifics() {
     btnDep.onclick = async () => {
       let itownRecord = await dbGet('settings', 'itown_data');
       if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302, free: 28564 };
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
       }
 
       itownRecord.invested += 50000;
