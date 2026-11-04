@@ -158,7 +158,7 @@ body {
 .metric-box.red .m-val { color: var(--accent-red); }
 .metric-box.yellow .m-val { color: var(--accent-yellow); }
 
-/* Záložka Platby */
+/* Záložka Platby & Cíle */
 .action-bar {
   margin-bottom: 14px;
 }
@@ -209,7 +209,7 @@ body {
   transition: width 0.3s ease;
 }
 
-/* Seznam položek */
+/* Seznam položek plateb */
 .entries-list {
   display: flex;
   flex-direction: column;
@@ -404,6 +404,94 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* Modul Dluhy & Pohledávky */
+.section-title-wrap {
+  margin-bottom: 10px;
+}
+
+.section-title-wrap h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.debts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.debt-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.debt-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.debt-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.debt-total {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.debt-total.receivable {
+  color: var(--accent-green);
+}
+
+.debt-total.payable {
+  color: var(--accent-red);
+}
+
+.debt-sub-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.debt-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.debt-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card-sub);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.debt-btn.btn-pay {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.debt-btn.btn-lend {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-blue);
+  border-color: rgba(56, 189, 248, 0.3);
 }
 
 /* Modální okno */
