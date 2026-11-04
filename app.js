@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupPaymentsModal();
     setupGoalsModal();
     setupDebtTxModal();
+    setupApplianceModal();
     await loadMonthData();
   } catch (err) {
     console.error('Inicializace selhala:', err);
@@ -39,6 +40,8 @@ function setupNavigation() {
         await renderGoals();
       } else if (targetTab === 'debts') {
         await renderDebts();
+      } else if (targetTab === 'energy') {
+        await renderEnergy();
       }
     });
   });
@@ -296,7 +299,7 @@ function setupPaymentsModal() {
   });
 }
 
-// 7. Modul Cíle: Výpočet prioritního přelévání hotovosti
+// 7. Modul Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
@@ -548,7 +551,6 @@ function setupDebtTxModal() {
       debt.total = Math.max(0, debt.total - amountCents);
       await dbSet('debts', debt);
 
-      // Přičtení peněz na účet jako příjem v aktuálním měsíci
       await dbAdd('entries', {
         monthYear: monthKey,
         title: `Úhrada dluhu: ${debt.name}${note ? ' (' + note + ')' : ''}`,
@@ -569,5 +571,152 @@ function setupDebtTxModal() {
     modal.classList.add('hidden');
     await loadMonthData();
     await renderDebts();
+  });
+}
+
+// 9. Modul Energie & Spotřebiče & Záruky
+async function renderEnergy() {
+  const kwhRecord = await dbGet('settings', 'kwh_price');
+  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650; // např. 6,50 Kč/kWh
+  const kwhPriceCzk = kwhPriceCents / 100;
+
+  document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
+
+  // Najdeme měsíční zálohu za ČEZ ze šablon
+  const templates = await dbGetAll('templates');
+  const cez = templates.find(t => t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez'));
+  const cezDepositCents = cez ? cez.amount : 300000;
+  document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
+
+  // Načteme spotřebiče
+  const appliances = await dbGetAll('energy');
+  const container = document.getElementById('appliances-list');
+  container.innerHTML = '';
+
+  let totalMonthlyCostCents = 0;
+
+  appliances.forEach(app => {
+    // Výpočet kWh
+    // Příkon (W) * hodiny denně / 1000 = kWh za den
+    const kwhPerHour = app.power / 1000;
+    const kwhPerDay = kwhPerHour * app.hours;
+    const kwhPerMonth = kwhPerDay * 30;
+
+    const costHourCents = Math.round(kwhPerHour * kwhPriceCents);
+    const costDayCents = Math.round(kwhPerDay * kwhPriceCents);
+    const costMonthCents = Math.round(kwhPerMonth * kwhPriceCents);
+
+    totalMonthlyCostCents += costMonthCents;
+
+    // Výpočet záruky
+    let warrantyHtml = '';
+    if (app.purchaseDate && app.warrantyMonths) {
+      const pDate = new Date(app.purchaseDate);
+      const expiryDate = new Date(pDate.setMonth(pDate.getMonth() + parseInt(app.warrantyMonths, 10)));
+      const now = new Date();
+      const diffTime = expiryDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        warrantyHtml = `<span class="warranty-badge expired">⚠️ Záruka vypršela</span>`;
+      } else if (diffDays <= 60) {
+        warrantyHtml = `<span class="warranty-badge warning">⏳ Záruka končí za ${diffDays} dní</span>`;
+      } else {
+        warrantyHtml = `<span class="warranty-badge ok">🛡️ Záruka OK (${diffDays} dní)</span>`;
+      }
+    } else {
+      warrantyHtml = `<span class="warranty-badge">Bez evidence záruky</span>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'appliance-card';
+    card.innerHTML = `
+      <div class="appliance-header">
+        <span class="appliance-name">${app.name}</span>
+        <span class="appliance-specs">${app.power} W • ${app.hours} h/den</span>
+      </div>
+
+      <div class="appliance-costs-grid">
+        <div class="cost-col">
+          <span class="c-lbl">Hodina</span>
+          <span class="c-val">${(costHourCents / 100).toFixed(2).replace('.', ',')} Kč</span>
+        </div>
+        <div class="cost-col">
+          <span class="c-lbl">Den</span>
+          <span class="c-val">${(costDayCents / 100).toFixed(2).replace('.', ',')} Kč</span>
+        </div>
+        <div class="cost-col">
+          <span class="c-lbl">Měsíc</span>
+          <span class="c-val">${Money.toCzkInt(costMonthCents)}</span>
+        </div>
+      </div>
+
+      <div class="appliance-footer">
+        ${warrantyHtml}
+        <button class="btn-delete-appliance" data-id="${app.id}">🗑️ Smazat</button>
+      </div>
+    `;
+
+    card.querySelector('.btn-delete-appliance').addEventListener('click', async () => {
+      const tx = dbInstance.transaction('energy', 'readwrite');
+      tx.objectStore('energy').delete(app.id);
+      tx.oncomplete = () => renderEnergy();
+    });
+
+    container.appendChild(card);
+  });
+
+  // Souhrn očekávaných nákladů a bilance vs. záloha
+  document.getElementById('disp-expected-energy-cost').textContent = Money.toCzkInt(totalMonthlyCostCents);
+
+  const diffCents = cezDepositCents - totalMonthlyCostCents;
+  const diffRow = document.getElementById('energy-diff-row');
+  const diffDisplay = document.getElementById('disp-energy-diff');
+
+  if (diffCents >= 0) {
+    diffDisplay.textContent = `Přeplatek cca +${Money.toCzkInt(diffCents)} / měsíc`;
+    diffDisplay.style.color = 'var(--accent-green)';
+  } else {
+    diffDisplay.textContent = `Nedoplatek cca ${Money.toCzkInt(diffCents)} / měsíc`;
+    diffDisplay.style.color = 'var(--accent-red)';
+  }
+}
+
+function setupApplianceModal() {
+  const modal = document.getElementById('modal-appliance');
+  const btnOpen = document.getElementById('btn-add-appliance');
+  const btnCancel = document.getElementById('btn-cancel-appliance');
+  const form = document.getElementById('form-appliance');
+
+  btnOpen.addEventListener('click', () => {
+    form.reset();
+    modal.classList.remove('hidden');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('appliance-name').value.trim();
+    const power = parseFloat(document.getElementById('appliance-power').value);
+    const hours = parseFloat(document.getElementById('appliance-hours').value);
+    const purchaseDate = document.getElementById('appliance-warranty-date').value;
+    const warrantyMonths = parseInt(document.getElementById('appliance-warranty-months').value, 10) || 24;
+
+    if (!name || isNaN(power) || power <= 0 || isNaN(hours) || hours <= 0) return;
+
+    await dbAdd('energy', {
+      name,
+      power,
+      hours,
+      purchaseDate: purchaseDate || null,
+      warrantyMonths
+    });
+
+    modal.classList.add('hidden');
+    await renderEnergy();
   });
 }
