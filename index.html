@@ -22,7 +22,7 @@
   </header>
 
   <main id="app-content">
-    <!-- Jednotlivé záložky / moduly -->
+    <!-- 1. Přehled -->
     <section id="tab-overview" class="tab-panel active">
       <div class="balance-card">
         <span class="card-label">Disponibilní zůstatek na účtu</span>
@@ -45,10 +45,93 @@
       </div>
     </section>
 
-    <section id="tab-payments" class="tab-panel"></section>
+    <!-- 2. Platby -->
+    <section id="tab-payments" class="tab-panel">
+      <div class="action-bar">
+        <button id="btn-add-entry" class="action-btn-main">+ Přidat položku</button>
+      </div>
+
+      <div class="payments-summary-card">
+        <div class="summary-line">
+          <span>Celkové výdaje měsíce:</span>
+          <strong id="payments-total-exp">0 Kč</strong>
+        </div>
+        <div class="summary-progress-bar">
+          <div id="payments-progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div id="payments-list" class="entries-list">
+        <!-- Položky se vykreslí dynamicky -->
+      </div>
+
+      <!-- Modální okno pro zadání platby / příjmu -->
+      <div id="modal-entry" class="modal hidden">
+        <div class="modal-content">
+          <h2 id="modal-entry-title">Nová položka</h2>
+          <form id="form-entry">
+            <div class="form-group">
+              <label>Typ položky</label>
+              <div class="radio-row">
+                <label><input type="radio" name="entryType" value="expense" checked> Výdaj</label>
+                <label><input type="radio" name="entryType" value="income"> Příjem</label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="entry-title">Název</label>
+              <input type="text" id="entry-title" required placeholder="např. Nákup, Benzín, Výplata">
+            </div>
+
+            <div class="form-group">
+              <label for="entry-amount">Částka (Kč)</label>
+              <input type="number" id="entry-amount" step="0.01" required placeholder="0.00">
+            </div>
+
+            <div class="form-group">
+              <label for="entry-category">Kategorie</label>
+              <select id="entry-category">
+                <option value="Bydlení">Bydlení</option>
+                <option value="Energie">Energie</option>
+                <option value="Komunikace">Komunikace</option>
+                <option value="Služby">Služby</option>
+                <option value="Závazky">Závazky / Splátky</option>
+                <option value="Jídlo & Drogerie">Jídlo & Drogerie</option>
+                <option value="Doprava & Koloběžka">Doprava & Koloběžka</option>
+                <option value="Zvířata">Zvířata</option>
+                <option value="Příjmy">Příjmy & Výplata</option>
+                <option value="Ostatní">Ostatní</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="entry-day">Den v měsíci (1–31)</label>
+              <input type="number" id="entry-day" min="1" max="31" value="10">
+            </div>
+
+            <div class="form-group checkbox-row" id="wrap-entry-recurring">
+              <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou měsíční platbu</label>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-entry" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Cíle -->
     <section id="tab-goals" class="tab-panel"></section>
+
+    <!-- 4. Dluhy -->
     <section id="tab-debts" class="tab-panel"></section>
+
+    <!-- 5. Energie -->
     <section id="tab-energy" class="tab-panel"></section>
+
+    <!-- 6. Nastavení -->
     <section id="tab-settings" class="tab-panel"></section>
   </main>
 
