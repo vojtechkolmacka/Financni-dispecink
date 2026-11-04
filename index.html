@@ -163,8 +163,48 @@
       </div>
     </section>
 
-    <!-- 4. Dluhy -->
-    <section id="tab-debts" class="tab-panel"></section>
+    <!-- 4. Dluhy & Pohledávky -->
+    <section id="tab-debts" class="tab-panel">
+      <div class="section-title-wrap">
+        <h2>Kdo mi dluží (Pohledávky)</h2>
+      </div>
+      <div id="receivables-list" class="debts-container">
+        <!-- Seznam pohledávek KOV, JIŘÍ, MAGDA -->
+      </div>
+
+      <div class="section-title-wrap" style="margin-top: 24px;">
+        <h2>Moje závazky (Půjčky)</h2>
+      </div>
+      <div id="payables-list" class="debts-container">
+        <!-- Seznam půjček Provident, AvaFin -->
+      </div>
+
+      <!-- Modální okno pro transakci s dlužníkem -->
+      <div id="modal-debt-tx" class="modal hidden">
+        <div class="modal-content">
+          <h2 id="modal-debt-tx-title">Upravit dluh</h2>
+          <form id="form-debt-tx">
+            <input type="hidden" id="debt-tx-id">
+            <input type="hidden" id="debt-tx-action"> <!-- lend / repay -->
+
+            <div class="form-group">
+              <label for="debt-tx-amount">Částka (Kč)</label>
+              <input type="number" id="debt-tx-amount" step="1" required placeholder="0">
+            </div>
+
+            <div class="form-group">
+              <label for="debt-tx-note">Důvod / Poznámka</label>
+              <input type="text" id="debt-tx-note" placeholder="např. Nákup, Část splátky">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-debt-tx" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Potvrdit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
 
     <!-- 5. Energie -->
     <section id="tab-energy" class="tab-panel"></section>
