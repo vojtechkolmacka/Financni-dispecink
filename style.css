@@ -175,7 +175,7 @@ body {
   cursor: pointer;
 }
 
-.payments-summary-card {
+.payments-summary-card, .goals-summary-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -186,8 +186,13 @@ body {
 .summary-line {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.9rem;
-  margin-bottom: 8px;
+}
+
+.text-blue {
+  color: var(--accent-blue);
+  font-size: 1.1rem;
 }
 
 .summary-progress-bar {
@@ -195,6 +200,7 @@ body {
   background: var(--bg-card-sub);
   border-radius: 4px;
   overflow: hidden;
+  margin-top: 8px;
 }
 
 #payments-progress-fill {
@@ -295,6 +301,109 @@ body {
 
 .entry-amount.income {
   color: var(--accent-green);
+}
+
+/* Modul Cíle */
+.goals-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.goal-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.goal-card.paused {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.goal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.goal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goal-prio-tag {
+  background: var(--bg-card-sub);
+  color: var(--accent-yellow);
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 3px 7px;
+  border-radius: 6px;
+}
+
+.goal-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.goal-status-badge {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.goal-status-badge.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.goal-status-badge.paused {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+}
+
+.goal-amounts {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.goal-progress-wrap {
+  height: 10px;
+  background: var(--bg-card-sub);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9, #10b981);
+  transition: width 0.3s ease;
+}
+
+.goal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.goal-btn {
+  flex: 1;
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 7px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* Modální okno */
