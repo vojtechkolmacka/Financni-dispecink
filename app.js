@@ -124,7 +124,7 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat
+// 4. Načtení dat a podpora periodických plateb
 async function loadMonthData() {
   const targetYear = currentDate.getFullYear();
   const targetMonthNum = currentDate.getMonth() + 1;
@@ -1110,7 +1110,7 @@ function setupPaymentsModal() {
       wallet,
       isIncome,
       frequency: isRecurring ? frequency : 'single',
-      paid: true // Každý ručně zadaný příjem i výdaj je ihned zaúčtovaný
+      paid: true
     });
 
     modal.classList.add('hidden');
@@ -1202,7 +1202,8 @@ function setupTransferModal() {
 // 16. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
-  document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
+  const goalsAvailEl = document.getElementById('goals-available-disp');
+  if (goalsAvailEl) goalsAvailEl.textContent = Money.toCzk(balance);
 
   const goals = await dbGetAll('goals');
   goals.sort((a, b) => a.priority - b.priority);
@@ -1602,10 +1603,15 @@ async function renderInvestments() {
   const itownTotal = itownRecord.invested + itownRecord.profit;
   const itownRoi = itownRecord.invested > 0 ? ((itownRecord.profit / itownRecord.invested) * 100).toFixed(1) : 0;
 
-  document.getElementById('itown-disp-total').textContent = Money.toCzk(itownTotal);
-  document.getElementById('itown-disp-invested').textContent = Money.toCzk(itownRecord.invested);
-  document.getElementById('itown-disp-profit').textContent = `+ ${Money.toCzk(itownRecord.profit)}`;
-  document.getElementById('itown-disp-roi').textContent = `${itownRoi} % zisk`;
+  const itownTotalEl = document.getElementById('itown-disp-total');
+  const itownInvEl = document.getElementById('itown-disp-invested');
+  const itownProfitEl = document.getElementById('itown-disp-profit');
+  const itownRoiEl = document.getElementById('itown-disp-roi');
+
+  if (itownTotalEl) itownTotalEl.textContent = Money.toCzk(itownTotal);
+  if (itownInvEl) itownInvEl.textContent = Money.toCzk(itownRecord.invested);
+  if (itownProfitEl) itownProfitEl.textContent = `+ ${Money.toCzk(itownRecord.profit)}`;
+  if (itownRoiEl) itownRoiEl.textContent = `${itownRoi} % zisk`;
 
   totalInvested += itownRecord.invested;
   totalCurrent += itownTotal;
@@ -1660,9 +1666,13 @@ async function renderInvestments() {
   const netWorth = liquidCash + totalCurrent;
   const investRatio = netWorth > 0 ? Math.round((totalCurrent / netWorth) * 100) : 0;
 
-  document.getElementById('disp-total-networth').textContent = Money.toCzkInt(netWorth);
-  document.getElementById('disp-total-current').textContent = Money.toCzkInt(totalCurrent);
-  document.getElementById('assets-ratio-text').textContent = `${investRatio}%`;
+  const networthEl = document.getElementById('disp-total-networth');
+  const currentEl = document.getElementById('disp-total-current');
+  const ratioEl = document.getElementById('assets-ratio-text');
+
+  if (networthEl) networthEl.textContent = Money.toCzkInt(netWorth);
+  if (currentEl) currentEl.textContent = Money.toCzkInt(totalCurrent);
+  if (ratioEl) ratioEl.textContent = `${investRatio}%`;
 
   drawDonutChart('assets-donut-chart', investRatio);
 
@@ -1693,11 +1703,12 @@ async function renderInvestments() {
       });
     }
 
-    document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
+    const monthWebEl = document.getElementById('disp-month-web-earnings');
+    if (monthWebEl) monthWebEl.textContent = Money.toCzk(webSum);
   }
 }
 
-// LOGIKA INVESTOWNU: MIMOŘÁDNÝ VKLAD, PRODEJ, ZISK
+// LOGIKA INVESTOWNU: VKLAD, PRODEJ, ZISK
 function setupInvestownSpecifics() {
   const btnDepCustom = document.getElementById('btn-itown-deposit-custom');
   const btnSell = document.getElementById('btn-itown-sell');
@@ -2552,10 +2563,10 @@ async function drawEnergyConsumptionChart() {
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${c.pt.val.toFixed(1)}`, c.x, c.y - 8);
+    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
 
     ctx.fillStyle = '#94a3b8';
-    ctx.fillText(c.pt.date, c.x, height - 8);
+    ctx.fillText(c.pt.label, c.x, height - 8);
   });
 }
 
