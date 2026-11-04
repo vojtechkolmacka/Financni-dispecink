@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupMonthSelector();
     setupTimeframeButtons();
     setupPaymentsModal();
+    setupTransferModal();
     setupGoalsModal();
     setupDebtTxModal();
     setupApplianceModal();
@@ -134,6 +135,7 @@ async function loadMonthData() {
           amount: t.amount,
           category: t.category,
           day: t.day,
+          wallet: 'bank',
           isIncome: false,
           paid: false
         };
@@ -146,7 +148,7 @@ async function loadMonthData() {
 
   currentMonthEntries.sort((a, b) => (a.day || 0) - (b.day || 0));
 
-  await calculateOverviewAndGauges(currentMonthEntries);
+  await calculateBalancesAndGauges(currentMonthEntries);
   renderPaymentsList(currentMonthEntries);
   renderVariableExpensesBreakdown(currentMonthEntries);
   await drawSalaryTrendChart(allEntries);
@@ -155,123 +157,118 @@ async function loadMonthData() {
   renderCategoryBreakdown(currentMonthEntries);
 }
 
-// 5. VÝPOČTY & VYKRESLENÍ TACHOMETRŮ (WALLET GAUGES)
-async function calculateOverviewAndGauges(entries) {
-  const currentBalance = await getCalculatedBalance(entries);
-  const debts = await dbGetAll('debts');
+// 5. VÝPOČET SAMOSTATNÝCH ZŮSTATKŮ: ÚČET VS. HOTOVOST
+async function calculateBalancesAndGauges(entries) {
+  const bankCapRecord = await dbGet('settings', 'bank_capital');
+  const cashCapRecord = await dbGet('settings', 'cash_capital');
+  const initCapRecord = await dbGet('settings', 'initial_capital');
 
-  let totalIncome = 0;
-  let totalPaid = 0;
-  let totalRemaining = 0;
+  const initialBank = bankCapRecord ? bankCapRecord.value : (initCapRecord ? initCapRecord.value : 4600000);
+  const initialCash = cashCapRecord ? cashCapRecord.value : 500000;
 
-  entries.forEach(e => {
+  const allEntries = await dbGetAll('entries');
+  let bankIncome = 0, bankExpense = 0;
+  let cashIncome = 0, cashExpense = 0;
+
+  let totalRemainingMonth = 0;
+
+  allEntries.forEach(e => {
+    const w = e.wallet || 'bank';
     if (e.isIncome) {
-      totalIncome += e.amount;
-    } else {
-      if (e.paid) {
-        totalPaid += e.amount;
-      } else {
-        totalRemaining += e.amount;
-      }
+      if (w === 'bank') bankIncome += e.amount;
+      else cashIncome += e.amount;
+    } else if (e.paid) {
+      if (w === 'bank') bankExpense += e.amount;
+      else cashExpense += e.amount;
     }
   });
 
-  const cashFlow = totalIncome - totalPaid;
-  const forecast7d = currentBalance - Math.min(currentBalance, totalRemaining);
+  entries.forEach(e => {
+    if (!e.isIncome && !e.paid) {
+      totalRemainingMonth += e.amount;
+    }
+  });
 
+  const bankBalance = initialBank + bankIncome - bankExpense;
+  const cashBalance = initialCash + cashIncome - cashExpense;
+  const totalLiquidity = bankBalance + cashBalance;
+
+  document.getElementById('disp-total-liquidity').textContent = Money.toCzk(totalLiquidity);
+  document.getElementById('disp-bank-balance').textContent = Money.toCzkInt(bankBalance);
+  document.getElementById('disp-cash-balance').textContent = Money.toCzkInt(cashBalance);
+
+  // Bezpečné denní kapesné
+  const paydayRecord = await dbGet('settings', 'payday');
+  const payday = paydayRecord ? paydayRecord.value : 10;
+  calculateSafeSpend(totalLiquidity, totalRemainingMonth, payday);
+
+  // Tachometry (Gauges)
+  const debts = await dbGetAll('debts');
   const totalDebt = debts.filter(d => d.type === 'payable').reduce((acc, d) => acc + d.total, 0);
-  const debtRatio = currentBalance > 0 ? Math.min(100, Math.round((totalDebt / currentBalance) * 100)) : 100;
+  const debtRatio = totalLiquidity > 0 ? Math.min(100, Math.round((totalDebt / totalLiquidity) * 100)) : 100;
 
-  document.getElementById('g-val-balance').textContent = Money.toCzkInt(currentBalance);
+  const monthPaid = entries.filter(e => !e.isIncome && e.paid).reduce((acc, e) => acc + e.amount, 0);
+  const monthInc = entries.filter(e => e.isIncome).reduce((acc, e) => acc + e.amount, 0);
+  const cashFlow = monthInc - monthPaid;
+  const forecast7d = totalLiquidity - Math.min(totalLiquidity, totalRemainingMonth);
+
+  document.getElementById('g-val-balance').textContent = Money.toCzkInt(totalLiquidity);
   document.getElementById('g-val-cashflow').textContent = `${cashFlow >= 0 ? '+' : ''}${Money.toCzkInt(cashFlow)}`;
   document.getElementById('gm-val-forecast').textContent = Money.toCzkInt(forecast7d);
-  document.getElementById('gm-val-expenses').textContent = Money.toCzkInt(totalPaid);
+  document.getElementById('gm-val-expenses').textContent = Money.toCzkInt(monthPaid);
   document.getElementById('gm-val-debt').textContent = `${debtRatio} %`;
 
-  drawAnalogGauge('gauge-balance', currentBalance, 10000000, 130, 90, 7);
+  drawAnalogGauge('gauge-balance', totalLiquidity, 10000000, 130, 90, 7);
   drawAnalogGauge('gauge-cashflow', cashFlow + 5000000, 10000000, 130, 90, 7);
   drawAnalogGauge('gauge-forecast', Math.max(0, forecast7d), 5000000, 70, 50, 4);
-  drawAnalogGauge('gauge-expenses', totalPaid, 5000000, 70, 50, 4);
+  drawAnalogGauge('gauge-expenses', monthPaid, 5000000, 70, 50, 4);
   drawAnalogGauge('gauge-debt', debtRatio, 100, 70, 50, 4);
 }
 
-function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+function calculateSafeSpend(balance, unpaidBills, paydayDay) {
+  const now = new Date();
+  const currentDay = now.getDate();
+  let daysUntilPayday = 0;
 
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, width, height);
+  if (currentDay < paydayDay) {
+    daysUntilPayday = paydayDay - currentDay;
+  } else {
+    const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    daysUntilPayday = (daysInCurrentMonth - currentDay) + paydayDay;
+  }
 
-  const cx = width / 2;
-  const cy = height - 10;
-  const r = (width / 2) - 12;
+  const freeMoney = balance - unpaidBills;
+  const safeDaily = daysUntilPayday > 0 ? Math.floor(freeMoney / daysUntilPayday) : 0;
 
-  const startAngle = Math.PI;
-  const endAngle = 2 * Math.PI;
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, startAngle, startAngle + 0.35 * Math.PI);
-  ctx.strokeStyle = '#ef4444';
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, startAngle + 0.35 * Math.PI, startAngle + 0.7 * Math.PI);
-  ctx.strokeStyle = '#f59e0b';
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, startAngle + 0.7 * Math.PI, endAngle);
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-
-  const ratio = Math.max(0, Math.min(1, val / (maxVal || 1)));
-  const needleAngle = startAngle + ratio * Math.PI;
-
-  const needleLen = r - 4;
-  const nx = cx + needleLen * Math.cos(needleAngle);
-  const ny = cy + needleLen * Math.sin(needleAngle);
-
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(nx, ny);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = Math.max(2, lineWidth / 2);
-  ctx.lineCap = 'round';
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, lineWidth * 0.9, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
+  const display = document.getElementById('disp-safe-daily');
+  if (freeMoney <= 0) {
+    display.textContent = 'Pozor: Zůstatek nepokrývá zbývající nutné platby!';
+    display.style.color = 'var(--accent-red)';
+  } else {
+    display.textContent = `Do výplaty (${daysUntilPayday} dní): bezpečně ${Money.toCzkInt(safeDaily)} / den`;
+    display.style.color = 'var(--accent-blue)';
+  }
 }
 
-async function getCalculatedBalance(optionalEntries) {
+async function getCalculatedBalance() {
+  const bankCapRecord = await dbGet('settings', 'bank_capital');
+  const cashCapRecord = await dbGet('settings', 'cash_capital');
   const initCapRecord = await dbGet('settings', 'initial_capital');
-  const initialCapital = initCapRecord ? initCapRecord.value : 5100000;
 
-  const entries = optionalEntries || await dbGetAll('entries');
-  let totalIncome = 0;
-  let totalPaid = 0;
+  const initialBank = bankCapRecord ? bankCapRecord.value : (initCapRecord ? initCapRecord.value : 4600000);
+  const initialCash = cashCapRecord ? cashCapRecord.value : 500000;
 
-  entries.forEach(e => {
-    if (e.isIncome) {
-      totalIncome += e.amount;
-    } else if (e.paid) {
-      totalPaid += e.amount;
-    }
+  const allEntries = await dbGetAll('entries');
+  let inc = 0, exp = 0;
+  allEntries.forEach(e => {
+    if (e.isIncome) inc += e.amount;
+    else if (e.paid) exp += e.amount;
   });
 
-  return initialCapital + totalIncome - totalPaid;
+  return initialBank + initialCash + inc - exp;
 }
 
-// 6. MONITORING A KŘIVKA ČISTÉ MZDY / VÝPLATY V ČASE
+// 6. KŘIVKA MZDY A PRAVIDELNÝCH PŘÍJMŮ
 async function drawSalaryTrendChart(allEntries) {
   const canvas = document.getElementById('salary-trend-chart');
   if (!canvas) return;
@@ -370,7 +367,7 @@ async function drawSalaryTrendChart(allEntries) {
   });
 }
 
-// 7. VÝVOJ CASH FLOW BAR CHART
+// 7. CASH FLOW BAR CHART
 async function drawCashflowForecastBarChart(allEntries) {
   const canvas = document.getElementById('cashflow-bar-chart');
   if (!canvas) return;
@@ -600,7 +597,7 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 11. Seznam plateb
+// 11. Seznam plateb (s označením Účet / Hotovost)
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -621,12 +618,18 @@ function renderPaymentsList(entries) {
     const sign = item.isIncome ? '+' : '-';
     const amountClass = item.isIncome ? 'income' : 'expense';
 
+    const isBank = (item.wallet || 'bank') === 'bank';
+    const walletTag = isBank 
+      ? `<span class="entry-wallet-tag bank">🏦 Účet</span>`
+      : `<span class="entry-wallet-tag cash">💵 Hotovost</span>`;
+
     row.innerHTML = `
       <div class="entry-left">
         <div class="check-circle">${checkIcon}</div>
         <div class="entry-info">
           <span class="entry-title">${item.title}</span>
           <div class="entry-sub">
+            ${walletTag}
             <span class="entry-badge">${item.category}</span>
             <span>${item.day}. v měsíci</span>
           </div>
@@ -651,6 +654,7 @@ function renderPaymentsList(entries) {
   document.getElementById('payments-progress-fill').style.width = `${percent}%`;
 }
 
+// 12. Modální okna pro ruční přidání položky a převod
 function setupPaymentsModal() {
   const modal = document.getElementById('modal-entry');
   const btnOpen = document.getElementById('btn-add-entry');
@@ -679,6 +683,7 @@ function setupPaymentsModal() {
     e.preventDefault();
 
     const isIncome = form.querySelector('input[name="entryType"]:checked').value === 'income';
+    const wallet = form.querySelector('input[name="entryWallet"]:checked').value;
     const title = document.getElementById('entry-title').value.trim();
     const amountCzk = parseFloat(document.getElementById('entry-amount').value);
     const category = document.getElementById('entry-category').value;
@@ -696,6 +701,7 @@ function setupPaymentsModal() {
       amount: amountCents,
       category,
       day,
+      wallet,
       isIncome,
       paid: isIncome
     });
@@ -715,7 +721,87 @@ function setupPaymentsModal() {
   });
 }
 
-// 12. Cíle
+function setupTransferModal() {
+  const modal = document.getElementById('modal-transfer');
+  const btnOpen = document.getElementById('btn-quick-transfer');
+  const btnCancel = document.getElementById('btn-cancel-transfer');
+  const form = document.getElementById('form-transfer');
+
+  btnOpen.addEventListener('click', () => {
+    form.reset();
+    modal.classList.remove('hidden');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const direction = document.getElementById('transfer-direction').value;
+    const amountCzk = parseFloat(document.getElementById('transfer-amount').value);
+
+    if (isNaN(amountCzk) || amountCzk <= 0) return;
+
+    const amountCents = Money.toCents(amountCzk);
+    const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    const today = new Date().getDate();
+
+    if (direction === 'atm') {
+      // Výběr z bankomatu: Úbytek z účtu + Příbytek do hotovosti
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: 'Výběr z bankomatu (do peněženky)',
+        amount: amountCents,
+        category: 'Ostatní',
+        day: today,
+        wallet: 'bank',
+        isIncome: false,
+        paid: true
+      });
+
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: 'Vklad hotovosti (z bankomatu)',
+        amount: amountCents,
+        category: 'Ostatní',
+        day: today,
+        wallet: 'cash',
+        isIncome: true,
+        paid: true
+      });
+    } else {
+      // Vklad na účet: Úbytek z hotovosti + Příbytek na účet
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: 'Vklad na bankovní účet',
+        amount: amountCents,
+        category: 'Ostatní',
+        day: today,
+        wallet: 'cash',
+        isIncome: false,
+        paid: true
+      });
+
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: 'Příchozí vklad hotovosti',
+        amount: amountCents,
+        category: 'Ostatní',
+        day: today,
+        wallet: 'bank',
+        isIncome: true,
+        paid: true
+      });
+    }
+
+    modal.classList.add('hidden');
+    await loadMonthData();
+  });
+}
+
+// 13. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
@@ -846,7 +932,7 @@ function setupGoalsModal() {
   });
 }
 
-// 13. Dluhy
+// 14. Dluhy
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -904,6 +990,7 @@ async function renderDebts() {
           amount: payAmount,
           category: 'Závazky',
           day: new Date().getDate(),
+          wallet: 'bank',
           isIncome: false,
           paid: true
         });
@@ -971,6 +1058,7 @@ function setupDebtTxModal() {
         amount: amountCents,
         category: 'Příjmy',
         day: new Date().getDate(),
+        wallet: 'bank',
         isIncome: true,
         paid: true
       });
@@ -988,7 +1076,7 @@ function setupDebtTxModal() {
   });
 }
 
-// 14. Investice, Zlaté slitky, Křivky růstu & Web výdělky
+// 15. Investice, Zlaté slitky & Web výdělky
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -998,7 +1086,6 @@ async function renderInvestments() {
   let totalInvested = 0;
   let totalCurrent = 0;
 
-  // Investiční platformy
   investments.forEach(inv => {
     totalInvested += inv.invested;
     totalCurrent += inv.current;
@@ -1039,7 +1126,6 @@ async function renderInvestments() {
     container.appendChild(card);
   });
 
-  // Zlaté slitky
   await renderGoldBars(goldBars);
   goldBars.forEach(g => {
     totalInvested += g.bought;
@@ -1085,7 +1171,6 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// Zobrazení a správa zlatých slitků
 async function renderGoldBars(goldBars) {
   const container = document.getElementById('gold-bars-list');
   container.innerHTML = '';
@@ -1162,7 +1247,6 @@ function setupGoldModal() {
   });
 }
 
-// KŘIVKA INVESTIČNÍHO PORTFOLIA
 async function drawInvestmentTrendChart(investedCents, currentCents) {
   const canvas = document.getElementById('invest-trend-chart');
   if (!canvas) return;
@@ -1250,7 +1334,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   });
 }
 
-// KŘIVKA VÝDĚLKŮ Z WEBU
 async function drawWebEarningsTrendChart(allEntries) {
   const canvas = document.getElementById('web-trend-chart');
   if (!canvas) return;
@@ -1414,7 +1497,7 @@ function setupInvestmentModal() {
   });
 }
 
-// 15. Energie
+// 16. Energie
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -1861,14 +1944,17 @@ function setupApplianceModal() {
   });
 }
 
-// 16. Nastavení & Air Bank CSV Parser
+// 17. Nastavení & Air Bank CSV Parser
 async function renderSettings() {
+  const bankCapRecord = await dbGet('settings', 'bank_capital');
+  const cashCapRecord = await dbGet('settings', 'cash_capital');
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
 
-  document.getElementById('set-initial-capital').value = initCapRecord ? initCapRecord.value / 100 : 51000;
+  document.getElementById('set-bank-capital').value = bankCapRecord ? bankCapRecord.value / 100 : (initCapRecord ? initCapRecord.value / 100 : 46000);
+  document.getElementById('set-cash-capital').value = cashCapRecord ? cashCapRecord.value / 100 : 5000;
   document.getElementById('set-payday').value = paydayRecord ? paydayRecord.value : 10;
   document.getElementById('set-kwh-price').value = kwhRecord ? kwhRecord.value / 100 : 6.5;
 
@@ -1902,11 +1988,13 @@ function setupSettingsAndBackup() {
   });
 
   document.getElementById('btn-save-settings').addEventListener('click', async () => {
-    const initCap = parseFloat(document.getElementById('set-initial-capital').value);
+    const bankCap = parseFloat(document.getElementById('set-bank-capital').value);
+    const cashCap = parseFloat(document.getElementById('set-cash-capital').value);
     const payday = parseInt(document.getElementById('set-payday').value, 10);
     const kwh = parseFloat(document.getElementById('set-kwh-price').value);
 
-    if (!isNaN(initCap)) await dbSet('settings', { key: 'initial_capital', value: Money.toCents(initCap) });
+    if (!isNaN(bankCap)) await dbSet('settings', { key: 'bank_capital', value: Money.toCents(bankCap) });
+    if (!isNaN(cashCap)) await dbSet('settings', { key: 'cash_capital', value: Money.toCents(cashCap) });
     if (!isNaN(payday)) await dbSet('settings', { key: 'payday', value: payday });
     if (!isNaN(kwh)) await dbSet('settings', { key: 'kwh_price', value: Money.toCents(kwh) });
 
@@ -2016,7 +2104,6 @@ async function restoreFromBackup(data) {
   }
 }
 
-// INTELIGENTNÍ AUTOMATICKÉ ROZPOZNÁVÁNÍ KATEGORIÍ Z CSV AIR BANK
 function detectCategoryFromAirBank(desc, isIncome) {
   const t = desc.toLowerCase();
 
@@ -2027,7 +2114,6 @@ function detectCategoryFromAirBank(desc, isIncome) {
     return 'Příjmy';
   }
 
-  // Stálé mandatorní platby
   if (t.includes('čez') || t.includes('cez') || t.includes('innogy') || t.includes('e.on')) return 'Energie';
   if (t.includes('provident') || t.includes('avafin') || t.includes('crediton') || t.includes('splátka')) return 'Závazky';
   if (t.includes('t-mobile') || t.includes('vodafone') || t.includes('o2')) return 'Komunikace';
@@ -2035,7 +2121,6 @@ function detectCategoryFromAirBank(desc, isIncome) {
   if (t.includes('spotify') || t.includes('openai') || t.includes('chatgpt') || t.includes('google') || t.includes('česká televize')) return 'Služby';
   if (t.includes('investown') || t.includes('penzij') || t.includes('portu') || t.includes('zlato') || t.includes('slitek')) return 'Investice';
 
-  // Variabilní spotřeba
   if (t.includes('albert') || t.includes('lidl') || t.includes('kaufland') || t.includes('billa') || t.includes('penny') || t.includes('tesco') || t.includes('pekař') || t.includes('potraviny')) {
     return 'Jídlo & Potraviny';
   }
@@ -2116,6 +2201,7 @@ async function parseAndImportAirBankCsv(csvText) {
       amount: absAmountCents,
       category,
       day,
+      wallet: 'bank', // Z banky vždy patří na účet
       isIncome,
       paid: true
     });
