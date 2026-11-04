@@ -22,7 +22,7 @@
   </header>
 
   <main id="app-content">
-    <!-- 1. Přehled & Řídicí analytické centrum -->
+    <!-- 1. Přehled -->
     <section id="tab-overview" class="tab-panel active">
       <div class="balance-card">
         <span class="card-label">Disponibilní zůstatek na účtu</span>
@@ -45,7 +45,7 @@
         </div>
       </div>
 
-      <!-- ANALÝZA 1: PREDIKCE VÝVOJE ZŮSTATKU DO VÝPLATY -->
+      <!-- ANALÝZA 1: PREDIKCE CASHFLOW -->
       <div class="analytics-card">
         <div class="analytics-header">
           <h3>Predikce vývoje cashflow (do konce měsíce)</h3>
@@ -55,20 +55,18 @@
           <canvas id="cashflow-forecast-chart" width="400" height="180"></canvas>
         </div>
         <div class="chart-legend">
-          <span>📉 Odhad minimálního zůstatku: <strong id="forecast-min-val" class="text-blue">0 Kč</strong></span>
+          <span>📉 Odhad minima: <strong id="forecast-min-val" class="text-blue">0 Kč</strong></span>
           <span id="forecast-safety-tag">🛡️ Rezerva OK</span>
         </div>
       </div>
 
-      <!-- ANALÝZA 2: KAM JDOU PENÍZE (KATEGORIE VÝDAJŮ) -->
+      <!-- ANALÝZA 2: STRUKTURA VÝDAJŮ -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Kam jdou peníze (Struktura výdajů)</h3>
           <span class="badge-sub">Žrouti rozpočtu</span>
         </div>
-        <div id="category-breakdown-list" class="category-bars-wrap">
-          <!-- Dynamické pruhové grafy výdajů -->
-        </div>
+        <div id="category-breakdown-list" class="category-bars-wrap"></div>
       </div>
     </section>
 
@@ -105,7 +103,7 @@
 
             <div class="form-group">
               <label for="entry-title">Název</label>
-              <input type="text" id="entry-title" required placeholder="např. Nákup, Benzín, Výplata">
+              <input type="text" id="entry-title" required placeholder="např. Web Koloběžník, Benzín, Výplata">
             </div>
 
             <div class="form-group">
@@ -116,6 +114,9 @@
             <div class="form-group">
               <label for="entry-category">Kategorie</label>
               <select id="entry-category">
+                <option value="Výplata">Výplata & Hlavní příjem</option>
+                <option value="Web & Projekty">Web & Vedlejší výdělky</option>
+                <option value="Investice">Investice & Výnosy</option>
                 <option value="Bydlení">Bydlení</option>
                 <option value="Energie">Energie</option>
                 <option value="Komunikace">Komunikace</option>
@@ -125,8 +126,6 @@
                 <option value="Doprava & Koloběžka">Doprava & Koloběžka</option>
                 <option value="Zvířata">Zvířata</option>
                 <option value="Zdraví">Zdraví & Terapie</option>
-                <option value="Investice & Spoření">Investice & Spoření</option>
-                <option value="Příjmy">Příjmy & Výplata</option>
                 <option value="Ostatní">Ostatní</option>
               </select>
             </div>
@@ -200,7 +199,6 @@
       </div>
       <div id="payables-list" class="debts-container"></div>
 
-      <!-- Modální okno pro dluhovou operaci -->
       <div id="modal-debt-tx" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-debt-tx-title">Upravit dluh</h2>
@@ -227,7 +225,81 @@
       </div>
     </section>
 
-    <!-- 5. Energie & Monitoring spotřeby domu -->
+    <!-- 5. Investice & Web výdělky -->
+    <section id="tab-invest" class="tab-panel">
+      <!-- Souhrnná karta portfolia -->
+      <div class="invest-summary-card">
+        <div class="inv-metric">
+          <span class="inv-lbl">Celkem zainvestováno</span>
+          <span class="inv-val" id="disp-total-invested">0 Kč</span>
+        </div>
+        <div class="inv-metric">
+          <span class="inv-lbl">Aktuální hodnota</span>
+          <span class="inv-val text-blue" id="disp-total-current">0 Kč</span>
+        </div>
+        <div class="inv-metric">
+          <span class="inv-lbl">Čistý zisk / výnos</span>
+          <span class="inv-val" id="disp-total-profit">+0 Kč</span>
+        </div>
+      </div>
+
+      <div class="action-bar" style="margin-top: 14px;">
+        <button id="btn-add-investment" class="action-btn-main">+ Přidat investici / aktivum</button>
+      </div>
+
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Přehled investičních aktiv (Investown, Penzijko...)</h2>
+      </div>
+      <div id="investments-list" class="investments-container"></div>
+
+      <!-- Karta pro Web výdělky v aktuálním měsíci -->
+      <div class="analytics-card" style="margin-top: 20px;">
+        <div class="analytics-header">
+          <h3>Výdělky z webu v tomto měsíci</h3>
+          <span class="badge-sub">Koloběžník & Projekty</span>
+        </div>
+        <div class="web-earnings-summary">
+          <span>Celkový příjem z webu:</span>
+          <strong id="disp-month-web-earnings" class="text-green">0 Kč</strong>
+        </div>
+        <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
+      </div>
+
+      <!-- Modální okno pro investici -->
+      <div id="modal-investment" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nová investice / aktivum</h2>
+          <form id="form-investment">
+            <div class="form-group">
+              <label for="inv-name">Název platformy / aktiva</label>
+              <input type="text" id="inv-name" required placeholder="např. Investown, ETF, Bitcoin, Zlato">
+            </div>
+
+            <div class="form-group">
+              <label for="inv-invested">Vložená částka (Kč)</label>
+              <input type="number" id="inv-invested" step="1" required placeholder="15000">
+            </div>
+
+            <div class="form-group">
+              <label for="inv-current">Aktuální hodnota (Kč)</label>
+              <input type="number" id="inv-current" step="1" required placeholder="15850">
+            </div>
+
+            <div class="form-group">
+              <label for="inv-note">Poznámka / Strategie</label>
+              <input type="text" id="inv-note" placeholder="např. 10 % p.a., reinvestice">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-investment" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Energie -->
     <section id="tab-energy" class="tab-panel">
       <div class="energy-overview-card">
         <div class="energy-row">
@@ -248,29 +320,32 @@
         </div>
       </div>
 
-      <!-- Graf spotřeby domu -->
       <div class="chart-card" style="margin-top: 14px;">
         <div class="chart-header">
-          <h3>Křivka celkové spotřeby domu (kWh/den)</h3>
+          <h3>Křivka spotřeby domu (kWh/den)</h3>
           <button id="btn-add-meter-reading" class="btn-small-primary">+ Zadat stav elektroměru</button>
         </div>
         <div class="canvas-wrapper">
-          <canvas id="energy-chart" width="400" height="200"></canvas>
+          <canvas id="energy-chart" width="400" height="180"></canvas>
         </div>
-        <div id="chart-legend" class="chart-legend">
+        <div class="chart-legend">
           <span>🔵 Křivka denního odběru</span>
           <span id="chart-avg-label">⚪ Průměr: 0 kWh/den</span>
         </div>
       </div>
 
-      <div class="action-bar" style="margin-top: 14px;">
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Historie odečtů elektroměru</h2>
+      </div>
+      <div id="meter-readings-history" class="meter-history-container"></div>
+
+      <div class="action-bar" style="margin-top: 20px;">
         <button id="btn-add-appliance" class="action-btn-main">+ Přidat spotřebič / zařízení</button>
       </div>
 
       <div class="section-title-wrap" style="margin-top: 16px;">
         <h2>Evidence spotřebičů & Náklady na provoz</h2>
       </div>
-
       <div id="appliances-list" class="appliances-container"></div>
 
       <!-- Modální okno: Odečet elektroměru -->
@@ -285,12 +360,12 @@
 
             <div class="form-group">
               <label for="meter-value">Stav na elektroměru (kWh)</label>
-              <input type="number" id="meter-value" step="0.1" required placeholder="např. 14250.5">
+              <input type="number" id="meter-value" step="0.1" required placeholder="např. 12780.5">
             </div>
 
             <div class="form-group">
-              <label for="meter-note">Poznámka (volitelné)</label>
-              <input type="text" id="meter-note" placeholder="např. Začátek topné sezóny">
+              <label for="meter-note">Poznámka</label>
+              <input type="text" id="meter-note" placeholder="volitelná poznámka">
             </div>
 
             <div class="modal-actions">
@@ -307,22 +382,22 @@
           <h2>Nový spotřebič</h2>
           <form id="form-appliance">
             <div class="form-group">
-              <label for="appliance-name">Název spotřebiče / přístroje</label>
-              <input type="text" id="appliance-name" required placeholder="např. Robotický vysavač, Bojler, PC">
+              <label for="appliance-name">Název spotřebiče</label>
+              <input type="text" id="appliance-name" required placeholder="např. Robotický vysavač, Bojler">
             </div>
 
             <div class="form-group">
               <label for="appliance-power">Příkon ve Wattech (W)</label>
-              <input type="number" id="appliance-power" required placeholder="např. 60, 2000">
+              <input type="number" id="appliance-power" required placeholder="např. 2000">
             </div>
 
             <div class="form-group">
               <label for="appliance-hours">Denní provoz v hodinách (h)</label>
-              <input type="number" id="appliance-hours" step="0.1" value="2" required placeholder="např. 1.5, 24">
+              <input type="number" id="appliance-hours" step="0.1" value="2" required placeholder="např. 2.5">
             </div>
 
             <div class="form-group">
-              <label for="appliance-warranty-date">Datum nákupu (pro sledování záruky)</label>
+              <label for="appliance-warranty-date">Datum nákupu</label>
               <input type="date" id="appliance-warranty-date">
             </div>
 
@@ -340,7 +415,7 @@
       </div>
     </section>
 
-    <!-- 6. Nastavení & Air Bank -->
+    <!-- 7. Nastavení -->
     <section id="tab-settings" class="tab-panel">
       <div class="settings-card">
         <h3>Propojení s Air Bank (Výpisy & Pohyby)</h3>
@@ -402,6 +477,10 @@
     <button class="nav-item" data-tab="debts">
       <span class="icon">🤝</span>
       <span class="label">Dluhy</span>
+    </button>
+    <button class="nav-item" data-tab="invest">
+      <span class="icon">📈</span>
+      <span class="label">Investice</span>
     </button>
     <button class="nav-item" data-tab="energy">
       <span class="icon">⚡</span>
