@@ -1,16 +1,16 @@
 {
   "name": "Koloběžníkův finanční dispečink",
   "short_name": "Dispečink",
-  "description": "Osobní finanční a energetický dispečink Koloběžník",
+  "description": "Offline finanční dispečink, energetika a správa rozpočtu",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
+  "background_color": "#0b0f19",
   "theme_color": "#0f172a",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'><rect width='512' height='512' rx='100' fill='%230f172a'/><path d='M280 60L140 290h110l-40 162 162-232H262z' fill='%2338bdf8'/></svg>",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
