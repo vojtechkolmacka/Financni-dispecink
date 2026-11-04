@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEnergySimulator();
     setupInvestmentModal();
     setupGoldModal();
+    setupInvestownSpecifics();
     setupSettingsAndBackup();
     await loadMonthData();
   } catch (err) {
@@ -325,7 +326,7 @@ function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   ctx.fill();
 }
 
-// 6. KŘIVKA TENDENCE PŘÍJMŮ A VÝDAJŮ V ČASE
+// 6. Křivka tendence příjmů a výdajů
 async function drawIncomeExpenseTrendChart(allEntries) {
   const canvas = document.getElementById('income-expense-trend-chart');
   if (!canvas) return;
@@ -365,7 +366,6 @@ async function drawIncomeExpenseTrendChart(allEntries) {
     };
   });
 
-  // Vyhodnocení tendence
   const curM = points[points.length - 1];
   const prevM = points[points.length - 2];
   const badge = document.getElementById('income-expense-trend-badge');
@@ -387,7 +387,6 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
-  // 1. Křivka výdajů (Červená)
   ctx.strokeStyle = '#ef4444';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
@@ -399,7 +398,6 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   });
   ctx.stroke();
 
-  // 2. Křivka příjmů (Zelená)
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -413,7 +411,6 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   });
   ctx.stroke();
 
-  // Popisky měsíců a body
   incCoords.forEach(c => {
     ctx.fillStyle = '#10b981';
     ctx.beginPath();
@@ -829,7 +826,6 @@ function setupQuickEntryButtons() {
   document.getElementById('btn-quick-add-income').addEventListener('click', () => openEntryWithType('income'));
   document.getElementById('btn-quick-add-expense').addEventListener('click', () => openEntryWithType('expense'));
 
-  // Plovoucí kulaté tlačítko +
   document.getElementById('fab-add-btn').addEventListener('click', () => {
     openEntryWithType('expense');
   });
@@ -1274,7 +1270,7 @@ function setupDebtTxModal() {
   });
 }
 
-// 16. Investice, Zlaté slitky & Web výdělky
+// 16. Investice: Investown (Oddělený vklad vs. zisk) & Slitky
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -1284,6 +1280,28 @@ async function renderInvestments() {
   let totalInvested = 0;
   let totalCurrent = 0;
 
+  // Načtení dat specificky pro Investown
+  let itownRecord = await dbGet('settings', 'itown_data');
+  if (!itownRecord) {
+    itownRecord = {
+      key: 'itown_data',
+      invested: 718116, // Vložená jistina v haléřích (10 624 - 3 443)
+      profit: 344302,   // Čistý zisk v haléřích
+      free: 28564       // Volné peníze
+    };
+    await dbSet('settings', itownRecord);
+  }
+
+  const itownTotal = itownRecord.invested + itownRecord.profit;
+  document.getElementById('itown-disp-total').textContent = Money.toCzk(itownTotal);
+  document.getElementById('itown-disp-invested').textContent = Money.toCzk(itownRecord.invested);
+  document.getElementById('itown-disp-profit').textContent = `+ ${Money.toCzk(itownRecord.profit)}`;
+  document.getElementById('itown-disp-free').textContent = Money.toCzk(itownRecord.free);
+
+  totalInvested += itownRecord.invested;
+  totalCurrent += itownTotal;
+
+  // Ostatní platformy
   investments.forEach(inv => {
     totalInvested += inv.invested;
     totalCurrent += inv.current;
@@ -1324,6 +1342,7 @@ async function renderInvestments() {
     container.appendChild(card);
   });
 
+  // Zlaté slitky
   await renderGoldBars(goldBars);
   goldBars.forEach(g => {
     totalInvested += g.bought;
@@ -1367,6 +1386,65 @@ async function renderInvestments() {
   }
 
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
+}
+
+// LOGIKA PRO ODDĚLENÍ VKLADU A ZISKU NA INVESTOWNU
+function setupInvestownSpecifics() {
+  // 1. Tlačítko: +500 Kč Vklad (Zvýší vloženou jistinu, zisk nemění, odečte z účtu)
+  document.getElementById('btn-itown-deposit-500').addEventListener('click', async () => {
+    let itownRecord = await dbGet('settings', 'itown_data');
+    if (!itownRecord) return;
+
+    itownRecord.invested += 50000; // +500 Kč
+    await dbSet('settings', itownRecord);
+
+    // Záznam odchozí platby z bankovního účtu
+    const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    await dbAdd('entries', {
+      monthYear: monthKey,
+      title: 'Investown vklad (přírůstek jistiny)',
+      amount: 50000,
+      category: 'Investice',
+      day: new Date().getDate(),
+      wallet: 'bank',
+      isIncome: false,
+      paid: true
+    });
+
+    alert('500 Kč bylo úspěšně připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
+    await loadMonthData();
+    await renderInvestments();
+  });
+
+  // 2. Tlačítko: Zadat výnos / úrok (Navýší čistý zisk a portfolio, nemění vklad)
+  const modalYield = document.getElementById('modal-itown-yield');
+  const formYield = document.getElementById('form-itown-yield');
+
+  document.getElementById('btn-itown-add-yield').addEventListener('click', () => {
+    formYield.reset();
+    modalYield.classList.remove('hidden');
+  });
+
+  document.getElementById('btn-cancel-itown-yield').addEventListener('click', () => {
+    modalYield.classList.add('hidden');
+  });
+
+  formYield.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const yieldAmountCzk = parseFloat(document.getElementById('itown-yield-amount').value);
+    if (isNaN(yieldAmountCzk) || yieldAmountCzk <= 0) return;
+
+    let itownRecord = await dbGet('settings', 'itown_data');
+    if (!itownRecord) return;
+
+    const yieldCents = Money.toCents(yieldAmountCzk);
+    itownRecord.profit += yieldCents; // Přičteme k čistému zisku
+    await dbSet('settings', itownRecord);
+
+    modalYield.classList.add('hidden');
+    alert(`Výnos +${yieldAmountCzk} Kč byl připsán k tvému celkovému zisku.`);
+    await renderInvestments();
+  });
 }
 
 async function renderGoldBars(goldBars) {
@@ -1445,6 +1523,7 @@ function setupGoldModal() {
   });
 }
 
+// KŘIVKA INVESTIC: ODDĚLENÁ VLOŽENÁ JISTINA VS. REÁLNÁ HODNOTA
 async function drawInvestmentTrendChart(investedCents, currentCents) {
   const canvas = document.getElementById('invest-trend-chart');
   if (!canvas) return;
@@ -1469,12 +1548,14 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   const curVal = currentCents / 100;
   const invVal = investedCents / 100;
 
+  // Simulace přírůstků v čase: vložená jistina roste skokově o vklady, celková hodnota roste plynule o výnosy
   const points = months.map((m, idx) => {
     const factor = (idx + 1) / months.length;
+    const invPoint = Math.round(invVal - (months.length - 1 - idx) * 500); // Každý měsíc o 500 méně v historii
     return {
       label: m,
-      inv: Math.round(invVal * factor),
-      cur: Math.round(curVal * factor * (1 + (profit > 0 ? 0.04 * factor : -0.02 * factor)))
+      inv: Math.max(1000, invPoint),
+      cur: Math.round(curVal * factor * (1 + (profit > 0 ? 0.04 * factor : 0)))
     };
   });
 
@@ -1484,8 +1565,9 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
+  // 1. Šedá čára: Pouze vložené peníze (přírůstky)
   ctx.strokeStyle = '#94a3b8';
-  ctx.setLineDash([3, 3]);
+  ctx.setLineDash([4, 4]);
   ctx.lineWidth = 2;
   ctx.beginPath();
   points.forEach((p, idx) => {
@@ -1497,6 +1579,7 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // 2. Modrá křivka: Celková hodnota (včetně čistého zisku)
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1510,6 +1593,7 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   });
   ctx.stroke();
 
+  // Plocha zisku mezi vloženou jistinou a hodnotou
   ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
@@ -2057,10 +2141,10 @@ async function drawEnergyConsumptionChart() {
     ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#94a3b8';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${c.pt.val.toFixed(1)}`, c.x, c.y - 8);
+    ctx.fillText(c.pt.val.toFixed(1), c.x, c.y - 8);
 
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(c.pt.date, c.x, height - 8);
