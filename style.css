@@ -356,7 +356,7 @@ body {
   font-size: 0.85rem;
 }
 
-/* Modul Energie & Simulátor spotřeby */
+/* Modul Energie & Měsíční vyhodnocení */
 .energy-overview-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -388,9 +388,50 @@ body {
   font-size: 1.05rem;
 }
 
-.energy-row.balance {
+/* Box vyhodnocení měsíčního odečtu */
+.meter-evaluation-box {
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eval-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.eval-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.eval-item .e-lbl {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.eval-item .e-val {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.eval-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
   border-top: 1px dashed var(--border-color);
-  padding-top: 10px;
+  font-size: 0.85rem;
+}
+
+.eval-trend-text {
   font-weight: 700;
 }
 
@@ -406,9 +447,7 @@ body {
   gap: 8px;
 }
 
-.calc-input-row input {
-  flex: 1;
-}
+.calc-input-row input { flex: 1; }
 
 .unit-tag {
   font-weight: 700;
@@ -442,9 +481,7 @@ body {
   font-size: 0.85rem;
 }
 
-.calc-result-item .res-lbl {
-  color: var(--text-muted);
-}
+.calc-result-item .res-lbl { color: var(--text-muted); }
 
 .calc-result-item .res-val {
   font-weight: 800;
@@ -528,21 +565,30 @@ body {
 .m-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .m-kwh {
   font-weight: 800;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--accent-blue);
 }
 
-.m-delta {
+.m-diff-tag {
   font-size: 0.75rem;
-  color: var(--accent-yellow);
-  background: var(--bg-card-sub);
   padding: 2px 6px;
   border-radius: 4px;
+  font-weight: 700;
+}
+
+.m-diff-tag.surplus {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.m-diff-tag.deficit {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
 }
 
 .btn-del-reading {
@@ -658,9 +704,7 @@ body {
 .btn-delete-appliance:hover { color: var(--accent-red); }
 
 /* Společná tlačítka */
-.action-bar {
-  margin-bottom: 14px;
-}
+.action-bar { margin-bottom: 14px; }
 
 .action-btn-main {
   width: 100%;
@@ -700,10 +744,7 @@ body {
   font-size: 0.9rem;
 }
 
-.text-blue {
-  color: var(--accent-blue);
-  font-size: 1.1rem;
-}
+.text-blue { color: var(--accent-blue); font-size: 1.1rem; }
 
 .summary-progress-bar {
   height: 8px;
@@ -910,9 +951,7 @@ body {
 }
 
 /* Modul Dluhy & Pohledávky */
-.section-title-wrap {
-  margin-bottom: 10px;
-}
+.section-title-wrap { margin-bottom: 10px; }
 
 .section-title-wrap h2 {
   font-size: 1rem;
@@ -1065,6 +1104,7 @@ body {
 }
 
 .form-group input[type="text"],
+.form-group input[type="password"],
 .form-group input[type="number"],
 .form-group input[type="date"],
 .form-group select {
