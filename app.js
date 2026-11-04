@@ -124,7 +124,7 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat a podpora periodických plateb
+// 4. Načtení dat
 async function loadMonthData() {
   const targetYear = currentDate.getFullYear();
   const targetMonthNum = currentDate.getMonth() + 1;
@@ -393,7 +393,7 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   const prevM = points[points.length - 2];
   const badge = document.getElementById('income-expense-trend-badge');
 
-  if (curM && prevM) {
+  if (curM && prevM && badge) {
     const netDiff = (curM.inc - curM.exp) - (prevM.inc - prevM.exp);
     if (netDiff >= 0) {
       badge.textContent = `📈 Lepší bilance (+${Math.round(netDiff).toLocaleString('cs-CZ')} Kč)`;
@@ -487,8 +487,10 @@ async function drawSalaryTrendChart(allEntries) {
     ? Math.round(enteredSalaries.reduce((acc, p) => acc + p.val, 0) / enteredSalaries.length)
     : 0;
 
-  document.getElementById('income-trend-badge').textContent = avg > 0 ? `Průměr: ${avg.toLocaleString('cs-CZ')} Kč` : 'Čekám na zadání';
-  document.getElementById('salary-avg-legend').textContent = avg > 0 ? `⚪ Průměrná mzda (${avg.toLocaleString('cs-CZ')} Kč)` : '⚪ Zadej výplaty';
+  const trendBadge = document.getElementById('income-trend-badge');
+  const avgLegend = document.getElementById('salary-avg-legend');
+  if (trendBadge) trendBadge.textContent = avg > 0 ? `Průměr: ${avg.toLocaleString('cs-CZ')} Kč` : 'Čekám na zadání';
+  if (avgLegend) avgLegend.textContent = avg > 0 ? `⚪ Průměrná mzda (${avg.toLocaleString('cs-CZ')} Kč)` : '⚪ Zadej výplaty';
 
   const maxVal = Math.max(...points.map(p => p.val), 35000) * 1.2;
   const paddingX = 35;
@@ -656,22 +658,32 @@ function renderCashflowStatsTable(entries) {
   const avgDayExp = Math.round(totalExp / daysInMonth);
   const net = totalInc - totalExp;
 
-  document.getElementById('cf-count-inc').textContent = countInc;
-  document.getElementById('cf-count-exp').textContent = countExp;
-  document.getElementById('cf-avg-day-inc').textContent = Money.toCzkInt(avgDayInc);
-  document.getElementById('cf-avg-day-exp').textContent = Money.toCzkInt(avgDayExp);
-  document.getElementById('cf-total-inc').textContent = Money.toCzkInt(totalInc);
-  document.getElementById('cf-total-exp').textContent = Money.toCzkInt(totalExp);
-
+  const countIncEl = document.getElementById('cf-count-inc');
+  const countExpEl = document.getElementById('cf-count-exp');
+  const avgDayIncEl = document.getElementById('cf-avg-day-inc');
+  const avgDayExpEl = document.getElementById('cf-avg-day-exp');
+  const totalIncEl = document.getElementById('cf-total-inc');
+  const totalExpEl = document.getElementById('cf-total-exp');
   const netDisp = document.getElementById('cf-net-total');
-  netDisp.textContent = `${net >= 0 ? '+' : ''}${Money.toCzkInt(net)}`;
-  netDisp.style.color = net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  if (countIncEl) countIncEl.textContent = countInc;
+  if (countExpEl) countExpEl.textContent = countExp;
+  if (avgDayIncEl) avgDayIncEl.textContent = Money.toCzkInt(avgDayInc);
+  if (avgDayExpEl) avgDayExpEl.textContent = Money.toCzkInt(avgDayExp);
+  if (totalIncEl) totalIncEl.textContent = Money.toCzkInt(totalInc);
+  if (totalExpEl) totalExpEl.textContent = Money.toCzkInt(totalExp);
+
+  if (netDisp) {
+    netDisp.textContent = `${net >= 0 ? '+' : ''}${Money.toCzkInt(net)}`;
+    netDisp.style.color = net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+  }
 }
 
 // 10. Rozpad variabilní spotřeby
 function renderVariableExpensesBreakdown(entries) {
   const container = document.getElementById('variable-breakdown-list');
   const badgeTotal = document.getElementById('badge-var-total');
+  if (!container) return;
   container.innerHTML = '';
 
   const excludedCategories = ['Bydlení', 'Energie', 'Závazky', 'Komunikace', 'Investice'];
@@ -685,7 +697,7 @@ function renderVariableExpensesBreakdown(entries) {
     }
   });
 
-  badgeTotal.textContent = `${Money.toCzkInt(totalVarAmount)} celkem`;
+  if (badgeTotal) badgeTotal.textContent = `${Money.toCzkInt(totalVarAmount)} celkem`;
 
   if (totalVarAmount === 0) {
     container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím žádné variabilní nákupy.</span>';
@@ -728,6 +740,7 @@ function renderVariableExpensesBreakdown(entries) {
 // 11. Celková struktura výdajů
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
+  if (!container) return;
   container.innerHTML = '';
 
   const catSums = {};
@@ -936,9 +949,12 @@ function setupPaymentsViewToggle() {
       const modal = document.getElementById('modal-entry');
       const form = document.getElementById('form-entry');
       form.reset();
-      form.querySelector('input[name="entryType"][value="expense"]').checked = true;
-      document.getElementById('entry-recurring').checked = true;
-      document.getElementById('wrap-recurring-frequency').classList.remove('hidden');
+      const expRadio = form.querySelector('input[name="entryType"][value="expense"]');
+      if (expRadio) expRadio.checked = true;
+      const recCheck = document.getElementById('entry-recurring');
+      if (recCheck) recCheck.checked = true;
+      const freqBox = document.getElementById('wrap-recurring-frequency');
+      if (freqBox) freqBox.classList.remove('hidden');
       document.getElementById('modal-entry-title').textContent = 'Nová trvalá platba (Šablona)';
       modal.classList.remove('hidden');
     };
@@ -952,9 +968,15 @@ function setupQuickEntryButtons() {
 
   function openEntryWithType(type, category = null, defaultTitle = '') {
     form.reset();
-    form.querySelector(`input[name="entryType"][value="${type}"]`).checked = true;
-    document.getElementById('wrap-entry-recurring').style.display = type === 'income' ? 'none' : 'flex';
-    document.getElementById('wrap-recurring-frequency').classList.add('hidden');
+    const typeRadio = form.querySelector(`input[name="entryType"][value="${type}"]`);
+    if (typeRadio) typeRadio.checked = true;
+    
+    const recWrap = document.getElementById('wrap-entry-recurring');
+    if (recWrap) recWrap.style.display = type === 'income' ? 'none' : 'flex';
+    
+    const freqBox = document.getElementById('wrap-recurring-frequency');
+    if (freqBox) freqBox.classList.add('hidden');
+    
     document.getElementById('modal-entry-title').textContent = type === 'income' ? 'Nový příjem' : 'Nový výdaj';
 
     if (category) {
@@ -978,6 +1000,7 @@ function setupQuickEntryButtons() {
   if (fabBtn) fabBtn.onclick = () => openEntryWithType('expense');
 }
 
+// 15. SPOLEHLIVÉ ULOŽENÍ PŘÍJMU / VÝDAJE
 function setupPaymentsModal() {
   const modal = document.getElementById('modal-entry');
   const btnOpen = document.getElementById('btn-add-entry');
@@ -993,9 +1016,9 @@ function setupPaymentsModal() {
   if (btnOpen) {
     btnOpen.onclick = () => {
       form.reset();
-      recurringWrap.style.display = 'flex';
-      freqWrap.classList.add('hidden');
-      dueMonthsWrap.style.display = 'none';
+      if (recurringWrap) recurringWrap.style.display = 'flex';
+      if (freqWrap) freqWrap.classList.add('hidden');
+      if (dueMonthsWrap) dueMonthsWrap.style.display = 'none';
       document.getElementById('modal-entry-title').textContent = 'Nová položka';
       modal.classList.remove('hidden');
     };
@@ -1007,12 +1030,15 @@ function setupPaymentsModal() {
 
   if (recurringCheck) {
     recurringCheck.onchange = () => {
-      if (recurringCheck.checked) freqWrap.classList.remove('hidden');
-      else freqWrap.classList.add('hidden');
+      if (recurringCheck.checked) {
+        if (freqWrap) freqWrap.classList.remove('hidden');
+      } else {
+        if (freqWrap) freqWrap.classList.add('hidden');
+      }
     };
   }
 
-  if (freqSelect) {
+  if (freqSelect && dueMonthsWrap) {
     freqSelect.onchange = () => {
       dueMonthsWrap.style.display = (freqSelect.value === 'monthly') ? 'none' : 'block';
     };
@@ -1020,30 +1046,45 @@ function setupPaymentsModal() {
 
   radioTypes.forEach(radio => {
     radio.onchange = () => {
-      recurringWrap.style.display = radio.value === 'income' ? 'none' : 'flex';
-      if (radio.value === 'income') freqWrap.classList.add('hidden');
+      if (recurringWrap) recurringWrap.style.display = radio.value === 'income' ? 'none' : 'flex';
+      if (radio.value === 'income' && freqWrap) freqWrap.classList.add('hidden');
     };
   });
 
   form.onsubmit = async (e) => {
     e.preventDefault();
 
-    const isIncome = form.querySelector('input[name="entryType"]:checked').value === 'income';
-    const wallet = form.querySelector('input[name="entryWallet"]:checked').value;
-    const title = document.getElementById('entry-title').value.trim();
-    const amountCzk = parseFloat(document.getElementById('entry-amount').value);
-    const category = document.getElementById('entry-category').value;
-    const day = parseInt(document.getElementById('entry-day').value, 10);
-    const isRecurring = recurringCheck.checked;
-    const frequency = freqSelect.value;
-    const dueMonthsRaw = document.getElementById('entry-due-months').value;
+    const checkedType = form.querySelector('input[name="entryType"]:checked');
+    const isIncome = checkedType ? checkedType.value === 'income' : false;
+
+    const checkedWallet = form.querySelector('input[name="entryWallet"]:checked');
+    const wallet = checkedWallet ? checkedWallet.value : 'bank';
+
+    const titleInput = document.getElementById('entry-title');
+    const title = titleInput ? titleInput.value.trim() : '';
+
+    const amountInput = document.getElementById('entry-amount');
+    const amountCzk = parseFloat(amountInput ? amountInput.value : 0);
+
+    const categoryInput = document.getElementById('entry-category');
+    const category = categoryInput ? categoryInput.value : 'Ostatní';
+
+    const dayInput = document.getElementById('entry-day');
+    const day = parseInt(dayInput ? dayInput.value : 10, 10) || 10;
+
+    const isRecurring = recurringCheck ? recurringCheck.checked : false;
+    const frequency = (freqSelect && isRecurring) ? freqSelect.value : 'monthly';
+    const dueMonthsRaw = document.getElementById('entry-due-months')?.value || '';
 
     let dueMonths = [];
     if (frequency !== 'monthly' && dueMonthsRaw) {
       dueMonths = dueMonthsRaw.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
     }
 
-    if (!title || isNaN(amountCzk) || amountCzk <= 0) return;
+    if (!title || isNaN(amountCzk) || amountCzk <= 0) {
+      alert('Zadej prosím platný název a částku.');
+      return;
+    }
 
     const amountCents = Money.toCents(amountCzk);
     const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -1069,7 +1110,7 @@ function setupPaymentsModal() {
       wallet,
       isIncome,
       frequency: isRecurring ? frequency : 'single',
-      paid: isIncome
+      paid: true // Každý ručně zadaný příjem i výdaj je ihned zaúčtovaný
     });
 
     modal.classList.add('hidden');
@@ -1158,7 +1199,7 @@ function setupTransferModal() {
   };
 }
 
-// 15. Cíle
+// 16. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
@@ -1167,6 +1208,7 @@ async function renderGoals() {
   goals.sort((a, b) => a.priority - b.priority);
 
   const container = document.getElementById('goals-list');
+  if (!container) return;
   container.innerHTML = '';
 
   let pool = balance;
@@ -1310,12 +1352,13 @@ function setupGoalsModal() {
   };
 }
 
-// 16. Dluhy: Provident & AvaFin
+// 17. Dluhy: Provident & AvaFin
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
   const payContainer = document.getElementById('payables-list');
 
+  if (!recContainer || !payContainer) return;
   recContainer.innerHTML = '';
   payContainer.innerHTML = '';
 
@@ -1535,11 +1578,12 @@ function openExtraPayModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// 17. Investice: Investown, Slitky & Ostatní
+// 18. Investice: Investown, Slitky & Ostatní
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
   const container = document.getElementById('investments-list');
+  if (!container) return;
   container.innerHTML = '';
 
   let totalInvested = 0;
@@ -1630,28 +1674,30 @@ async function renderInvestments() {
   const webEntries = allEntries.filter(e => e.monthYear === monthKey && e.isIncome && e.category === 'Web & Projekty');
 
   const webContainer = document.getElementById('web-earnings-items');
-  webContainer.innerHTML = '';
-  let webSum = 0;
+  if (webContainer) {
+    webContainer.innerHTML = '';
+    let webSum = 0;
 
-  if (webEntries.length === 0) {
-    webContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">V tomto měsíci zatím není zaevidován příjem z webu.</span>';
-  } else {
-    webEntries.forEach(we => {
-      webSum += we.amount;
-      const row = document.createElement('div');
-      row.className = 'web-earn-row';
-      row.innerHTML = `
-        <span>${we.title} (${we.day}. v měsíci)</span>
-        <strong class="text-green">+ ${Money.toCzk(we.amount)}</strong>
-      `;
-      webContainer.appendChild(row);
-    });
+    if (webEntries.length === 0) {
+      webContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">V tomto měsíci zatím není zaevidován příjem z webu.</span>';
+    } else {
+      webEntries.forEach(we => {
+        webSum += we.amount;
+        const row = document.createElement('div');
+        row.className = 'web-earn-row';
+        row.innerHTML = `
+          <span>${we.title} (${we.day}. v měsíci)</span>
+          <strong class="text-green">+ ${Money.toCzk(we.amount)}</strong>
+        `;
+        webContainer.appendChild(row);
+      });
+    }
+
+    document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
   }
-
-  document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// LOGIKA INVESTOWNU: MIMOŘÁDNÝ VKLAD LIBOVOLNÉ ČÁSTKY, PRODEJ, ZISK
+// LOGIKA INVESTOWNU: MIMOŘÁDNÝ VKLAD, PRODEJ, ZISK
 function setupInvestownSpecifics() {
   const btnDepCustom = document.getElementById('btn-itown-deposit-custom');
   const btnSell = document.getElementById('btn-itown-sell');
@@ -1799,6 +1845,7 @@ function setupInvestownSpecifics() {
 
 async function renderGoldBars(goldBars) {
   const container = document.getElementById('gold-bars-list');
+  if (!container) return;
   container.innerHTML = '';
 
   let totalGrams = 0;
@@ -1831,9 +1878,13 @@ async function renderGoldBars(goldBars) {
     container.appendChild(row);
   });
 
-  document.getElementById('disp-gold-grams').textContent = `${totalGrams.toFixed(1)} g`;
-  document.getElementById('disp-gold-bought').textContent = Money.toCzkInt(totalBought);
-  document.getElementById('disp-gold-current').textContent = Money.toCzkInt(totalCurrent);
+  const dispGrams = document.getElementById('disp-gold-grams');
+  const dispBought = document.getElementById('disp-gold-bought');
+  const dispCurrent = document.getElementById('disp-gold-current');
+
+  if (dispGrams) dispGrams.textContent = `${totalGrams.toFixed(1)} g`;
+  if (dispBought) dispBought.textContent = Money.toCzkInt(totalBought);
+  if (dispCurrent) dispCurrent.textContent = Money.toCzkInt(totalCurrent);
 }
 
 function setupGoldModal() {
@@ -1892,8 +1943,10 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
 
   const profit = currentCents - investedCents;
   const badge = document.getElementById('invest-growth-badge');
-  badge.textContent = `${profit >= 0 ? '+' : ''}${Money.toCzkInt(profit)} (${investedCents > 0 ? ((profit / investedCents) * 100).toFixed(1) : 0} %)`;
-  badge.style.color = profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+  if (badge) {
+    badge.textContent = `${profit >= 0 ? '+' : ''}${Money.toCzkInt(profit)} (${investedCents > 0 ? ((profit / investedCents) * 100).toFixed(1) : 0} %)`;
+    badge.style.color = profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+  }
 
   const months = ['Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis'];
   const curVal = currentCents / 100;
@@ -2000,7 +2053,8 @@ async function drawWebEarningsTrendChart(allEntries) {
   const sum = points.reduce((acc, p) => acc + p.val, 0);
   const avg = Math.round(sum / points.length);
 
-  document.getElementById('web-avg-legend').textContent = `⚪ Průměr (${avg.toLocaleString('cs-CZ')} Kč)`;
+  const webLegend = document.getElementById('web-avg-legend');
+  if (webLegend) webLegend.textContent = `⚪ Průměr (${avg.toLocaleString('cs-CZ')} Kč)`;
 
   const maxVal = Math.max(...points.map(p => p.val), 5000) * 1.25;
   const paddingX = 35;
@@ -2128,7 +2182,7 @@ function setupInvestmentModal() {
   };
 }
 
-// 18. Energie
+// 19. Energie
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -2150,6 +2204,7 @@ async function renderEnergy() {
 
   const appliances = await dbGetAll('energy');
   const container = document.getElementById('appliances-list');
+  if (!container) return;
   container.innerHTML = '';
 
   appliances.forEach(app => {
@@ -2224,6 +2279,8 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
 
   const box = document.getElementById('disp-meter-eval-box');
   const badge = document.getElementById('energy-trend-badge');
+
+  if (!box || !badge) return;
 
   if (readings.length < 2) {
     box.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
@@ -2343,6 +2400,7 @@ function setupEnergySimulator() {
 
 async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
   const container = document.getElementById('meter-readings-history');
+  if (!container) return;
   container.innerHTML = '';
 
   const readings = await dbGetAll('meter_readings');
@@ -2443,7 +2501,8 @@ async function drawEnergyConsumptionChart() {
   if (points.length === 0) return;
 
   const avg = totalDailySum / points.length;
-  document.getElementById('chart-avg-label').textContent = `⚪ Průměr: ${avg.toFixed(1)} kWh/den`;
+  const avgLabel = document.getElementById('chart-avg-label');
+  if (avgLabel) avgLabel.textContent = `⚪ Průměr: ${avg.toFixed(1)} kWh/den`;
 
   const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 10;
   const paddingX = 35;
@@ -2579,7 +2638,7 @@ function setupApplianceModal() {
   };
 }
 
-// 19. Nastavení & Air Bank CSV Parser
+// 20. Nastavení & Air Bank CSV Parser
 async function renderSettings() {
   const bankCapRecord = await dbGet('settings', 'bank_capital');
   const cashCapRecord = await dbGet('settings', 'cash_capital');
@@ -2588,15 +2647,24 @@ async function renderSettings() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
 
-  document.getElementById('set-bank-capital').value = bankCapRecord ? bankCapRecord.value / 100 : (initCapRecord ? initCapRecord.value / 100 : 46000);
-  document.getElementById('set-cash-capital').value = cashCapRecord ? cashCapRecord.value / 100 : 5000;
-  document.getElementById('set-payday').value = paydayRecord ? paydayRecord.value : 10;
-  document.getElementById('set-kwh-price').value = kwhRecord ? kwhRecord.value / 100 : 6.5;
+  const bankCapEl = document.getElementById('set-bank-capital');
+  const cashCapEl = document.getElementById('set-cash-capital');
+  const paydayEl = document.getElementById('set-payday');
+  const kwhEl = document.getElementById('set-kwh-price');
+
+  if (bankCapEl) bankCapEl.value = bankCapRecord ? bankCapRecord.value / 100 : (initCapRecord ? initCapRecord.value / 100 : 46000);
+  if (cashCapEl) cashCapEl.value = cashCapRecord ? cashCapRecord.value / 100 : 5000;
+  if (paydayEl) paydayEl.value = paydayRecord ? paydayRecord.value : 10;
+  if (kwhEl) kwhEl.value = kwhRecord ? kwhRecord.value / 100 : 6.5;
 
   if (tokenRecord && tokenRecord.value) {
-    document.getElementById('set-gh-token').value = tokenRecord.value;
-    document.getElementById('cloud-sync-status').textContent = '✅ Automatická ochrana dat je aktivní.';
-    document.getElementById('cloud-sync-status').style.color = 'var(--accent-green)';
+    const tokenEl = document.getElementById('set-gh-token');
+    const syncStatusEl = document.getElementById('cloud-sync-status');
+    if (tokenEl) tokenEl.value = tokenRecord.value;
+    if (syncStatusEl) {
+      syncStatusEl.textContent = '✅ Automatická ochrana dat je aktivní.';
+      syncStatusEl.style.color = 'var(--accent-green)';
+    }
   }
 }
 
