@@ -120,17 +120,38 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat a grafů
+// 4. Načtení dat a podpora měsíčních, pololetních a ročních plateb
 async function loadMonthData() {
-  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  const targetYear = currentDate.getFullYear();
+  const targetMonthNum = currentDate.getMonth() + 1; // 1 až 12
+  const monthKey = `${targetYear}-${String(targetMonthNum).padStart(2, '0')}`;
 
   const allEntries = await dbGetAll('entries');
   let currentMonthEntries = allEntries.filter(e => e.monthYear === monthKey);
 
+  // Pokud měsíc ještě nemá vygenerované platby ze šablon, vygenerujeme je podle periodicity
   if (currentMonthEntries.length === 0) {
     const templates = await dbGetAll('templates');
+
     for (const t of templates) {
-      if (t.active) {
+      if (!t.active) continue;
+
+      let isDue = false;
+      const freq = t.frequency || 'monthly';
+
+      if (freq === 'monthly') {
+        isDue = true;
+      } else if (freq === 'semi-annual') {
+        // Pololetní platby: výchozí květen (5) a listopad (11)
+        const dueMonths = (t.dueMonths && t.dueMonths.length > 0) ? t.dueMonths : [5, 11];
+        isDue = dueMonths.includes(targetMonthNum);
+      } else if (freq === 'annual') {
+        // Roční platby: podle zadaného měsíce v šabloně
+        const dueMonths = (t.dueMonths && t.dueMonths.length > 0) ? t.dueMonths : [7];
+        isDue = dueMonths.includes(targetMonthNum);
+      }
+
+      if (isDue) {
         const newEntry = {
           monthYear: monthKey,
           title: t.title,
@@ -139,11 +160,13 @@ async function loadMonthData() {
           day: t.day,
           wallet: 'bank',
           isIncome: false,
+          frequency: freq,
           paid: false
         };
         await dbAdd('entries', newEntry);
       }
     }
+
     const refreshed = await dbGetAll('entries');
     currentMonthEntries = refreshed.filter(e => e.monthYear === monthKey);
   }
@@ -753,7 +776,7 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 12. Seznam plateb
+// 12. Seznam plateb s označením periodicity (Měsíčně, Pololetně, Ročně)
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -779,6 +802,13 @@ function renderPaymentsList(entries) {
       ? `<span class="entry-wallet-tag bank">🏦 Účet</span>`
       : `<span class="entry-wallet-tag cash">💵 Hotovost</span>`;
 
+    let freqTag = '';
+    if (item.frequency === 'semi-annual') {
+      freqTag = `<span class="entry-freq-tag">Pololetně</span>`;
+    } else if (item.frequency === 'annual') {
+      freqTag = `<span class="entry-freq-tag">Ročně</span>`;
+    }
+
     row.innerHTML = `
       <div class="entry-left">
         <div class="check-circle">${checkIcon}</div>
@@ -786,6 +816,7 @@ function renderPaymentsList(entries) {
           <span class="entry-title">${item.title}</span>
           <div class="entry-sub">
             ${walletTag}
+            ${freqTag}
             <span class="entry-badge">${item.category}</span>
             <span>${item.day}. v měsíci</span>
           </div>
@@ -819,6 +850,7 @@ function setupQuickEntryButtons() {
     form.reset();
     form.querySelector(`input[name="entryType"][value="${type}"]`).checked = true;
     document.getElementById('wrap-entry-recurring').style.display = type === 'income' ? 'none' : 'flex';
+    document.getElementById('wrap-recurring-frequency').classList.add('hidden');
     document.getElementById('modal-entry-title').textContent = type === 'income' ? 'Nový příjem' : 'Nový výdaj';
     modal.classList.remove('hidden');
   }
@@ -839,10 +871,16 @@ function setupPaymentsModal() {
   const form = document.getElementById('form-entry');
   const radioTypes = form.querySelectorAll('input[name="entryType"]');
   const recurringWrap = document.getElementById('wrap-entry-recurring');
+  const recurringCheck = document.getElementById('entry-recurring');
+  const freqWrap = document.getElementById('wrap-recurring-frequency');
+  const freqSelect = document.getElementById('entry-frequency');
+  const dueMonthsWrap = document.getElementById('wrap-due-months');
 
   btnOpen.onclick = () => {
     form.reset();
     recurringWrap.style.display = 'flex';
+    freqWrap.classList.add('hidden');
+    dueMonthsWrap.style.display = 'none';
     document.getElementById('modal-entry-title').textContent = 'Nová položka';
     modal.classList.remove('hidden');
   };
@@ -851,9 +889,22 @@ function setupPaymentsModal() {
     modal.classList.add('hidden');
   };
 
+  recurringCheck.onchange = () => {
+    if (recurringCheck.checked) {
+      freqWrap.classList.remove('hidden');
+    } else {
+      freqWrap.classList.add('hidden');
+    }
+  };
+
+  freqSelect.onchange = () => {
+    dueMonthsWrap.style.display = (freqSelect.value === 'monthly') ? 'none' : 'block';
+  };
+
   radioTypes.forEach(radio => {
     radio.onchange = () => {
       recurringWrap.style.display = radio.value === 'income' ? 'none' : 'flex';
+      if (radio.value === 'income') freqWrap.classList.add('hidden');
     };
   });
 
@@ -866,7 +917,14 @@ function setupPaymentsModal() {
     const amountCzk = parseFloat(document.getElementById('entry-amount').value);
     const category = document.getElementById('entry-category').value;
     const day = parseInt(document.getElementById('entry-day').value, 10);
-    const isRecurring = document.getElementById('entry-recurring').checked;
+    const isRecurring = recurringCheck.checked;
+    const frequency = freqSelect.value;
+    const dueMonthsRaw = document.getElementById('entry-due-months').value;
+
+    let dueMonths = [];
+    if (frequency !== 'monthly' && dueMonthsRaw) {
+      dueMonths = dueMonthsRaw.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
+    }
 
     if (!title || isNaN(amountCzk) || amountCzk <= 0) return;
 
@@ -881,6 +939,7 @@ function setupPaymentsModal() {
       day,
       wallet,
       isIncome,
+      frequency: isRecurring ? frequency : 'single',
       paid: isIncome
     });
 
@@ -890,6 +949,8 @@ function setupPaymentsModal() {
         amount: amountCents,
         category,
         day,
+        frequency,
+        dueMonths,
         active: true
       });
     }
@@ -1281,13 +1342,12 @@ async function renderInvestments() {
   let totalInvested = 0;
   let totalCurrent = 0;
 
-  // 1. INVESTOWN: Vložená jistina + Zisk = Celková hodnota (Čistá data)
   let itownRecord = await dbGet('settings', 'itown_data');
   if (!itownRecord) {
     itownRecord = {
       key: 'itown_data',
-      invested: 718116, // Vložená jistina (10 624 - 3 443)[span_0](start_span)[span_0](end_span)
-      profit: 344302    // Čistý zisk[span_1](start_span)[span_1](end_span)
+      invested: 718116,
+      profit: 344302
     };
     await dbSet('settings', itownRecord);
   }
@@ -1298,12 +1358,11 @@ async function renderInvestments() {
   document.getElementById('itown-disp-total').textContent = Money.toCzk(itownTotal);
   document.getElementById('itown-disp-invested').textContent = Money.toCzk(itownRecord.invested);
   document.getElementById('itown-disp-profit').textContent = `+ ${Money.toCzk(itownRecord.profit)}`;
-  document.getElementById('itown-disp-roi').textContent = `${itownRoi} % zisk celkem`;
+  document.getElementById('itown-disp-roi').textContent = `${itownRoi} % zisk`;
 
   totalInvested += itownRecord.invested;
   totalCurrent += itownTotal;
 
-  // 2. Ostatní platformy
   investments.forEach(inv => {
     totalInvested += inv.invested;
     totalCurrent += inv.current;
@@ -1344,7 +1403,6 @@ async function renderInvestments() {
     container.appendChild(card);
   });
 
-  // 3. Zlaté slitky
   await renderGoldBars(goldBars);
   goldBars.forEach(g => {
     totalInvested += g.bought;
@@ -1396,7 +1454,6 @@ function setupInvestownSpecifics() {
   const btnSell = document.getElementById('btn-itown-sell');
   const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
 
-  // Modální okno pro přímé zadání zisku
   const modalProfit = document.getElementById('modal-itown-profit-direct');
   const formProfit = document.getElementById('form-itown-profit-direct');
   const inputProfit = document.getElementById('itown-direct-profit-input');
@@ -1417,7 +1474,6 @@ function setupInvestownSpecifics() {
     btnCancelProfit.onclick = () => modalProfit.classList.add('hidden');
   }
 
-  // ULOŽENÍ NOVÉHO ZISKU S AUTOMATICKÝM PŘEPOČTEM
   if (formProfit) {
     formProfit.onsubmit = async (e) => {
       e.preventDefault();
@@ -1439,7 +1495,6 @@ function setupInvestownSpecifics() {
     };
   }
 
-  // 1. Vklad 500 Kč
   if (btnDep) {
     btnDep.onclick = async () => {
       let itownRecord = await dbGet('settings', 'itown_data');
@@ -1468,7 +1523,6 @@ function setupInvestownSpecifics() {
     };
   }
 
-  // 2. Prodej / Výběr z Investownu
   const modalSell = document.getElementById('modal-itown-sell');
   const formSell = document.getElementById('form-itown-sell');
   const btnCancelSell = document.getElementById('btn-cancel-itown-sell');
@@ -2489,7 +2543,7 @@ function detectCategoryFromAirBank(desc, isIncome) {
   if (t.includes('čez') || t.includes('cez') || t.includes('innogy') || t.includes('e.on')) return 'Energie';
   if (t.includes('provident') || t.includes('avafin') || t.includes('crediton') || t.includes('splátka')) return 'Závazky';
   if (t.includes('t-mobile') || t.includes('vodafone') || t.includes('o2')) return 'Komunikace';
-  if (t.includes('sipo') || t.includes('nájem')) return 'Bydlení';
+  if (t.includes('sipo') || t.includes('nájem') || t.includes('odpad') || t.includes('nemovitost')) return 'Bydlení';
   if (t.includes('spotify') || t.includes('openai') || t.includes('chatgpt') || t.includes('google') || t.includes('česká televize')) return 'Služby';
   if (t.includes('investown') || t.includes('penzij') || t.includes('portu') || t.includes('zlato') || t.includes('slitek')) return 'Investice';
 
@@ -2497,7 +2551,7 @@ function detectCategoryFromAirBank(desc, isIncome) {
     return 'Jídlo & Potraviny';
   }
 
-  if (t.includes('benzina') || t.includes('orlen') || t.includes('omv') || t.includes('shell') || t.includes('mol') || t.includes('eurooil') || t.includes('čerpací') || t.includes('nafta') || t.includes('benzín')) {
+  if (t.includes('ručení') || t.includes('benzina') || t.includes('orlen') || t.includes('omv') || t.includes('shell') || t.includes('mol') || t.includes('eurooil') || t.includes('čerpací') || t.includes('nafta') || t.includes('benzín')) {
     return 'Doprava & Benzín';
   }
 
