@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Koloběžníkův finanční dispečink</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <span class="logo-badge">⚡ KD</span>
+      <h1 id="app-title">Dispečink</h1>
+    </div>
+    <div class="header-right" id="month-selector-wrap">
+      <button id="prev-month" class="nav-btn">◀</button>
+      <span id="current-month-display">Listopad 2026</span>
+      <button id="next-month" class="nav-btn">▶</button>
+    </div>
+  </header>
+
+  <main id="app-content">
+    <!-- Jednotlivé záložky / moduly -->
+    <section id="tab-overview" class="tab-panel active">
+      <div class="balance-card">
+        <span class="card-label">Disponibilní zůstatek na účtu</span>
+        <div class="balance-amount" id="disp-account-balance">0 Kč</div>
+        <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-box green">
+          <span class="m-label">Příjmy</span>
+          <span class="m-val" id="metric-income">0 Kč</span>
+        </div>
+        <div class="metric-box red">
+          <span class="m-label">Zaplaceno</span>
+          <span class="m-val" id="metric-paid">0 Kč</span>
+        </div>
+        <div class="metric-box yellow">
+          <span class="m-label">Zbývá doplatit</span>
+          <span class="m-val" id="metric-remaining">0 Kč</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-payments" class="tab-panel"></section>
+    <section id="tab-goals" class="tab-panel"></section>
+    <section id="tab-debts" class="tab-panel"></section>
+    <section id="tab-energy" class="tab-panel"></section>
+    <section id="tab-settings" class="tab-panel"></section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="overview">
+      <span class="icon">📊</span>
+      <span class="label">Přehled</span>
+    </button>
+    <button class="nav-item" data-tab="payments">
+      <span class="icon">💳</span>
+      <span class="label">Platby</span>
+    </button>
+    <button class="nav-item" data-tab="goals">
+      <span class="icon">🎯</span>
+      <span class="label">Cíle</span>
+    </button>
+    <button class="nav-item" data-tab="debts">
+      <span class="icon">🤝</span>
+      <span class="label">Dluhy</span>
+    </button>
+    <button class="nav-item" data-tab="energy">
+      <span class="icon">⚡</span>
+      <span class="label">Energie</span>
+    </button>
+    <button class="nav-item" data-tab="settings">
+      <span class="icon">⚙️</span>
+      <span class="label">Nastavení</span>
+    </button>
+  </nav>
+
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
