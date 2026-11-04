@@ -103,7 +103,7 @@
 
             <div class="form-group">
               <label for="entry-title">Název</label>
-              <input type="text" id="entry-title" required placeholder="např. Web Koloběžník, Benzín, Výplata">
+              <input type="text" id="entry-title" required placeholder="např. Nákup, Výplata">
             </div>
 
             <div class="form-group">
@@ -170,7 +170,7 @@
           <form id="form-goal">
             <div class="form-group">
               <label for="goal-title">Název cíle</label>
-              <input type="text" id="goal-title" required placeholder="např. Brikety na zimu, Koloběžka">
+              <input type="text" id="goal-title" required placeholder="např. Brikety na zimu">
             </div>
 
             <div class="form-group">
@@ -213,7 +213,7 @@
 
             <div class="form-group">
               <label for="debt-tx-note">Důvod / Poznámka</label>
-              <input type="text" id="debt-tx-note" placeholder="např. Nákup, Část splátky">
+              <input type="text" id="debt-tx-note" placeholder="např. Část splátky">
             </div>
 
             <div class="modal-actions">
@@ -269,7 +269,7 @@
           <form id="form-investment">
             <div class="form-group">
               <label for="inv-name">Název platformy / aktiva</label>
-              <input type="text" id="inv-name" required placeholder="např. Investown, ETF, Bitcoin, Zlato">
+              <input type="text" id="inv-name" required placeholder="např. Investown, ETF">
             </div>
 
             <div class="form-group">
@@ -284,7 +284,7 @@
 
             <div class="form-group">
               <label for="inv-note">Poznámka / Strategie</label>
-              <input type="text" id="inv-note" placeholder="např. 10 % p.a., reinvestice">
+              <input type="text" id="inv-note" placeholder="např. 10 % p.a.">
             </div>
 
             <div class="modal-actions">
@@ -296,8 +296,9 @@
       </div>
     </section>
 
-    <!-- 6. Energie, Simulátor & Křivka spotřeby -->
+    <!-- 6. Energie & Měsíční vyhodnocovač záloh ČEZ -->
     <section id="tab-energy" class="tab-panel">
+      <!-- Finanční parametry -->
       <div class="energy-overview-card">
         <div class="energy-row">
           <span>Cena elektřiny:</span>
@@ -308,19 +309,47 @@
           <strong id="disp-cez-deposit">3 000 Kč</strong>
         </div>
         <div class="energy-row highlight">
-          <span>Očekávaný měsíční provoz:</span>
-          <strong id="disp-expected-energy-cost">0 Kč</strong>
-        </div>
-        <div class="energy-row balance" id="energy-diff-row">
-          <span>Měsíční bilance (záloha vs. odhad):</span>
-          <strong id="disp-energy-diff">0 Kč</strong>
+          <span>Kapacita zálohy 3 000 Kč:</span>
+          <strong id="disp-max-allowed-kwh">461,5 kWh / měsíc</strong>
         </div>
       </div>
 
-      <!-- SIMULÁTOR NÁKLADŮ PODLE SPOTŘEBY -->
+      <!-- HLAVNÍ VYHODNOCOVACÍ KARTA POSLEDNÍHO ODEČTU -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Simulátor nákladů při spotřebě</h3>
+          <h3>Měsíční vyhodnocení odečtu (vs. záloha 3 000 Kč)</h3>
+          <span class="badge-sub" id="energy-trend-badge">Vyhodnocuji...</span>
+        </div>
+        <div class="meter-evaluation-box" id="disp-meter-eval-box">
+          <!-- Dynamicky naplněno podle posledního měsíčního odečtu -->
+        </div>
+      </div>
+
+      <!-- KŘIVKA A TREND SPOTŘEBY DOMU -->
+      <div class="chart-card" style="margin-top: 14px;">
+        <div class="chart-header">
+          <h3>Křivka a tendence spotřeby domu (kWh/den)</h3>
+          <button id="btn-add-meter-reading" class="btn-small-primary">+ Zadat měsíční odečet</button>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="energy-chart" width="400" height="180"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🔵 Křivka denního odběru</span>
+          <span id="chart-avg-label">⚪ Průměr: 0 kWh/den</span>
+        </div>
+      </div>
+
+      <!-- HISTORIE MĚSÍČNÍCH ODEČTŮ A BILANCÍ -->
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Historie měsíčních odečtů & Přeplatky/Nedoplatky</h2>
+      </div>
+      <div id="meter-readings-history" class="meter-history-container"></div>
+
+      <!-- SIMULÁTOR NÁKLADŮ PODLE SPOTŘEBY -->
+      <div class="analytics-card" style="margin-top: 20px;">
+        <div class="analytics-header">
+          <h3>Kalkulačka libovolné spotřeby</h3>
           <span class="badge-sub">Kč vs. kWh</span>
         </div>
         <div class="energy-calc-wrap">
@@ -338,32 +367,12 @@
               <span class="res-val" id="calc-result-cost">650 Kč</span>
             </div>
             <div class="calc-result-item">
-              <span class="res-lbl">Bilance vs. záloha ČEZ (3 000 Kč)</span>
+              <span class="res-lbl">Rozdíl oproti záloze (3 000 Kč)</span>
               <span class="res-val" id="calc-result-balance">+2 350 Kč (přeplatek)</span>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- KŘIVKA SPOTŘEBY DOMU -->
-      <div class="chart-card" style="margin-top: 14px;">
-        <div class="chart-header">
-          <h3>Křivka spotřeby domu (kWh/den)</h3>
-          <button id="btn-add-meter-reading" class="btn-small-primary">+ Zadat stav elektroměru</button>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="energy-chart" width="400" height="180"></canvas>
-        </div>
-        <div class="chart-legend">
-          <span>🔵 Křivka denního odběru</span>
-          <span id="chart-avg-label">⚪ Průměr: 0 kWh/den</span>
-        </div>
-      </div>
-
-      <div class="section-title-wrap" style="margin-top: 16px;">
-        <h2>Historie odečtů elektroměru</h2>
-      </div>
-      <div id="meter-readings-history" class="meter-history-container"></div>
 
       <div class="action-bar" style="margin-top: 20px;">
         <button id="btn-add-appliance" class="action-btn-main">+ Přidat spotřebič / zařízení</button>
@@ -377,7 +386,7 @@
       <!-- Modální okno: Odečet elektroměru -->
       <div id="modal-meter" class="modal hidden">
         <div class="modal-content">
-          <h2>Nový odečet elektroměru</h2>
+          <h2>Nový měsíční odečet elektroměru</h2>
           <form id="form-meter">
             <div class="form-group">
               <label for="meter-date">Datum odečtu</label>
@@ -386,17 +395,17 @@
 
             <div class="form-group">
               <label for="meter-value">Stav na elektroměru (kWh)</label>
-              <input type="number" id="meter-value" step="0.1" required placeholder="např. 12780.5">
+              <input type="number" id="meter-value" step="0.1" required placeholder="např. 13250.0">
             </div>
 
             <div class="form-group">
-              <label for="meter-note">Poznámka</label>
+              <label for="meter-note">Poznámka (např. Zapnuto topení, přímotop v dílně)</label>
               <input type="text" id="meter-note" placeholder="volitelná poznámka">
             </div>
 
             <div class="modal-actions">
               <button type="button" id="btn-cancel-meter" class="btn-secondary">Zrušit</button>
-              <button type="submit" class="btn-primary">Uložit odečet</button>
+              <button type="submit" class="btn-primary">Uložit a vyhodnotit</button>
             </div>
           </form>
         </div>
@@ -409,7 +418,7 @@
           <form id="form-appliance">
             <div class="form-group">
               <label for="appliance-name">Název spotřebiče</label>
-              <input type="text" id="appliance-name" required placeholder="např. Robotický vysavač, Bojler">
+              <input type="text" id="appliance-name" required placeholder="např. Bojler, Přímotop">
             </div>
 
             <div class="form-group">
@@ -441,9 +450,24 @@
       </div>
     </section>
 
-    <!-- 7. Nastavení -->
+    <!-- 7. Nastavení & Ochrana dat proti smazání prohlížeče -->
     <section id="tab-settings" class="tab-panel">
-      <div class="settings-card">
+      <!-- OCHRANA DAT PROTI SMAZÁNÍ CACHE -->
+      <div class="settings-card" style="border-color: rgba(56, 189, 248, 0.4);">
+        <h3>🛡️ Nezávislé cloud zrcadlení (Ochrana proti smazání)</h3>
+        <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu. I když v Chrome smažeš veškerá data, aplikace se po otevření okamžitě sama obnoví.</p>
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="set-gh-token">GitHub Token (Classic, oprávnění: gist)</label>
+          <input type="password" id="set-gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        </div>
+        <div class="settings-btns-grid">
+          <button id="btn-save-cloud-sync" class="btn-primary">Aktivovat ochranu</button>
+          <button id="btn-force-cloud-sync" class="btn-secondary">Zrcadlit ihned ⚡</button>
+        </div>
+        <div id="cloud-sync-status" class="import-status"></div>
+      </div>
+
+      <div class="settings-card" style="margin-top: 14px;">
         <h3>Propojení s Air Bank (Výpisy & Pohyby)</h3>
         <p class="settings-desc">Nahraj vyexportovaný soubor CSV z bankovnictví My Air. Dispečink automaticky zpracuje všechny transakce a zařadí je.</p>
         <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
@@ -469,8 +493,8 @@
       </div>
 
       <div class="settings-card" style="margin-top: 14px;">
-        <h3>Záloha a obnova databáze</h3>
-        <p class="settings-desc">Kompletní záloha všech tabulek dispečinku do jednoho souboru JSON.</p>
+        <h3>Ruční záloha a obnova databáze</h3>
+        <p class="settings-desc">Jednorázová záloha všech tabulek do souboru JSON.</p>
         <div class="settings-btns-grid" style="margin-top: 10px;">
           <button id="btn-export-json" class="btn-secondary">📤 Stáhnout JSON</button>
           <button id="btn-copy-json" class="btn-secondary">📋 Kopírovat JSON</button>
