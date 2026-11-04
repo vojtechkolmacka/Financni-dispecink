@@ -273,6 +273,24 @@ body {
   color: var(--accent-green);
 }
 
+/* ŠTÍTEK FREKVENCE V SEZNAMU POLOŽEK */
+.entry-freq-tag {
+  font-size: 0.65rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+  font-weight: 700;
+}
+
+.recurring-freq-box {
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 14px;
+}
+
 /* KARTA TACHOMETRŮ */
 .gauges-card {
   background: linear-gradient(135deg, #182235, #0f172a);
@@ -438,7 +456,7 @@ body {
 .ring-right .ar-val { font-size: 1.25rem; font-weight: 800; }
 .ring-right .ar-subval { font-size: 1rem; font-weight: 800; }
 
-/* INVESTOWN DEDIKOVANÁ KARTA (ČISTÁ VERZE BEZ FIKTIVNÍCH POLOŽEK) */
+/* INVESTOWN DEDIKOVANÁ KARTA */
 .investown-hub-card {
   background: linear-gradient(135deg, #1b1e38, #10142b);
   border: 1px solid rgba(99, 102, 241, 0.4);
