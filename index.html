@@ -22,8 +22,39 @@
   </header>
 
   <main id="app-content">
-    <!-- 1. Přehled & Wallet Dispečink -->
+    <!-- 1. Přehled & Zůstatky (Účet vs. Hotovost) -->
     <section id="tab-overview" class="tab-panel active">
+      <!-- DVOJITÁ KARTA ZŮSTATKŮ: ÚČET VS. HOTOVOST -->
+      <div class="balances-split-card">
+        <div class="split-top-total">
+          <span class="card-label">Celková dostupná likvidita</span>
+          <div class="balance-amount" id="disp-total-liquidity">0 Kč</div>
+          <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
+        </div>
+
+        <div class="split-accounts-grid">
+          <div class="account-pill-box">
+            <div class="acc-pill-header">
+              <span>🏦 Bankovní účet</span>
+              <span class="acc-tag">Air Bank</span>
+            </div>
+            <strong class="acc-pill-val text-blue" id="disp-bank-balance">0 Kč</strong>
+          </div>
+          <div class="account-pill-box">
+            <div class="acc-pill-header">
+              <span>💵 Hotovost</span>
+              <span class="acc-tag">Peněženka</span>
+            </div>
+            <strong class="acc-pill-val text-green" id="disp-cash-balance">0 Kč</strong>
+          </div>
+        </div>
+
+        <div class="transfer-quick-bar">
+          <button id="btn-quick-transfer" class="btn-transfer-action">🔄 Převod / Výběr z bankomatu</button>
+        </div>
+      </div>
+
+      <!-- TACHOMETRY -->
       <div class="gauges-card">
         <div class="gauge-subhead">Výkonnost za posledních 30 dní a výhled na příštích 7 dní</div>
         
@@ -154,7 +185,7 @@
     <!-- 2. Platby -->
     <section id="tab-payments" class="tab-panel">
       <div class="action-bar">
-        <button id="btn-add-entry" class="action-btn-main">+ Přidat položku</button>
+        <button id="btn-add-entry" class="action-btn-main">+ Přidat položku ručně</button>
       </div>
 
       <div class="payments-summary-card">
@@ -169,6 +200,7 @@
 
       <div id="payments-list" class="entries-list"></div>
 
+      <!-- Modální okno: Ruční přidání položky -->
       <div id="modal-entry" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-entry-title">Nová položka</h2>
@@ -181,9 +213,24 @@
               </div>
             </div>
 
+            <!-- VÝBĚR PENĚŽENKY: ÚČET NEBO HOTOVOST -->
             <div class="form-group">
-              <label for="entry-title">Název</label>
-              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Výplata">
+              <label>Zdroj financí (Kde proběhl pohyb)</label>
+              <div class="wallet-select-row">
+                <label class="wallet-radio-box">
+                  <input type="radio" name="entryWallet" value="bank" checked>
+                  <span>🏦 Bankovní účet</span>
+                </label>
+                <label class="wallet-radio-box">
+                  <input type="radio" name="entryWallet" value="cash">
+                  <span>💵 Hotovost</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="entry-title">Název / Popis</label>
+              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd hotově, Výplata">
             </div>
 
             <div class="form-group">
@@ -224,7 +271,33 @@
 
             <div class="modal-actions">
               <button type="button" id="btn-cancel-entry" class="btn-secondary">Zrušit</button>
-              <button type="submit" class="btn-primary">Uložit</button>
+              <button type="submit" class="btn-primary">Uložit položku</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modální okno: Převod mezi účtem a hotovostí -->
+      <div id="modal-transfer" class="modal hidden">
+        <div class="modal-content">
+          <h2>Převod / Výběr z bankomatu</h2>
+          <form id="form-transfer">
+            <div class="form-group">
+              <label>Směr převodu</label>
+              <select id="transfer-direction">
+                <option value="atm">Výběr z bankomatu (Účet ➡️ Hotovost)</option>
+                <option value="deposit">Vklad na účet (Hotovost ➡️ Účet)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="transfer-amount">Částka (Kč)</label>
+              <input type="number" id="transfer-amount" step="1" required placeholder="např. 2000">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-transfer" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Provést přesun</button>
             </div>
           </form>
         </div>
@@ -309,7 +382,6 @@
 
     <!-- 5. Investice, Investown & Zlaté slitky -->
     <section id="tab-invest" class="tab-panel">
-      <!-- DONUT GRAF AKTIV -->
       <div class="assets-ring-card">
         <div class="ring-left">
           <canvas id="assets-donut-chart" width="100" height="100"></canvas>
@@ -323,7 +395,7 @@
         </div>
       </div>
 
-      <!-- SPECIÁLNÍ INVESTOWN KARTA PODLE SCREENSHOTU -->
+      <!-- INVESTOWN KARTA -->
       <div class="investown-hub-card">
         <div class="inv-hub-top">
           <div class="inv-hub-brand">
@@ -362,7 +434,7 @@
         </div>
       </div>
 
-      <!-- KARTA FYZICKÉ ZLATO & SLITKY -->
+      <!-- FYZICKÉ ZLATO & SLITKY -->
       <div class="gold-hub-card" style="margin-top: 14px;">
         <div class="gold-hub-top">
           <div class="gold-hub-brand">
@@ -441,13 +513,12 @@
         <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
       </div>
 
-      <!-- Modální okno pro zlatý slitek -->
       <div id="modal-gold" class="modal hidden">
         <div class="modal-content">
           <h2>Nový zlatý slitek</h2>
           <form id="form-gold">
             <div class="form-group">
-              <label for="gold-name">Název / Rafinér (např. Argor-Heraeus, Valcambi)</label>
+              <label for="gold-name">Název / Rafinér</label>
               <input type="text" id="gold-name" required placeholder="Argor-Heraeus 5g">
             </div>
 
@@ -462,7 +533,7 @@
             </div>
 
             <div class="form-group">
-              <label for="gold-current">Aktuální odhadovaná hodnota (Kč)</label>
+              <label for="gold-current">Aktuální hodnota (Kč)</label>
               <input type="number" id="gold-current" step="1" required placeholder="11200">
             </div>
 
@@ -474,14 +545,13 @@
         </div>
       </div>
 
-      <!-- Modální okno pro investici -->
       <div id="modal-investment" class="modal hidden">
         <div class="modal-content">
           <h2>Nová investiční platforma</h2>
           <form id="form-investment">
             <div class="form-group">
               <label for="inv-name">Název platformy / fondu</label>
-              <input type="text" id="inv-name" required placeholder="např. Portu, Rentier.cz, Penzijko">
+              <input type="text" id="inv-name" required placeholder="např. Portu, Rentier.cz">
             </div>
 
             <div class="form-group">
@@ -671,17 +741,21 @@
 
       <div class="settings-card" style="margin-top: 14px;">
         <h3>Propojení s Air Bank (Inteligentní CSV Import)</h3>
-        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky podle popisu roztřídí transakce do kategorií a oddělí variabilní nákupy od paušálů.</p>
+        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky roztřídí transakce do kategorií (všechny se automaticky připíší k bankovnímu účtu).</p>
         <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
         <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Importovat CSV výpis z Air Bank</button>
         <div id="csv-import-status" class="import-status"></div>
       </div>
 
       <div class="settings-card" style="margin-top: 14px;">
-        <h3>Finanční a energetické parametry</h3>
+        <h3>Finanční parametry (Počáteční stavy peněženek)</h3>
         <div class="form-group" style="margin-top: 10px;">
-          <label for="set-initial-capital">Výchozí disponibilní kapitál (Kč)</label>
-          <input type="number" id="set-initial-capital" step="1">
+          <label for="set-bank-capital">Výchozí zůstatek na účtu (Air Bank v Kč)</label>
+          <input type="number" id="set-bank-capital" step="1">
+        </div>
+        <div class="form-group">
+          <label for="set-cash-capital">Výchozí hotovost (Peněženka v Kč)</label>
+          <input type="number" id="set-cash-capital" step="1">
         </div>
         <div class="form-group">
           <label for="set-payday">Den výplaty v měsíci (1–31)</label>
