@@ -7,7 +7,7 @@ if ('serviceWorker' in navigator) {
 }
 
 let currentDate = new Date(2026, 10, 1);
-let currentPeriod = '30d'; // 7d, 30d, 12w, 6m, 1y
+let currentPeriod = '30d';
 let deferredPrompt = null;
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -41,7 +41,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// 1. Spodní navigace
 function setupNavigation() {
   const navItems = document.querySelectorAll('.bottom-nav .nav-item');
   navItems.forEach(item => {
@@ -78,7 +77,6 @@ function setupNavigation() {
   });
 }
 
-// 2. Přepínání měsíců
 function setupMonthSelector() {
   const display = document.getElementById('current-month-display');
   const btnPrev = document.getElementById('prev-month');
@@ -107,7 +105,6 @@ function setupMonthSelector() {
   updateMonthLabel();
 }
 
-// 3. Přepínač časového okna
 function setupTimeframeButtons() {
   const buttons = document.querySelectorAll('.timeframe-bar .tf-btn');
   buttons.forEach(btn => {
@@ -120,16 +117,14 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat a podpora měsíčních, pololetních a ročních plateb
 async function loadMonthData() {
   const targetYear = currentDate.getFullYear();
-  const targetMonthNum = currentDate.getMonth() + 1; // 1 až 12
+  const targetMonthNum = currentDate.getMonth() + 1;
   const monthKey = `${targetYear}-${String(targetMonthNum).padStart(2, '0')}`;
 
   const allEntries = await dbGetAll('entries');
   let currentMonthEntries = allEntries.filter(e => e.monthYear === monthKey);
 
-  // Pokud měsíc ještě nemá vygenerované platby ze šablon, vygenerujeme je podle periodicity
   if (currentMonthEntries.length === 0) {
     const templates = await dbGetAll('templates');
 
@@ -142,11 +137,9 @@ async function loadMonthData() {
       if (freq === 'monthly') {
         isDue = true;
       } else if (freq === 'semi-annual') {
-        // Pololetní platby: výchozí květen (5) a listopad (11)
         const dueMonths = (t.dueMonths && t.dueMonths.length > 0) ? t.dueMonths : [5, 11];
         isDue = dueMonths.includes(targetMonthNum);
       } else if (freq === 'annual') {
-        // Roční platby: podle zadaného měsíce v šabloně
         const dueMonths = (t.dueMonths && t.dueMonths.length > 0) ? t.dueMonths : [7];
         isDue = dueMonths.includes(targetMonthNum);
       }
@@ -183,7 +176,6 @@ async function loadMonthData() {
   renderCategoryBreakdown(currentMonthEntries);
 }
 
-// 5. Výpočet zůstatků a tachometrů
 async function calculateBalancesAndGauges(entries) {
   const bankCapRecord = await dbGet('settings', 'bank_capital');
   const cashCapRecord = await dbGet('settings', 'cash_capital');
@@ -195,7 +187,6 @@ async function calculateBalancesAndGauges(entries) {
   const allEntries = await dbGetAll('entries');
   let bankIncome = 0, bankExpense = 0;
   let cashIncome = 0, cashExpense = 0;
-
   let totalRemainingMonth = 0;
 
   allEntries.forEach(e => {
@@ -349,7 +340,6 @@ function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   ctx.fill();
 }
 
-// 6. Křivka tendence příjmů a výdajů
 async function drawIncomeExpenseTrendChart(allEntries) {
   const canvas = document.getElementById('income-expense-trend-chart');
   if (!canvas) return;
@@ -447,7 +437,6 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   });
 }
 
-// 7. Křivka mzdy
 async function drawSalaryTrendChart(allEntries) {
   const canvas = document.getElementById('salary-trend-chart');
   if (!canvas) return;
@@ -546,7 +535,6 @@ async function drawSalaryTrendChart(allEntries) {
   });
 }
 
-// 8. Cashflow bar chart
 async function drawCashflowForecastBarChart(allEntries) {
   const canvas = document.getElementById('cashflow-bar-chart');
   if (!canvas) return;
@@ -631,7 +619,6 @@ async function drawCashflowForecastBarChart(allEntries) {
   });
 }
 
-// 9. Tabulka statistik Cash Flow
 function renderCashflowStatsTable(entries) {
   let countInc = 0;
   let countExp = 0;
@@ -665,7 +652,6 @@ function renderCashflowStatsTable(entries) {
   netDisp.style.color = net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 }
 
-// 10. Rozpad variabilní spotřeby
 function renderVariableExpensesBreakdown(entries) {
   const container = document.getElementById('variable-breakdown-list');
   const badgeTotal = document.getElementById('badge-var-total');
@@ -722,7 +708,6 @@ function renderVariableExpensesBreakdown(entries) {
   });
 }
 
-// 11. Celková struktura výdajů
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
   container.innerHTML = '';
@@ -776,7 +761,6 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 12. Seznam plateb s označením periodicity (Měsíčně, Pololetně, Ročně)
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -841,7 +825,6 @@ function renderPaymentsList(entries) {
   document.getElementById('payments-progress-fill').style.width = `${percent}%`;
 }
 
-// 13. Rychlá tlačítka na ploše & FAB tlačítko
 function setupQuickEntryButtons() {
   const modal = document.getElementById('modal-entry');
   const form = document.getElementById('form-entry');
@@ -1038,115 +1021,117 @@ function setupTransferModal() {
   };
 }
 
-// 14. Cíle
-async function renderGoals() {
-  const balance = await getCalculatedBalance();
-  document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
+function renderGoals() {
+  getCalculatedBalance().then(balance => {
+    document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
+  });
 
-  const goals = await dbGetAll('goals');
-  goals.sort((a, b) => a.priority - b.priority);
+  dbGetAll('goals').then(goals => {
+    goals.sort((a, b) => a.priority - b.priority);
+    const container = document.getElementById('goals-list');
+    container.innerHTML = '';
 
-  const container = document.getElementById('goals-list');
-  container.innerHTML = '';
+    getCalculatedBalance().then(balance => {
+      let pool = balance;
 
-  let pool = balance;
+      goals.forEach((goal, index) => {
+        let covered = 0;
 
-  goals.forEach((goal, index) => {
-    let covered = 0;
-
-    if (!goal.paused && pool > 0) {
-      if (pool >= goal.target) {
-        covered = goal.target;
-        pool -= goal.target;
-      } else {
-        covered = pool;
-        pool = 0;
-      }
-    }
-
-    const percent = Math.min(100, Math.round((covered / goal.target) * 100));
-    const card = document.createElement('div');
-    card.className = `goal-card ${goal.paused ? 'paused' : ''}`;
-
-    card.innerHTML = `
-      <div class="goal-top">
-        <div class="goal-header-left">
-          <span class="goal-prio-tag">#${goal.priority}</span>
-          <span class="goal-name">${goal.title}</span>
-        </div>
-        <span class="goal-status-badge ${goal.paused ? 'paused' : 'active'}">
-          ${goal.paused ? '⏸ Odloženo' : '▶ Aktivní'}
-        </span>
-      </div>
-
-      <div class="goal-amounts">
-        <span>Pokryto: <strong>${Money.toCzkInt(covered)}</strong> (${percent}%)</span>
-        <span>Cíl: <strong>${Money.toCzkInt(goal.target)}</strong></span>
-      </div>
-
-      <div class="goal-progress-wrap">
-        <div class="goal-progress-fill" style="width: ${percent}%;"></div>
-      </div>
-
-      <div class="goal-actions">
-        <button class="goal-btn btn-toggle-pause">
-          ${goal.paused ? '▶ Aktivovat' : '⏸ Odložit'}
-        </button>
-        <button class="goal-btn btn-prio-up" ${index === 0 ? 'disabled' : ''}>▲</button>
-        <button class="goal-btn btn-prio-down" ${index === goals.length - 1 ? 'disabled' : ''}>▼</button>
-        <button class="goal-btn btn-del-goal" title="Smazat cíl">🗑️</button>
-      </div>
-    `;
-
-    card.querySelector('.btn-toggle-pause').onclick = async () => {
-      goal.paused = !goal.paused;
-      await dbSet('goals', goal);
-      await renderGoals();
-    };
-
-    card.querySelector('.btn-prio-up').onclick = async () => {
-      if (index > 0) {
-        const prevGoal = goals[index - 1];
-        const temp = goal.priority;
-        goal.priority = prevGoal.priority;
-        prevGoal.priority = temp;
-        await dbSet('goals', goal);
-        await dbSet('goals', prevGoal);
-        await renderGoals();
-      }
-    };
-
-    card.querySelector('.btn-prio-down').onclick = async () => {
-      if (index < goals.length - 1) {
-        const nextGoal = goals[index + 1];
-        const temp = goal.priority;
-        goal.priority = nextGoal.priority;
-        nextGoal.priority = temp;
-        await dbSet('goals', goal);
-        await dbSet('goals', nextGoal);
-        await renderGoals();
-      }
-    };
-
-    card.querySelector('.btn-del-goal').onclick = async () => {
-      if (!confirm(`Opravdu chceš smazat cíl „${goal.title}“?`)) return;
-
-      await dbDelete('goals', goal.id);
-
-      const remainingGoals = await dbGetAll('goals');
-      remainingGoals.sort((a, b) => a.priority - b.priority);
-
-      for (let i = 0; i < remainingGoals.length; i++) {
-        if (remainingGoals[i].priority !== i + 1) {
-          remainingGoals[i].priority = i + 1;
-          await dbSet('goals', remainingGoals[i]);
+        if (!goal.paused && pool > 0) {
+          if (pool >= goal.target) {
+            covered = goal.target;
+            pool -= goal.target;
+          } else {
+            covered = pool;
+            pool = 0;
+          }
         }
-      }
 
-      await renderGoals();
-    };
+        const percent = Math.min(100, Math.round((covered / goal.target) * 100));
+        const card = document.createElement('div');
+        card.className = `goal-card ${goal.paused ? 'paused' : ''}`;
 
-    container.appendChild(card);
+        card.innerHTML = `
+          <div class="goal-top">
+            <div class="goal-header-left">
+              <span class="goal-prio-tag">#${goal.priority}</span>
+              <span class="goal-name">${goal.title}</span>
+            </div>
+            <span class="goal-status-badge ${goal.paused ? 'paused' : 'active'}">
+              ${goal.paused ? '⏸ Odloženo' : '▶ Aktivní'}
+            </span>
+          </div>
+
+          <div class="goal-amounts">
+            <span>Pokryto: <strong>${Money.toCzkInt(covered)}</strong> (${percent}%)</span>
+            <span>Cíl: <strong>${Money.toCzkInt(goal.target)}</strong></span>
+          </div>
+
+          <div class="goal-progress-wrap">
+            <div class="goal-progress-fill" style="width: ${percent}%;"></div>
+          </div>
+
+          <div class="goal-actions">
+            <button class="goal-btn btn-toggle-pause">
+              ${goal.paused ? '▶ Aktivovat' : '⏸ Odložit'}
+            </button>
+            <button class="goal-btn btn-prio-up" ${index === 0 ? 'disabled' : ''}>▲</button>
+            <button class="goal-btn btn-prio-down" ${index === goals.length - 1 ? 'disabled' : ''}>▼</button>
+            <button class="goal-btn btn-del-goal" title="Smazat cíl">🗑️</button>
+          </div>
+        `;
+
+        card.querySelector('.btn-toggle-pause').onclick = async () => {
+          goal.paused = !goal.paused;
+          await dbSet('goals', goal);
+          await renderGoals();
+        };
+
+        card.querySelector('.btn-prio-up').onclick = async () => {
+          if (index > 0) {
+            const prevGoal = goals[index - 1];
+            const temp = goal.priority;
+            goal.priority = prevGoal.priority;
+            prevGoal.priority = temp;
+            await dbSet('goals', goal);
+            await dbSet('goals', prevGoal);
+            await renderGoals();
+          }
+        };
+
+        card.querySelector('.btn-prio-down').onclick = async () => {
+          if (index < goals.length - 1) {
+            const nextGoal = goals[index + 1];
+            const temp = goal.priority;
+            goal.priority = nextGoal.priority;
+            nextGoal.priority = temp;
+            await dbSet('goals', goal);
+            await dbSet('goals', nextGoal);
+            await renderGoals();
+          }
+        };
+
+        card.querySelector('.btn-del-goal').onclick = async () => {
+          if (!confirm(`Opravdu chceš smazat cíl „${goal.title}“?`)) return;
+
+          await dbDelete('goals', goal.id);
+
+          const remainingGoals = await dbGetAll('goals');
+          remainingGoals.sort((a, b) => a.priority - b.priority);
+
+          for (let i = 0; i < remainingGoals.length; i++) {
+            if (remainingGoals[i].priority !== i + 1) {
+              remainingGoals[i].priority = i + 1;
+              await dbSet('goals', remainingGoals[i]);
+            }
+          }
+
+          await renderGoals();
+        };
+
+        container.appendChild(card);
+      });
+    });
   });
 }
 
@@ -1188,7 +1173,7 @@ function setupGoalsModal() {
   };
 }
 
-// 15. Dluhy
+// 15. DLUHY: AUTOMATICKÝ VÝPOČET POČTU SPLÁTEK, DATUM DOPLACENÍ & MIMOŘÁDNÁ SPLÁTKA
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -1196,6 +1181,11 @@ async function renderDebts() {
 
   recContainer.innerHTML = '';
   payContainer.innerHTML = '';
+
+  const monthNames = [
+    'leden', 'únor', 'březen', 'duben', 'květen', 'červen',
+    'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'
+  ];
 
   debts.forEach(d => {
     const card = document.createElement('div');
@@ -1222,18 +1212,51 @@ async function renderDebts() {
 
       recContainer.appendChild(card);
     } else {
+      // DYNAMICKÝ VÝPOČET PRO ZÁVAZEK
+      const remainingCents = d.total;
+      const monthlyCents = d.monthly || 1;
+      
+      let calcBadgeHtml = '';
+      if (remainingCents > 0 && monthlyCents > 0) {
+        const remainingInstallments = Math.ceil(remainingCents / monthlyCents);
+        
+        // Výpočet data doplacení
+        const now = new Date();
+        const finishDate = new Date(now.getFullYear(), now.getMonth() + remainingInstallments, 1);
+        const finishMonthStr = monthNames[finishDate.getMonth()];
+        const finishYearStr = finishDate.getFullYear();
+
+        calcBadgeHtml = `
+          <div class="debt-calculation-badge">
+            <div class="debt-calc-left">
+              <span class="dc-installments">Zbývá splátek: <strong>${remainingInstallments} měsíců</strong></span>
+              <span class="dc-date">Předpokládané doplacení: <strong>${finishMonthStr} ${finishYearStr}</strong></span>
+            </div>
+          </div>
+        `;
+      } else {
+        calcBadgeHtml = `
+          <div class="debt-calculation-badge">
+            <span style="color:var(--accent-green); font-weight:700;">✅ Splaceno v plné výši!</span>
+          </div>
+        `;
+      }
+
       card.innerHTML = `
         <div class="debt-card-header">
           <span class="debt-name">${d.name}</span>
           <span class="debt-total payable">${Money.toCzk(d.total)}</span>
         </div>
-        <div class="debt-sub-info">Měsíční splátka: ${Money.toCzk(d.monthly)} (k ${d.day}. dni)</div>
-        <div class="debt-actions-row">
-          <button class="debt-btn btn-pay" data-id="${d.id}">Potvrdit splátku (${Money.toCzkInt(d.monthly)})</button>
+        <div class="debt-sub-info">Pravidelná měsíční splátka: ${Money.toCzk(d.monthly)} (k ${d.day}. dni)</div>
+        ${calcBadgeHtml}
+        <div class="debt-actions-row" style="margin-top: 8px;">
+          <button class="debt-btn btn-pay" data-id="${d.id}">Zaplatit měsíční (${Money.toCzkInt(d.monthly)})</button>
+          <button class="debt-btn btn-extra-pay" data-id="${d.id}">⚡ Mimořádná splátka</button>
         </div>
       `;
 
-      card.querySelector('.debt-btn').onclick = async () => {
+      // Běžná splátka
+      card.querySelector('.btn-pay').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
         d.total -= payAmount;
@@ -1255,6 +1278,11 @@ async function renderDebts() {
         await renderDebts();
       };
 
+      // Mimořádná splátka (otevře okno pro libovolnou částku)
+      card.querySelector('.btn-extra-pay').onclick = () => {
+        openDebtTxModal(d, 'extra-pay');
+      };
+
       payContainer.appendChild(card);
     }
   });
@@ -1271,9 +1299,13 @@ function openDebtTxModal(debt, action) {
   idInput.value = debt.id;
   actionInput.value = action;
 
-  title.textContent = (action === 'repay') 
-    ? `Úhrada od: ${debt.name} (přičte se na účet)`
-    : `Půjčit / přičíst pro: ${debt.name}`;
+  if (action === 'repay') {
+    title.textContent = `Úhrada od: ${debt.name} (přičte se na účet)`;
+  } else if (action === 'lend') {
+    title.textContent = `Půjčit / přičíst pro: ${debt.name}`;
+  } else if (action === 'extra-pay') {
+    title.textContent = `Mimořádná splátka: ${debt.name}`;
+  }
 
   modal.classList.remove('hidden');
 }
@@ -1318,12 +1350,28 @@ function setupDebtTxModal() {
         isIncome: true,
         paid: true
       });
-    } else {
+    } else if (action === 'lend') {
       debt.total += amountCents;
       if (note) {
         debt.note = debt.note ? `${debt.note}, ${note} (+${amountCzk} Kč)` : note;
       }
       await dbSet('debts', debt);
+    } else if (action === 'extra-pay') {
+      // Mimořádná splátka závazku
+      const payAmount = Math.min(debt.total, amountCents);
+      debt.total = Math.max(0, debt.total - payAmount);
+      await dbSet('debts', debt);
+
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: `Mimořádná splátka: ${debt.name}${note ? ' (' + note + ')' : ''}`,
+        amount: payAmount,
+        category: 'Závazky',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: false,
+        paid: true
+      });
     }
 
     modal.classList.add('hidden');
@@ -1332,7 +1380,7 @@ function setupDebtTxModal() {
   };
 }
 
-// 16. Investice: Investown (Automatický přepočet zisku), Slitky & Ostatní
+// 16. Investice: Investown (Flexibilní vklad, prodej, zisk), Slitky & Ostatní
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -1448,27 +1496,81 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// LOGIKA INVESTOWNU: AUTOMATICKÝ PŘEPOČET PŘI ZADÁNÍ ZISKU
+// LOGIKA INVESTOWNU: FLEXIBILNÍ VKLAD, PRODEJ A ZADÁNÍ ZISKU
 function setupInvestownSpecifics() {
-  const btnDep = document.getElementById('btn-itown-deposit-500');
+  const btnDepOpen = document.getElementById('btn-itown-deposit-open');
   const btnSell = document.getElementById('btn-itown-sell');
   const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
 
+  // 1. Modální okno pro libovolný vklad (včetně předvolených 500 Kč)
+  const modalDep = document.getElementById('modal-itown-deposit');
+  const formDep = document.getElementById('form-itown-deposit');
+  const inputDep = document.getElementById('itown-deposit-amount');
+  const btnCancelDep = document.getElementById('btn-cancel-itown-deposit');
+
+  if (btnDepOpen) {
+    btnDepOpen.onclick = () => {
+      inputDep.value = 500;
+      modalDep.classList.remove('hidden');
+    };
+  }
+
+  if (btnCancelDep) {
+    btnCancelDep.onclick = () => modalDep.classList.add('hidden');
+  }
+
+  if (formDep) {
+    formDep.onsubmit = async (e) => {
+      e.preventDefault();
+      const depositAmountCzk = parseFloat(inputDep.value);
+      const wallet = formDep.querySelector('input[name="itownDepositWallet"]:checked').value;
+
+      if (isNaN(depositAmountCzk) || depositAmountCzk <= 0) return;
+
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) {
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
+      }
+
+      const depCents = Money.toCents(depositAmountCzk);
+      itownRecord.invested += depCents;
+      await dbSet('settings', itownRecord);
+
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: `Investown vklad (+${depositAmountCzk} Kč)`,
+        amount: depCents,
+        category: 'Investice',
+        day: new Date().getDate(),
+        wallet,
+        isIncome: false,
+        paid: true
+      });
+
+      modalDep.classList.add('hidden');
+      alert(`Částka ${depositAmountCzk.toLocaleString('cs-CZ')} Kč byla připsána k vložené jistině Investownu.`);
+      await loadMonthData();
+      await renderInvestments();
+    };
+  }
+
+  // 2. Modální okno pro přímé zadání zisku
   const modalProfit = document.getElementById('modal-itown-profit-direct');
   const formProfit = document.getElementById('form-itown-profit-direct');
   const inputProfit = document.getElementById('itown-direct-profit-input');
   const btnCancelProfit = document.getElementById('btn-cancel-itown-profit-direct');
 
-  function openDirectProfitModal() {
-    dbGet('settings', 'itown_data').then(rec => {
-      if (rec && rec.profit) {
-        inputProfit.value = (rec.profit / 100).toFixed(2);
-      }
-      modalProfit.classList.remove('hidden');
-    });
+  if (btnSyncProfit) {
+    btnSyncProfit.onclick = () => {
+      dbGet('settings', 'itown_data').then(rec => {
+        if (rec && rec.profit) {
+          inputProfit.value = (rec.profit / 100).toFixed(2);
+        }
+        modalProfit.classList.remove('hidden');
+      });
+    };
   }
-
-  if (btnSyncProfit) btnSyncProfit.onclick = openDirectProfitModal;
 
   if (btnCancelProfit) {
     btnCancelProfit.onclick = () => modalProfit.classList.add('hidden');
@@ -1495,34 +1597,7 @@ function setupInvestownSpecifics() {
     };
   }
 
-  if (btnDep) {
-    btnDep.onclick = async () => {
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
-      }
-
-      itownRecord.invested += 50000;
-      await dbSet('settings', itownRecord);
-
-      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: 'Investown vklad (přírůstek jistiny)',
-        amount: 50000,
-        category: 'Investice',
-        day: new Date().getDate(),
-        wallet: 'bank',
-        isIncome: false,
-        paid: true
-      });
-
-      alert('500 Kč bylo připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
-      await loadMonthData();
-      await renderInvestments();
-    };
-  }
-
+  // 3. Prodej / Výběr z Investownu
   const modalSell = document.getElementById('modal-itown-sell');
   const formSell = document.getElementById('form-itown-sell');
   const btnCancelSell = document.getElementById('btn-cancel-itown-sell');
@@ -1647,7 +1722,6 @@ function setupGoldModal() {
   };
 }
 
-// KŘIVKA INVESTIC: ODDĚLENÁ VLOŽENÁ JISTINA VS. REÁLNÁ HODNOTA
 async function drawInvestmentTrendChart(investedCents, currentCents) {
   const canvas = document.getElementById('invest-trend-chart');
   if (!canvas) return;
@@ -1997,7 +2071,7 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   const badge = document.getElementById('energy-trend-badge');
 
   if (readings.length < 2) {
-    box.innerHTML = '<span style="font-size:0.85rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
+    box.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
     badge.textContent = 'Čekám na data';
     badge.style.color = 'var(--text-muted)';
     return;
@@ -2346,7 +2420,6 @@ function setupApplianceModal() {
   };
 }
 
-// 18. Nastavení & Air Bank CSV Parser
 async function renderSettings() {
   const bankCapRecord = await dbGet('settings', 'bank_capital');
   const cashCapRecord = await dbGet('settings', 'cash_capital');
@@ -2553,87 +2626,4 @@ function detectCategoryFromAirBank(desc, isIncome) {
 
   if (t.includes('ručení') || t.includes('benzina') || t.includes('orlen') || t.includes('omv') || t.includes('shell') || t.includes('mol') || t.includes('eurooil') || t.includes('čerpací') || t.includes('nafta') || t.includes('benzín')) {
     return 'Doprava & Benzín';
-  }
-
-  if (t.includes('dm drogerie') || t.includes('rossmann') || t.includes('teta') || t.includes('drogerie') || t.includes('action')) {
-    return 'Drogerie & Domácnost';
-  }
-
-  if (t.includes('restaurace') || t.includes('hospoda') || t.includes('bistro') || t.includes('kebab') || t.includes('pivnice') || t.includes('kavárna') || t.includes('mcdonald') || t.includes('kfc')) {
-    return 'Restaurace & Občerstvení';
-  }
-
-  if (t.includes('datart') || t.includes('alza') || t.includes('czc') || t.includes('obi') || t.includes('hornbach') || t.includes('bauhaus') || t.includes('železářství')) {
-    return 'Elektro & Nářadí';
-  }
-
-  if (t.includes('zoo') || t.includes('super zoo') || t.includes('pet center') || t.includes('zvěrokruh') || t.includes('krmiv')) {
-    return 'Zvířata';
-  }
-
-  if (t.includes('lékárna') || t.includes('dr.max') || t.includes('benu') || t.includes('optik') || t.includes('terapie')) {
-    return 'Zdraví & Lékárna';
-  }
-
-  return 'Ostatní útrata';
-}
-
-async function parseAndImportAirBankCsv(csvText) {
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
-  if (lines.length < 2) return 0;
-
-  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-  let importedCount = 0;
-
-  const delimiter = lines[0].includes(';') ? ';' : ',';
-  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-
-  const dateIdx = headers.findIndex(h => h.includes('datum'));
-  const amountIdx = headers.findIndex(h => h.includes('částka') || h.includes('castka') || h.includes('objem'));
-  const partyIdx = headers.findIndex(h => h.includes('protistran') || h.includes('název') || h.includes('protiúčet'));
-  const msgIdx = headers.findIndex(h => h.includes('zpráva') || h.includes('popis') || h.includes('poznámka'));
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
-    if (cols.length <= amountIdx) continue;
-
-    const rawAmount = cols[amountIdx].replace(/\s/g, '').replace(',', '.');
-    const amountNum = parseFloat(rawAmount);
-
-    if (isNaN(amountNum) || amountNum === 0) continue;
-
-    const isIncome = amountNum > 0;
-    const absAmountCents = Math.round(Math.abs(amountNum) * 100);
-
-    let title = '';
-    if (partyIdx !== -1 && cols[partyIdx]) title = cols[partyIdx];
-    if (msgIdx !== -1 && cols[msgIdx]) title = title ? `${title} (${cols[msgIdx]})` : cols[msgIdx];
-    if (!title) title = isIncome ? 'Příchozí platba' : 'Platba kartou / Převod';
-
-    let day = 10;
-    if (dateIdx !== -1 && cols[dateIdx]) {
-      const parts = cols[dateIdx].split(/[\.\-\/]/);
-      if (parts.length >= 1) {
-        const parsedDay = parseInt(parts[0], 10);
-        if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) day = parsedDay;
-      }
-    }
-
-    const category = detectCategoryFromAirBank(title, isIncome);
-
-    await dbAdd('entries', {
-      monthYear: monthKey,
-      title: title.slice(0, 50),
-      amount: absAmountCents,
-      category,
-      day,
-      wallet: 'bank',
-      isIncome,
-      paid: true
-    });
-
-    importedCount++;
-  }
-
-  return importedCount;
-}
+  
