@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupNavigation();
     setupMonthSelector();
     setupPaymentsModal();
+    setupGoalsModal();
     await loadMonthData();
   } catch (err) {
     console.error('Inicializace selhala:', err);
@@ -17,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupNavigation() {
   const navItems = document.querySelectorAll('.bottom-nav .nav-item');
   navItems.forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', async () => {
       const targetTab = item.dataset.tab;
 
       navItems.forEach(i => i.classList.remove('active'));
@@ -31,6 +32,10 @@ function setupNavigation() {
       if (activePanel) {
         activePanel.classList.add('active');
         document.getElementById('app-title').textContent = item.querySelector('.label').textContent;
+      }
+
+      if (targetTab === 'goals') {
+        await renderGoals();
       }
     });
   });
@@ -92,19 +97,16 @@ async function loadMonthData() {
     currentMonthEntries = refreshed.filter(e => e.monthYear === monthKey);
   }
 
-  // Seřadíme podle dne v měsíci
   currentMonthEntries.sort((a, b) => (a.day || 0) - (b.day || 0));
 
-  calculateOverview(currentMonthEntries);
+  await calculateOverview(currentMonthEntries);
   renderPaymentsList(currentMonthEntries);
 }
 
 // 4. Výpočty přehledu a bezpečné kapesné
 async function calculateOverview(entries) {
-  const initCapRecord = await dbGet('settings', 'initial_capital');
+  const currentBalance = await getCalculatedBalance(entries);
   const paydayRecord = await dbGet('settings', 'payday');
-
-  const initialCapital = initCapRecord ? initCapRecord.value : 0;
   const payday = paydayRecord ? paydayRecord.value : 10;
 
   let totalIncome = 0;
@@ -123,14 +125,31 @@ async function calculateOverview(entries) {
     }
   });
 
-  const currentBalance = initialCapital + totalIncome - totalPaid;
-
   document.getElementById('disp-account-balance').textContent = Money.toCzk(currentBalance);
   document.getElementById('metric-income').textContent = Money.toCzkInt(totalIncome);
   document.getElementById('metric-paid').textContent = Money.toCzkInt(totalPaid);
   document.getElementById('metric-remaining').textContent = Money.toCzkInt(totalRemaining);
 
   calculateSafeSpend(currentBalance, totalRemaining, payday);
+}
+
+async function getCalculatedBalance(optionalEntries) {
+  const initCapRecord = await dbGet('settings', 'initial_capital');
+  const initialCapital = initCapRecord ? initCapRecord.value : 0;
+
+  const entries = optionalEntries || await dbGetAll('entries');
+  let totalIncome = 0;
+  let totalPaid = 0;
+
+  entries.forEach(e => {
+    if (e.isIncome) {
+      totalIncome += e.amount;
+    } else if (e.paid) {
+      totalPaid += e.amount;
+    }
+  });
+
+  return initialCapital + totalIncome - totalPaid;
 }
 
 function calculateSafeSpend(balance, unpaidBills, paydayDay) {
@@ -195,7 +214,6 @@ function renderPaymentsList(entries) {
       </div>
     `;
 
-    // Kliknutí pro odškrtnutí/zrušení odškrtnutí
     row.addEventListener('click', async () => {
       item.paid = !item.paid;
       await dbSet('entries', item);
@@ -205,13 +223,12 @@ function renderPaymentsList(entries) {
     list.appendChild(row);
   });
 
-  // Aktualizace souhrnné lišty výdajů
   document.getElementById('payments-total-exp').textContent = Money.toCzkInt(totalExpenses);
   const percent = totalExpenses > 0 ? Math.round((paidExpenses / totalExpenses) * 100) : 0;
   document.getElementById('payments-progress-fill').style.width = `${percent}%`;
 }
 
-// 6. Obsluha modálního okna pro přidání položky
+// 6. Obsluha modálního okna plateb
 function setupPaymentsModal() {
   const modal = document.getElementById('modal-entry');
   const btnOpen = document.getElementById('btn-add-entry');
@@ -232,11 +249,7 @@ function setupPaymentsModal() {
 
   radioTypes.forEach(radio => {
     radio.addEventListener('change', () => {
-      if (radio.value === 'income') {
-        recurringWrap.style.display = 'none';
-      } else {
-        recurringWrap.style.display = 'flex';
-      }
+      recurringWrap.style.display = radio.value === 'income' ? 'none' : 'flex';
     });
   });
 
@@ -255,7 +268,6 @@ function setupPaymentsModal() {
     const amountCents = Money.toCents(amountCzk);
     const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Uložíme do aktuálního měsíce
     await dbAdd('entries', {
       monthYear: monthKey,
       title,
@@ -263,10 +275,9 @@ function setupPaymentsModal() {
       category,
       day,
       isIncome,
-      paid: isIncome // Příjmy jsou rovnou připsány
+      paid: isIncome
     });
 
-    // Pokud je zaškrtnuto jako trvalá platba, přidáme do šablon
     if (!isIncome && isRecurring) {
       await dbAdd('templates', {
         title,
@@ -279,5 +290,140 @@ function setupPaymentsModal() {
 
     modal.classList.add('hidden');
     await loadMonthData();
+  });
+}
+
+// 7. Modul Cíle: Výpočet prioritního přelévání hotovosti
+async function renderGoals() {
+  const balance = await getCalculatedBalance();
+  document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
+
+  const goals = await dbGetAll('goals');
+  goals.sort((a, b) => a.priority - b.priority);
+
+  const container = document.getElementById('goals-list');
+  container.innerHTML = '';
+
+  let pool = balance;
+
+  goals.forEach((goal, index) => {
+    let covered = 0;
+
+    if (!goal.paused && pool > 0) {
+      if (pool >= goal.target) {
+        covered = goal.target;
+        pool -= goal.target;
+      } else {
+        covered = pool;
+        pool = 0;
+      }
+    }
+
+    const percent = Math.min(100, Math.round((covered / goal.target) * 100));
+    const card = document.createElement('div');
+    card.className = `goal-card ${goal.paused ? 'paused' : ''}`;
+
+    card.innerHTML = `
+      <div class="goal-top">
+        <div class="goal-header-left">
+          <span class="goal-prio-tag">#${goal.priority}</span>
+          <span class="goal-name">${goal.title}</span>
+        </div>
+        <span class="goal-status-badge ${goal.paused ? 'paused' : 'active'}">
+          ${goal.paused ? '⏸ Odloženo' : '▶ Aktivní'}
+        </span>
+      </div>
+
+      <div class="goal-amounts">
+        <span>Pokryto: <strong>${Money.toCzkInt(covered)}</strong> (${percent}%)</span>
+        <span>Cíl: <strong>${Money.toCzkInt(goal.target)}</strong></span>
+      </div>
+
+      <div class="goal-progress-wrap">
+        <div class="goal-progress-fill" style="width: ${percent}%;"></div>
+      </div>
+
+      <div class="goal-actions">
+        <button class="goal-btn btn-toggle-pause">
+          ${goal.paused ? '▶ Aktivovat' : '⏸ Odložit'}
+        </button>
+        <button class="goal-btn btn-prio-up" ${index === 0 ? 'disabled' : ''}>▲ Nahoru</button>
+        <button class="goal-btn btn-prio-down" ${index === goals.length - 1 ? 'disabled' : ''}>▼ Dolů</button>
+      </div>
+    `;
+
+    // Tlačítko odložit / aktivovat
+    card.querySelector('.btn-toggle-pause').addEventListener('click', async () => {
+      goal.paused = !goal.paused;
+      await dbSet('goals', goal);
+      await renderGoals();
+    });
+
+    // Tlačítko posunout prioritu nahoru
+    card.querySelector('.btn-prio-up').addEventListener('click', async () => {
+      if (index > 0) {
+        const prevGoal = goals[index - 1];
+        const temp = goal.priority;
+        goal.priority = prevGoal.priority;
+        prevGoal.priority = temp;
+        await dbSet('goals', goal);
+        await dbSet('goals', prevGoal);
+        await renderGoals();
+      }
+    });
+
+    // Tlačítko posunout prioritu dolů
+    card.querySelector('.btn-prio-down').addEventListener('click', async () => {
+      if (index < goals.length - 1) {
+        const nextGoal = goals[index + 1];
+        const temp = goal.priority;
+        goal.priority = nextGoal.priority;
+        nextGoal.priority = temp;
+        await dbSet('goals', goal);
+        await dbSet('goals', nextGoal);
+        await renderGoals();
+      }
+    });
+
+    container.appendChild(card);
+  });
+}
+
+// 8. Modální okno pro nový cíl
+function setupGoalsModal() {
+  const modal = document.getElementById('modal-goal');
+  const btnOpen = document.getElementById('btn-add-goal');
+  const btnCancel = document.getElementById('btn-cancel-goal');
+  const form = document.getElementById('form-goal');
+
+  btnOpen.addEventListener('click', () => {
+    form.reset();
+    modal.classList.remove('hidden');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const title = document.getElementById('goal-title').value.trim();
+    const targetCzk = parseFloat(document.getElementById('goal-target').value);
+
+    if (!title || isNaN(targetCzk) || targetCzk <= 0) return;
+
+    const allGoals = await dbGetAll('goals');
+    const nextPriority = allGoals.length > 0 ? Math.max(...allGoals.map(g => g.priority)) + 1 : 1;
+
+    await dbAdd('goals', {
+      title,
+      target: Money.toCents(targetCzk),
+      priority: nextPriority,
+      paused: false
+    });
+
+    modal.classList.add('hidden');
+    await renderGoals();
   });
 }
