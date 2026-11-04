@@ -1000,7 +1000,7 @@ function setupQuickEntryButtons() {
   if (fabBtn) fabBtn.onclick = () => openEntryWithType('expense');
 }
 
-// 15. SPOLEHLIVÉ ULOŽENÍ PŘÍJMU / VÝDAJE
+// 15. Uložení příjmu / výdaje
 function setupPaymentsModal() {
   const modal = document.getElementById('modal-entry');
   const btnOpen = document.getElementById('btn-add-entry');
@@ -1353,7 +1353,7 @@ function setupGoalsModal() {
   };
 }
 
-// 17. Dluhy: Provident & AvaFin
+// 17. Dluhy: Provident, AvaFin a Pohledávky (s tužkou pro editaci položek)
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -1372,27 +1372,60 @@ async function renderDebts() {
     const card = document.createElement('div');
     card.className = 'debt-card';
 
+    // A. POHLEDÁVKY (Kdo mi dluží)
     if (d.type === 'receivable') {
+      let itemsHtml = '';
+      if (d.items && d.items.length > 0) {
+        itemsHtml = `<div class="debt-sub-items-list">` + d.items.map((item, idx) => `
+          <div class="debt-sub-item-row">
+            <span class="ds-lbl">${item.label}</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="ds-val">${Money.toCzkInt(item.amount)}</span>
+              <button class="btn-edit-item" data-debt-id="${d.id}" data-item-idx="${idx}" title="Upravit položku">✏️</button>
+            </div>
+          </div>
+          ${item.note ? `<span class="debt-sub-item-note">✓ ${item.note}</span>` : ''}
+        `).join('') + `</div>`;
+      }
+
       card.innerHTML = `
         <div class="debt-card-header">
-          <span class="debt-name">${d.name}</span>
-          <span class="debt-total receivable">${Money.toCzk(d.total)}</span>
+          <div>
+            <span class="debt-name">${d.name}</span>
+            <div style="font-size:0.72rem; color:var(--text-muted);">${d.items ? d.items.length : 0} položky dluhu</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="debt-total receivable">${Money.toCzkInt(d.total)}</span>
+            <div style="font-size:0.7rem; color:var(--text-muted);">Celkem dluží</div>
+          </div>
         </div>
-        <div class="debt-sub-info">${d.note || 'Pohledávka'}</div>
+
+        ${itemsHtml}
+
         <div class="debt-actions-row">
-          <button class="debt-btn btn-pay" data-id="${d.id}" data-action="repay">− Zadat úhradu (+ účet)</button>
           <button class="debt-btn btn-lend" data-id="${d.id}" data-action="lend">+ Půjčit / Přičíst</button>
+          <button class="debt-btn btn-pay" data-id="${d.id}" data-action="repay">− Zadat úhradu (+ účet)</button>
         </div>
       `;
 
-      card.querySelectorAll('.debt-btn').forEach(btn => {
+      card.querySelectorAll('.btn-edit-item').forEach(btn => {
+        btn.onclick = () => {
+          const debtId = parseInt(btn.dataset.debtId, 10);
+          const itemIdx = parseInt(btn.dataset.itemIdx, 10);
+          openEditSubItemModal(debtId, itemIdx);
+        };
+      });
+
+      card.querySelectorAll('.debt-actions-row .debt-btn').forEach(btn => {
         btn.onclick = () => {
           openDebtTxModal(d, btn.dataset.action);
         };
       });
 
       recContainer.appendChild(card);
-    } else {
+    } 
+    // B. MOJE PŮJČKY K ÚHRADĚ (Provident, AvaFin apod.)
+    else {
       let remainingMonths = 0;
       let endDateStr = 'Splaceno';
 
@@ -1403,16 +1436,42 @@ async function renderDebts() {
         endDateStr = `${monthNames[endD.getMonth()]} ${endD.getFullYear()}`;
       }
 
+      let loanItemsHtml = '';
+      if (d.items && d.items.length > 0) {
+        loanItemsHtml = `<div class="debt-sub-items-list">` + d.items.map((item, idx) => `
+          <div class="debt-sub-item-row">
+            <span class="ds-lbl">${item.label}</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="ds-val" style="color:var(--accent-red);">${Money.toCzk(item.amount)}</span>
+              <button class="btn-edit-item" data-debt-id="${d.id}" data-item-idx="${idx}" title="Upravit položku půjčky">✏️</button>
+            </div>
+          </div>
+        `).join('') + `</div>`;
+      }
+
       card.innerHTML = `
         <div class="debt-card-header">
-          <span class="debt-name">${d.name}</span>
-          <span class="debt-total payable">${Money.toCzk(d.total)}</span>
+          <div>
+            <span class="debt-name">${d.name}</span>
+            <div style="font-size:0.72rem; color:var(--text-muted);">Měsíční splátka: ${Money.toCzkInt(d.monthly)} (k ${d.day}. dni)</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="debt-total payable">${Money.toCzk(d.total)}</span>
+            <div style="font-size:0.7rem; color:var(--accent-yellow);">⏳ Čeká na potvrzení</div>
+          </div>
         </div>
-        <div class="debt-sub-info">Měsíční splátka: <strong>${Money.toCzk(d.monthly)}</strong> (k ${d.day}. dni)</div>
-        
-        <div class="debt-plan-box">
-          <span>Zbývá: <strong>${remainingMonths} měsíců</strong></span>
-          <span>Konec splácení: <strong>${endDateStr}</strong></span>
+
+        ${loanItemsHtml}
+
+        <div class="debt-payoff-metrics">
+          <div class="dpm-col">
+            <span class="dpm-lbl">Zbývá splácet</span>
+            <span class="dpm-val">${remainingMonths} měsíců</span>
+          </div>
+          <div class="dpm-col" style="text-align:right;">
+            <span class="dpm-lbl">Datum doplacení</span>
+            <span class="dpm-val">${endDateStr}</span>
+          </div>
         </div>
 
         <div class="debt-actions-row">
@@ -1421,10 +1480,24 @@ async function renderDebts() {
         </div>
       `;
 
+      card.querySelectorAll('.btn-edit-item').forEach(btn => {
+        btn.onclick = () => {
+          const debtId = parseInt(btn.dataset.debtId, 10);
+          const itemIdx = parseInt(btn.dataset.itemIdx, 10);
+          openEditSubItemModal(debtId, itemIdx);
+        };
+      });
+
       card.querySelector('.btn-confirm-monthly').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
         d.total -= payAmount;
+        
+        if (d.items && d.items.length > 0) {
+          const ratio = (d.total) / (d.total + payAmount || 1);
+          d.items.forEach(it => it.amount = Math.round(it.amount * ratio));
+        }
+
         await dbSet('debts', d);
 
         const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -1577,6 +1650,25 @@ function openExtraPayModal(debt) {
   idInput.value = debt.id;
   title.textContent = `Mimořádná splátka: ${debt.name}`;
   modal.classList.remove('hidden');
+}
+
+async function openEditSubItemModal(debtId, itemIdx) {
+  const debt = await dbGet('debts', debtId);
+  if (!debt || !debt.items || !debt.items[itemIdx]) return;
+
+  const item = debt.items[itemIdx];
+  const newAmountStr = prompt(`Zadej novou výši položky „${item.label}“ (Kč):`, Math.round(item.amount / 100));
+  if (newAmountStr === null) return;
+
+  const newAmountCzk = parseFloat(newAmountStr);
+  if (isNaN(newAmountCzk) || newAmountCzk < 0) return;
+
+  item.amount = Money.toCents(newAmountCzk);
+  debt.total = debt.items.reduce((acc, it) => acc + it.amount, 0);
+  await dbSet('debts', debt);
+
+  await loadMonthData();
+  await renderDebts();
 }
 
 // 18. Investice: Investown, Slitky & Ostatní
