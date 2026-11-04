@@ -156,7 +156,7 @@ body {
   font-weight: 800;
 }
 
-/* ČASOVÝ PŘEPÍNAČ OBDOBÍ (PILLS BAR) */
+/* ČASOVÝ PŘEPÍNAČ OBDOBÍ */
 .timeframe-bar {
   display: flex;
   background: var(--bg-card);
@@ -184,7 +184,7 @@ body {
   color: #0b0f19;
 }
 
-/* TABULKA CASH FLOW STATISTIK */
+/* TABULKA CASH FLOW */
 .cf-stats-table {
   display: flex;
   flex-direction: column;
@@ -269,36 +269,6 @@ body {
 }
 
 /* Zbytek layoutu */
-.balance-card {
-  background: linear-gradient(135deg, #1e293b, #0f172a);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  margin-bottom: 12px;
-}
-
-.card-label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.balance-amount {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: var(--text-main);
-  margin: 8px 0;
-}
-
-.balance-sub {
-  font-size: 0.9rem;
-  color: var(--accent-blue);
-  font-weight: 600;
-}
-
 .analytics-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -380,26 +350,6 @@ body {
   border-radius: 4px;
   transition: width 0.4s ease;
 }
-
-.invest-summary-card {
-  background: linear-gradient(135deg, #1e2942, #151d30);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  border-radius: 14px;
-  padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  text-align: center;
-}
-
-.inv-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.inv-lbl { font-size: 0.7rem; color: var(--text-muted); }
-.inv-val { font-size: 0.95rem; font-weight: 800; }
 
 .investments-container {
   display: flex;
