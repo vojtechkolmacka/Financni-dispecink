@@ -1,7 +1,7 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('PWA Service Worker úspěšně zaregistrován:', reg.scope))
+      .then(reg => console.log('PWA Service Worker zaregistrován:', reg.scope))
       .catch(err => console.log('Registrace Service Workeru selhala:', err));
   });
 }
@@ -41,10 +41,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// 1. Spodní navigace
 function setupNavigation() {
   const navItems = document.querySelectorAll('.bottom-nav .nav-item');
   navItems.forEach(item => {
-    item.addEventListener('click', async () => {
+    item.addEventListener('click', async (e) => {
+      e.preventDefault();
       const targetTab = item.dataset.tab;
 
       navItems.forEach(i => i.classList.remove('active'));
@@ -77,6 +79,7 @@ function setupNavigation() {
   });
 }
 
+// 2. Přepínání měsíců
 function setupMonthSelector() {
   const display = document.getElementById('current-month-display');
   const btnPrev = document.getElementById('prev-month');
@@ -90,33 +93,35 @@ function setupMonthSelector() {
     display.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
   }
 
-  btnPrev.addEventListener('click', async () => {
+  btnPrev.onclick = async () => {
     currentDate.setMonth(currentDate.getMonth() - 1);
     updateMonthLabel();
     await loadMonthData();
-  });
+  };
 
-  btnNext.addEventListener('click', async () => {
+  btnNext.onclick = async () => {
     currentDate.setMonth(currentDate.getMonth() + 1);
     updateMonthLabel();
     await loadMonthData();
-  });
+  };
 
   updateMonthLabel();
 }
 
+// 3. Přepínač časového okna
 function setupTimeframeButtons() {
   const buttons = document.querySelectorAll('.timeframe-bar .tf-btn');
   buttons.forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.onclick = async () => {
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentPeriod = btn.dataset.tf;
       await loadMonthData();
-    });
+    };
   });
 }
 
+// 4. Načtení dat a podpora periodických plateb
 async function loadMonthData() {
   const targetYear = currentDate.getFullYear();
   const targetMonthNum = currentDate.getMonth() + 1;
@@ -176,6 +181,7 @@ async function loadMonthData() {
   renderCategoryBreakdown(currentMonthEntries);
 }
 
+// 5. Výpočet zůstatků a tachometrů
 async function calculateBalancesAndGauges(entries) {
   const bankCapRecord = await dbGet('settings', 'bank_capital');
   const cashCapRecord = await dbGet('settings', 'cash_capital');
@@ -340,6 +346,7 @@ function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   ctx.fill();
 }
 
+// 6. Tendence příjmů a výdajů
 async function drawIncomeExpenseTrendChart(allEntries) {
   const canvas = document.getElementById('income-expense-trend-chart');
   if (!canvas) return;
@@ -437,6 +444,7 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   });
 }
 
+// 7. Křivka a monitoring čisté výplaty (skutečně zadané mzdy)
 async function drawSalaryTrendChart(allEntries) {
   const canvas = document.getElementById('salary-trend-chart');
   if (!canvas) return;
@@ -459,41 +467,43 @@ async function drawSalaryTrendChart(allEntries) {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    months.push({ key: mKey, label: `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` });
+    months.push({ key: mKey, label: `${monthNames[d.getMonth()]}` });
   }
 
+  // Sečteme reálné výplaty zadané uživatelem
   const points = months.map(m => {
-    const salaryEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Výplata');
+    const salaryEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && (e.category === 'Výplata' || e.title.toLowerCase().includes('výplata') || e.title.toLowerCase().includes('mzda')));
     const total = salaryEntries.reduce((acc, e) => acc + e.amount, 0);
     return {
       label: m.label,
-      val: total > 0 ? (total / 100) : 32000
+      val: total / 100
     };
   });
 
-  const sum = points.reduce((acc, p) => acc + p.val, 0);
-  const avg = Math.round(sum / points.length);
+  const enteredSalaries = points.filter(p => p.val > 0);
+  const avg = enteredSalaries.length > 0 
+    ? Math.round(enteredSalaries.reduce((acc, p) => acc + p.val, 0) / enteredSalaries.length)
+    : 0;
 
-  document.getElementById('income-trend-badge').textContent = `Průměr: ${avg.toLocaleString('cs-CZ')} Kč`;
-  document.getElementById('salary-avg-legend').textContent = `⚪ Průměrná mzda (${avg.toLocaleString('cs-CZ')} Kč)`;
+  document.getElementById('income-trend-badge').textContent = avg > 0 ? `Průměr: ${avg.toLocaleString('cs-CZ')} Kč` : 'Čekám na zadání';
+  document.getElementById('salary-avg-legend').textContent = avg > 0 ? `⚪ Průměrná mzda (${avg.toLocaleString('cs-CZ')} Kč)` : '⚪ Zadej výplaty';
 
-  const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 40000;
-  const minVal = Math.min(...points.map(p => p.val)) * 0.75 || 20000;
-  const range = maxVal - minVal || 1;
-
+  const maxVal = Math.max(...points.map(p => p.val), 35000) * 1.2;
   const paddingX = 35;
   const paddingY = 25;
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
-  const avgY = height - paddingY - ((avg - minVal) / range) * chartH;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(paddingX, avgY);
-  ctx.lineTo(width - paddingX, avgY);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  if (avg > 0) {
+    const avgY = height - paddingY - (avg / maxVal) * chartH;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(paddingX, avgY);
+    ctx.lineTo(width - paddingX, avgY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   ctx.strokeStyle = '#10b981';
   ctx.lineWidth = 3;
@@ -502,7 +512,7 @@ async function drawSalaryTrendChart(allEntries) {
   const coords = [];
   points.forEach((pt, idx) => {
     const x = paddingX + (idx / (points.length - 1 || 1)) * chartW;
-    const y = height - paddingY - ((pt.val - minVal) / range) * chartH;
+    const y = height - paddingY - (pt.val / maxVal) * chartH;
     coords.push({ x, y, pt });
 
     if (idx === 0) ctx.moveTo(x, y);
@@ -528,13 +538,16 @@ async function drawSalaryTrendChart(allEntries) {
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.round(c.pt.val / 1000)}k`, c.x, c.y - 8);
+    if (c.pt.val > 0) {
+      ctx.fillText(`${Math.round(c.pt.val / 1000)}k`, c.x, c.y - 8);
+    }
 
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(c.pt.label, c.x, height - 8);
   });
 }
 
+// 8. Cashflow bar chart
 async function drawCashflowForecastBarChart(allEntries) {
   const canvas = document.getElementById('cashflow-bar-chart');
   if (!canvas) return;
@@ -619,6 +632,7 @@ async function drawCashflowForecastBarChart(allEntries) {
   });
 }
 
+// 9. Tabulka statistik Cash Flow
 function renderCashflowStatsTable(entries) {
   let countInc = 0;
   let countExp = 0;
@@ -652,6 +666,7 @@ function renderCashflowStatsTable(entries) {
   netDisp.style.color = net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 }
 
+// 10. Rozpad variabilní spotřeby
 function renderVariableExpensesBreakdown(entries) {
   const container = document.getElementById('variable-breakdown-list');
   const badgeTotal = document.getElementById('badge-var-total');
@@ -708,6 +723,7 @@ function renderVariableExpensesBreakdown(entries) {
   });
 }
 
+// 11. Celková struktura výdajů
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
   container.innerHTML = '';
@@ -761,6 +777,7 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
+// 12. Seznam plateb
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   list.innerHTML = '';
@@ -811,11 +828,11 @@ function renderPaymentsList(entries) {
       </div>
     `;
 
-    row.addEventListener('click', async () => {
+    row.onclick = async () => {
       item.paid = !item.paid;
       await dbSet('entries', item);
       await loadMonthData();
-    });
+    };
 
     list.appendChild(row);
   });
@@ -825,25 +842,36 @@ function renderPaymentsList(entries) {
   document.getElementById('payments-progress-fill').style.width = `${percent}%`;
 }
 
+// 13. Rychlá tlačítka na ploše & Zadání výplaty
 function setupQuickEntryButtons() {
   const modal = document.getElementById('modal-entry');
   const form = document.getElementById('form-entry');
 
-  function openEntryWithType(type) {
+  function openEntryWithType(type, category = null, defaultTitle = '') {
     form.reset();
     form.querySelector(`input[name="entryType"][value="${type}"]`).checked = true;
     document.getElementById('wrap-entry-recurring').style.display = type === 'income' ? 'none' : 'flex';
     document.getElementById('wrap-recurring-frequency').classList.add('hidden');
     document.getElementById('modal-entry-title').textContent = type === 'income' ? 'Nový příjem' : 'Nový výdaj';
+
+    if (category) {
+      document.getElementById('entry-category').value = category;
+    }
+    if (defaultTitle) {
+      document.getElementById('entry-title').value = defaultTitle;
+    }
+
     modal.classList.remove('hidden');
   }
 
   const btnInc = document.getElementById('btn-quick-add-income');
   const btnExp = document.getElementById('btn-quick-add-expense');
+  const btnSal = document.getElementById('btn-quick-salary');
   const fabBtn = document.getElementById('fab-add-btn');
 
   if (btnInc) btnInc.onclick = () => openEntryWithType('income');
   if (btnExp) btnExp.onclick = () => openEntryWithType('expense');
+  if (btnSal) btnSal.onclick = () => openEntryWithType('income', 'Výplata', 'Výplata');
   if (fabBtn) fabBtn.onclick = () => openEntryWithType('expense');
 }
 
@@ -859,30 +887,33 @@ function setupPaymentsModal() {
   const freqSelect = document.getElementById('entry-frequency');
   const dueMonthsWrap = document.getElementById('wrap-due-months');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    recurringWrap.style.display = 'flex';
-    freqWrap.classList.add('hidden');
-    dueMonthsWrap.style.display = 'none';
-    document.getElementById('modal-entry-title').textContent = 'Nová položka';
-    modal.classList.remove('hidden');
-  };
-
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
-
-  recurringCheck.onchange = () => {
-    if (recurringCheck.checked) {
-      freqWrap.classList.remove('hidden');
-    } else {
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      recurringWrap.style.display = 'flex';
       freqWrap.classList.add('hidden');
-    }
-  };
+      dueMonthsWrap.style.display = 'none';
+      document.getElementById('modal-entry-title').textContent = 'Nová položka';
+      modal.classList.remove('hidden');
+    };
+  }
 
-  freqSelect.onchange = () => {
-    dueMonthsWrap.style.display = (freqSelect.value === 'monthly') ? 'none' : 'block';
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
+
+  if (recurringCheck) {
+    recurringCheck.onchange = () => {
+      if (recurringCheck.checked) freqWrap.classList.remove('hidden');
+      else freqWrap.classList.add('hidden');
+    };
+  }
+
+  if (freqSelect) {
+    freqSelect.onchange = () => {
+      dueMonthsWrap.style.display = (freqSelect.value === 'monthly') ? 'none' : 'block';
+    };
+  }
 
   radioTypes.forEach(radio => {
     radio.onchange = () => {
@@ -949,14 +980,16 @@ function setupTransferModal() {
   const btnCancel = document.getElementById('btn-cancel-transfer');
   const form = document.getElementById('form-transfer');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    modal.classList.remove('hidden');
-  };
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      modal.classList.remove('hidden');
+    };
+  }
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1021,117 +1054,115 @@ function setupTransferModal() {
   };
 }
 
-function renderGoals() {
-  getCalculatedBalance().then(balance => {
-    document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
-  });
+// 14. Cíle
+async function renderGoals() {
+  const balance = await getCalculatedBalance();
+  document.getElementById('goals-available-disp').textContent = Money.toCzk(balance);
 
-  dbGetAll('goals').then(goals => {
-    goals.sort((a, b) => a.priority - b.priority);
-    const container = document.getElementById('goals-list');
-    container.innerHTML = '';
+  const goals = await dbGetAll('goals');
+  goals.sort((a, b) => a.priority - b.priority);
 
-    getCalculatedBalance().then(balance => {
-      let pool = balance;
+  const container = document.getElementById('goals-list');
+  container.innerHTML = '';
 
-      goals.forEach((goal, index) => {
-        let covered = 0;
+  let pool = balance;
 
-        if (!goal.paused && pool > 0) {
-          if (pool >= goal.target) {
-            covered = goal.target;
-            pool -= goal.target;
-          } else {
-            covered = pool;
-            pool = 0;
-          }
+  goals.forEach((goal, index) => {
+    let covered = 0;
+
+    if (!goal.paused && pool > 0) {
+      if (pool >= goal.target) {
+        covered = goal.target;
+        pool -= goal.target;
+      } else {
+        covered = pool;
+        pool = 0;
+      }
+    }
+
+    const percent = Math.min(100, Math.round((covered / goal.target) * 100));
+    const card = document.createElement('div');
+    card.className = `goal-card ${goal.paused ? 'paused' : ''}`;
+
+    card.innerHTML = `
+      <div class="goal-top">
+        <div class="goal-header-left">
+          <span class="goal-prio-tag">#${goal.priority}</span>
+          <span class="goal-name">${goal.title}</span>
+        </div>
+        <span class="goal-status-badge ${goal.paused ? 'paused' : 'active'}">
+          ${goal.paused ? '⏸ Odloženo' : '▶ Aktivní'}
+        </span>
+      </div>
+
+      <div class="goal-amounts">
+        <span>Pokryto: <strong>${Money.toCzkInt(covered)}</strong> (${percent}%)</span>
+        <span>Cíl: <strong>${Money.toCzkInt(goal.target)}</strong></span>
+      </div>
+
+      <div class="goal-progress-wrap">
+        <div class="goal-progress-fill" style="width: ${percent}%;"></div>
+      </div>
+
+      <div class="goal-actions">
+        <button class="goal-btn btn-toggle-pause">
+          ${goal.paused ? '▶ Aktivovat' : '⏸ Odložit'}
+        </button>
+        <button class="goal-btn btn-prio-up" ${index === 0 ? 'disabled' : ''}>▲</button>
+        <button class="goal-btn btn-prio-down" ${index === goals.length - 1 ? 'disabled' : ''}>▼</button>
+        <button class="goal-btn btn-del-goal" title="Smazat cíl">🗑️</button>
+      </div>
+    `;
+
+    card.querySelector('.btn-toggle-pause').onclick = async () => {
+      goal.paused = !goal.paused;
+      await dbSet('goals', goal);
+      await renderGoals();
+    };
+
+    card.querySelector('.btn-prio-up').onclick = async () => {
+      if (index > 0) {
+        const prevGoal = goals[index - 1];
+        const temp = goal.priority;
+        goal.priority = prevGoal.priority;
+        prevGoal.priority = temp;
+        await dbSet('goals', goal);
+        await dbSet('goals', prevGoal);
+        await renderGoals();
+      }
+    };
+
+    card.querySelector('.btn-prio-down').onclick = async () => {
+      if (index < goals.length - 1) {
+        const nextGoal = goals[index + 1];
+        const temp = goal.priority;
+        goal.priority = nextGoal.priority;
+        nextGoal.priority = temp;
+        await dbSet('goals', goal);
+        await dbSet('goals', nextGoal);
+        await renderGoals();
+      }
+    };
+
+    card.querySelector('.btn-del-goal').onclick = async () => {
+      if (!confirm(`Opravdu chceš smazat cíl „${goal.title}“?`)) return;
+
+      await dbDelete('goals', goal.id);
+
+      const remainingGoals = await dbGetAll('goals');
+      remainingGoals.sort((a, b) => a.priority - b.priority);
+
+      for (let i = 0; i < remainingGoals.length; i++) {
+        if (remainingGoals[i].priority !== i + 1) {
+          remainingGoals[i].priority = i + 1;
+          await dbSet('goals', remainingGoals[i]);
         }
+      }
 
-        const percent = Math.min(100, Math.round((covered / goal.target) * 100));
-        const card = document.createElement('div');
-        card.className = `goal-card ${goal.paused ? 'paused' : ''}`;
+      await renderGoals();
+    };
 
-        card.innerHTML = `
-          <div class="goal-top">
-            <div class="goal-header-left">
-              <span class="goal-prio-tag">#${goal.priority}</span>
-              <span class="goal-name">${goal.title}</span>
-            </div>
-            <span class="goal-status-badge ${goal.paused ? 'paused' : 'active'}">
-              ${goal.paused ? '⏸ Odloženo' : '▶ Aktivní'}
-            </span>
-          </div>
-
-          <div class="goal-amounts">
-            <span>Pokryto: <strong>${Money.toCzkInt(covered)}</strong> (${percent}%)</span>
-            <span>Cíl: <strong>${Money.toCzkInt(goal.target)}</strong></span>
-          </div>
-
-          <div class="goal-progress-wrap">
-            <div class="goal-progress-fill" style="width: ${percent}%;"></div>
-          </div>
-
-          <div class="goal-actions">
-            <button class="goal-btn btn-toggle-pause">
-              ${goal.paused ? '▶ Aktivovat' : '⏸ Odložit'}
-            </button>
-            <button class="goal-btn btn-prio-up" ${index === 0 ? 'disabled' : ''}>▲</button>
-            <button class="goal-btn btn-prio-down" ${index === goals.length - 1 ? 'disabled' : ''}>▼</button>
-            <button class="goal-btn btn-del-goal" title="Smazat cíl">🗑️</button>
-          </div>
-        `;
-
-        card.querySelector('.btn-toggle-pause').onclick = async () => {
-          goal.paused = !goal.paused;
-          await dbSet('goals', goal);
-          await renderGoals();
-        };
-
-        card.querySelector('.btn-prio-up').onclick = async () => {
-          if (index > 0) {
-            const prevGoal = goals[index - 1];
-            const temp = goal.priority;
-            goal.priority = prevGoal.priority;
-            prevGoal.priority = temp;
-            await dbSet('goals', goal);
-            await dbSet('goals', prevGoal);
-            await renderGoals();
-          }
-        };
-
-        card.querySelector('.btn-prio-down').onclick = async () => {
-          if (index < goals.length - 1) {
-            const nextGoal = goals[index + 1];
-            const temp = goal.priority;
-            goal.priority = nextGoal.priority;
-            nextGoal.priority = temp;
-            await dbSet('goals', goal);
-            await dbSet('goals', nextGoal);
-            await renderGoals();
-          }
-        };
-
-        card.querySelector('.btn-del-goal').onclick = async () => {
-          if (!confirm(`Opravdu chceš smazat cíl „${goal.title}“?`)) return;
-
-          await dbDelete('goals', goal.id);
-
-          const remainingGoals = await dbGetAll('goals');
-          remainingGoals.sort((a, b) => a.priority - b.priority);
-
-          for (let i = 0; i < remainingGoals.length; i++) {
-            if (remainingGoals[i].priority !== i + 1) {
-              remainingGoals[i].priority = i + 1;
-              await dbSet('goals', remainingGoals[i]);
-            }
-          }
-
-          await renderGoals();
-        };
-
-        container.appendChild(card);
-      });
-    });
+    container.appendChild(card);
   });
 }
 
@@ -1141,14 +1172,16 @@ function setupGoalsModal() {
   const btnCancel = document.getElementById('btn-cancel-goal');
   const form = document.getElementById('form-goal');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    modal.classList.remove('hidden');
-  };
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      modal.classList.remove('hidden');
+    };
+  }
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1173,7 +1206,7 @@ function setupGoalsModal() {
   };
 }
 
-// 15. DLUHY: AUTOMATICKÝ VÝPOČET POČTU SPLÁTEK, DATUM DOPLACENÍ & MIMOŘÁDNÁ SPLÁTKA
+// 15. Dluhy
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -1181,11 +1214,6 @@ async function renderDebts() {
 
   recContainer.innerHTML = '';
   payContainer.innerHTML = '';
-
-  const monthNames = [
-    'leden', 'únor', 'březen', 'duben', 'květen', 'červen',
-    'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'
-  ];
 
   debts.forEach(d => {
     const card = document.createElement('div');
@@ -1212,51 +1240,18 @@ async function renderDebts() {
 
       recContainer.appendChild(card);
     } else {
-      // DYNAMICKÝ VÝPOČET PRO ZÁVAZEK
-      const remainingCents = d.total;
-      const monthlyCents = d.monthly || 1;
-      
-      let calcBadgeHtml = '';
-      if (remainingCents > 0 && monthlyCents > 0) {
-        const remainingInstallments = Math.ceil(remainingCents / monthlyCents);
-        
-        // Výpočet data doplacení
-        const now = new Date();
-        const finishDate = new Date(now.getFullYear(), now.getMonth() + remainingInstallments, 1);
-        const finishMonthStr = monthNames[finishDate.getMonth()];
-        const finishYearStr = finishDate.getFullYear();
-
-        calcBadgeHtml = `
-          <div class="debt-calculation-badge">
-            <div class="debt-calc-left">
-              <span class="dc-installments">Zbývá splátek: <strong>${remainingInstallments} měsíců</strong></span>
-              <span class="dc-date">Předpokládané doplacení: <strong>${finishMonthStr} ${finishYearStr}</strong></span>
-            </div>
-          </div>
-        `;
-      } else {
-        calcBadgeHtml = `
-          <div class="debt-calculation-badge">
-            <span style="color:var(--accent-green); font-weight:700;">✅ Splaceno v plné výši!</span>
-          </div>
-        `;
-      }
-
       card.innerHTML = `
         <div class="debt-card-header">
           <span class="debt-name">${d.name}</span>
           <span class="debt-total payable">${Money.toCzk(d.total)}</span>
         </div>
-        <div class="debt-sub-info">Pravidelná měsíční splátka: ${Money.toCzk(d.monthly)} (k ${d.day}. dni)</div>
-        ${calcBadgeHtml}
-        <div class="debt-actions-row" style="margin-top: 8px;">
-          <button class="debt-btn btn-pay" data-id="${d.id}">Zaplatit měsíční (${Money.toCzkInt(d.monthly)})</button>
-          <button class="debt-btn btn-extra-pay" data-id="${d.id}">⚡ Mimořádná splátka</button>
+        <div class="debt-sub-info">Měsíční splátka: ${Money.toCzk(d.monthly)} (k ${d.day}. dni)</div>
+        <div class="debt-actions-row">
+          <button class="debt-btn btn-pay" data-id="${d.id}">Potvrdit splátku (${Money.toCzkInt(d.monthly)})</button>
         </div>
       `;
 
-      // Běžná splátka
-      card.querySelector('.btn-pay').onclick = async () => {
+      card.querySelector('.debt-btn').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
         d.total -= payAmount;
@@ -1278,11 +1273,6 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Mimořádná splátka (otevře okno pro libovolnou částku)
-      card.querySelector('.btn-extra-pay').onclick = () => {
-        openDebtTxModal(d, 'extra-pay');
-      };
-
       payContainer.appendChild(card);
     }
   });
@@ -1299,13 +1289,9 @@ function openDebtTxModal(debt, action) {
   idInput.value = debt.id;
   actionInput.value = action;
 
-  if (action === 'repay') {
-    title.textContent = `Úhrada od: ${debt.name} (přičte se na účet)`;
-  } else if (action === 'lend') {
-    title.textContent = `Půjčit / přičíst pro: ${debt.name}`;
-  } else if (action === 'extra-pay') {
-    title.textContent = `Mimořádná splátka: ${debt.name}`;
-  }
+  title.textContent = (action === 'repay') 
+    ? `Úhrada od: ${debt.name} (přičte se na účet)`
+    : `Půjčit / přičíst pro: ${debt.name}`;
 
   modal.classList.remove('hidden');
 }
@@ -1315,9 +1301,9 @@ function setupDebtTxModal() {
   const btnCancel = document.getElementById('btn-cancel-debt-tx');
   const form = document.getElementById('form-debt-tx');
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1350,28 +1336,12 @@ function setupDebtTxModal() {
         isIncome: true,
         paid: true
       });
-    } else if (action === 'lend') {
+    } else {
       debt.total += amountCents;
       if (note) {
         debt.note = debt.note ? `${debt.note}, ${note} (+${amountCzk} Kč)` : note;
       }
       await dbSet('debts', debt);
-    } else if (action === 'extra-pay') {
-      // Mimořádná splátka závazku
-      const payAmount = Math.min(debt.total, amountCents);
-      debt.total = Math.max(0, debt.total - payAmount);
-      await dbSet('debts', debt);
-
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: `Mimořádná splátka: ${debt.name}${note ? ' (' + note + ')' : ''}`,
-        amount: payAmount,
-        category: 'Závazky',
-        day: new Date().getDate(),
-        wallet: 'bank',
-        isIncome: false,
-        paid: true
-      });
     }
 
     modal.classList.add('hidden');
@@ -1380,7 +1350,7 @@ function setupDebtTxModal() {
   };
 }
 
-// 16. Investice: Investown (Flexibilní vklad, prodej, zisk), Slitky & Ostatní
+// 16. Investice: Investown, Slitky & Ostatní
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -1496,81 +1466,27 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// LOGIKA INVESTOWNU: FLEXIBILNÍ VKLAD, PRODEJ A ZADÁNÍ ZISKU
+// LOGIKA INVESTOWNU: AUTOMATICKÝ PŘEPOČET PŘI ZADÁNÍ ZISKU
 function setupInvestownSpecifics() {
-  const btnDepOpen = document.getElementById('btn-itown-deposit-open');
+  const btnDep = document.getElementById('btn-itown-deposit-500');
   const btnSell = document.getElementById('btn-itown-sell');
   const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
 
-  // 1. Modální okno pro libovolný vklad (včetně předvolených 500 Kč)
-  const modalDep = document.getElementById('modal-itown-deposit');
-  const formDep = document.getElementById('form-itown-deposit');
-  const inputDep = document.getElementById('itown-deposit-amount');
-  const btnCancelDep = document.getElementById('btn-cancel-itown-deposit');
-
-  if (btnDepOpen) {
-    btnDepOpen.onclick = () => {
-      inputDep.value = 500;
-      modalDep.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancelDep) {
-    btnCancelDep.onclick = () => modalDep.classList.add('hidden');
-  }
-
-  if (formDep) {
-    formDep.onsubmit = async (e) => {
-      e.preventDefault();
-      const depositAmountCzk = parseFloat(inputDep.value);
-      const wallet = formDep.querySelector('input[name="itownDepositWallet"]:checked').value;
-
-      if (isNaN(depositAmountCzk) || depositAmountCzk <= 0) return;
-
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
-      }
-
-      const depCents = Money.toCents(depositAmountCzk);
-      itownRecord.invested += depCents;
-      await dbSet('settings', itownRecord);
-
-      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: `Investown vklad (+${depositAmountCzk} Kč)`,
-        amount: depCents,
-        category: 'Investice',
-        day: new Date().getDate(),
-        wallet,
-        isIncome: false,
-        paid: true
-      });
-
-      modalDep.classList.add('hidden');
-      alert(`Částka ${depositAmountCzk.toLocaleString('cs-CZ')} Kč byla připsána k vložené jistině Investownu.`);
-      await loadMonthData();
-      await renderInvestments();
-    };
-  }
-
-  // 2. Modální okno pro přímé zadání zisku
   const modalProfit = document.getElementById('modal-itown-profit-direct');
   const formProfit = document.getElementById('form-itown-profit-direct');
   const inputProfit = document.getElementById('itown-direct-profit-input');
   const btnCancelProfit = document.getElementById('btn-cancel-itown-profit-direct');
 
-  if (btnSyncProfit) {
-    btnSyncProfit.onclick = () => {
-      dbGet('settings', 'itown_data').then(rec => {
-        if (rec && rec.profit) {
-          inputProfit.value = (rec.profit / 100).toFixed(2);
-        }
-        modalProfit.classList.remove('hidden');
-      });
-    };
+  function openDirectProfitModal() {
+    dbGet('settings', 'itown_data').then(rec => {
+      if (rec && rec.profit) {
+        inputProfit.value = (rec.profit / 100).toFixed(2);
+      }
+      modalProfit.classList.remove('hidden');
+    });
   }
+
+  if (btnSyncProfit) btnSyncProfit.onclick = openDirectProfitModal;
 
   if (btnCancelProfit) {
     btnCancelProfit.onclick = () => modalProfit.classList.add('hidden');
@@ -1591,13 +1507,40 @@ function setupInvestownSpecifics() {
       await dbSet('settings', itownRecord);
 
       modalProfit.classList.add('hidden');
-      alert(`Celkový zisk byl aktualizován na ${newProfitCzk.toLocaleString('cs-CZ')} Kč. Celková hodnota portfolia a graf se samy přepočítaly.`);
+      alert(`Celkový zisk byl aktualizován na ${newProfitCzk.toLocaleString('cs-CZ')} Kč. Hodnota portfolia a graf se samy přepočítaly.`);
       
       await renderInvestments();
     };
   }
 
-  // 3. Prodej / Výběr z Investownu
+  if (btnDep) {
+    btnDep.onclick = async () => {
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) {
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
+      }
+
+      itownRecord.invested += 50000;
+      await dbSet('settings', itownRecord);
+
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: 'Investown vklad (přírůstek jistiny)',
+        amount: 50000,
+        category: 'Investice',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: false,
+        paid: true
+      });
+
+      alert('500 Kč bylo připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
+      await loadMonthData();
+      await renderInvestments();
+    };
+  }
+
   const modalSell = document.getElementById('modal-itown-sell');
   const formSell = document.getElementById('form-itown-sell');
   const btnCancelSell = document.getElementById('btn-cancel-itown-sell');
@@ -1691,14 +1634,16 @@ function setupGoldModal() {
   const btnCancel = document.getElementById('btn-cancel-gold');
   const form = document.getElementById('form-gold');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    modal.classList.remove('hidden');
-  };
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      modal.classList.remove('hidden');
+    };
+  }
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1942,14 +1887,16 @@ function setupInvestmentModal() {
   const btnCancel = document.getElementById('btn-cancel-investment');
   const form = document.getElementById('form-investment');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    modal.classList.remove('hidden');
-  };
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      modal.classList.remove('hidden');
+    };
+  }
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -1982,7 +1929,7 @@ async function renderEnergy() {
   document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
 
   const templates = await dbGetAll('templates');
-  const cez = templates.find(t => t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez'));
+  const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
   const cezDepositCents = cez ? cez.amount : 300000;
   document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
 
@@ -2071,7 +2018,7 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   const badge = document.getElementById('energy-trend-badge');
 
   if (readings.length < 2) {
-    box.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
+    box.innerHTML = '<span style="font-size:0.85rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
     badge.textContent = 'Čekám na data';
     badge.style.color = 'var(--text-muted)';
     return;
@@ -2160,7 +2107,7 @@ function setupEnergySimulator() {
     costDisp.textContent = Money.toCzkInt(totalCostCents);
 
     const templates = await dbGetAll('templates');
-    const cez = templates.find(t => t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez'));
+    const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
     const cezDepositCents = cez ? cez.amount : 300000;
 
     const diffCents = cezDepositCents - totalCostCents;
@@ -2351,15 +2298,17 @@ function setupMeterReadingModal() {
   const btnCancel = document.getElementById('btn-cancel-meter');
   const form = document.getElementById('form-meter');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    document.getElementById('meter-date').value = new Date().toISOString().slice(0, 10);
-    modal.classList.remove('hidden');
-  };
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      document.getElementById('meter-date').value = new Date().toISOString().slice(0, 10);
+      modal.classList.remove('hidden');
+    };
+  }
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -2387,14 +2336,16 @@ function setupApplianceModal() {
   const btnCancel = document.getElementById('btn-cancel-appliance');
   const form = document.getElementById('form-appliance');
 
-  btnOpen.onclick = () => {
-    form.reset();
-    modal.classList.remove('hidden');
-  };
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      modal.classList.remove('hidden');
+    };
+  }
 
-  btnCancel.onclick = () => {
-    modal.classList.add('hidden');
-  };
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
 
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -2420,6 +2371,7 @@ function setupApplianceModal() {
   };
 }
 
+// 18. Nastavení & Air Bank CSV Parser
 async function renderSettings() {
   const bankCapRecord = await dbGet('settings', 'bank_capital');
   const cashCapRecord = await dbGet('settings', 'cash_capital');
@@ -2626,4 +2578,87 @@ function detectCategoryFromAirBank(desc, isIncome) {
 
   if (t.includes('ručení') || t.includes('benzina') || t.includes('orlen') || t.includes('omv') || t.includes('shell') || t.includes('mol') || t.includes('eurooil') || t.includes('čerpací') || t.includes('nafta') || t.includes('benzín')) {
     return 'Doprava & Benzín';
-  
+  }
+
+  if (t.includes('dm drogerie') || t.includes('rossmann') || t.includes('teta') || t.includes('drogerie') || t.includes('action')) {
+    return 'Drogerie & Domácnost';
+  }
+
+  if (t.includes('restaurace') || t.includes('hospoda') || t.includes('bistro') || t.includes('kebab') || t.includes('pivnice') || t.includes('kavárna') || t.includes('mcdonald') || t.includes('kfc')) {
+    return 'Restaurace & Občerstvení';
+  }
+
+  if (t.includes('datart') || t.includes('alza') || t.includes('czc') || t.includes('obi') || t.includes('hornbach') || t.includes('bauhaus') || t.includes('železářství')) {
+    return 'Elektro & Nářadí';
+  }
+
+  if (t.includes('zoo') || t.includes('super zoo') || t.includes('pet center') || t.includes('zvěrokruh') || t.includes('krmiv')) {
+    return 'Zvířata';
+  }
+
+  if (t.includes('lékárna') || t.includes('dr.max') || t.includes('benu') || t.includes('optik') || t.includes('terapie')) {
+    return 'Zdraví & Lékárna';
+  }
+
+  return 'Ostatní útrata';
+}
+
+async function parseAndImportAirBankCsv(csvText) {
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) return 0;
+
+  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  let importedCount = 0;
+
+  const delimiter = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+
+  const dateIdx = headers.findIndex(h => h.includes('datum'));
+  const amountIdx = headers.findIndex(h => h.includes('částka') || h.includes('castka') || h.includes('objem'));
+  const partyIdx = headers.findIndex(h => h.includes('protistran') || h.includes('název') || h.includes('protiúčet'));
+  const msgIdx = headers.findIndex(h => h.includes('zpráva') || h.includes('popis') || h.includes('poznámka'));
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cols.length <= amountIdx) continue;
+
+    const rawAmount = cols[amountIdx].replace(/\s/g, '').replace(',', '.');
+    const amountNum = parseFloat(rawAmount);
+
+    if (isNaN(amountNum) || amountNum === 0) continue;
+
+    const isIncome = amountNum > 0;
+    const absAmountCents = Math.round(Math.abs(amountNum) * 100);
+
+    let title = '';
+    if (partyIdx !== -1 && cols[partyIdx]) title = cols[partyIdx];
+    if (msgIdx !== -1 && cols[msgIdx]) title = title ? `${title} (${cols[msgIdx]})` : cols[msgIdx];
+    if (!title) title = isIncome ? 'Příchozí platba' : 'Platba kartou / Převod';
+
+    let day = 10;
+    if (dateIdx !== -1 && cols[dateIdx]) {
+      const parts = cols[dateIdx].split(/[\.\-\/]/);
+      if (parts.length >= 1) {
+        const parsedDay = parseInt(parts[0], 10);
+        if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) day = parsedDay;
+      }
+    }
+
+    const category = detectCategoryFromAirBank(title, isIncome);
+
+    await dbAdd('entries', {
+      monthYear: monthKey,
+      title: title.slice(0, 50),
+      amount: absAmountCents,
+      category,
+      day,
+      wallet: 'bank',
+      isIncome,
+      paid: true
+    });
+
+    importedCount++;
+  }
+
+  return importedCount;
+}
