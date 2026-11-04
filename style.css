@@ -90,7 +90,185 @@ body {
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-/* Karty zůstatku a bilance */
+/* KARTA TACHOMETRŮ (WALLET GAUGES) */
+.gauges-card {
+  background: linear-gradient(135deg, #182235, #0f172a);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 16px;
+  padding: 16px 12px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.gauge-subhead {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.gauges-main-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.gauge-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-box .g-lbl {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.gauge-box .g-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.gauges-mini-row {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.gauge-mini-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gauge-mini-box .gm-lbl {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.gauge-mini-box .gm-val {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+/* ČASOVÝ PŘEPÍNAČ OBDOBÍ (PILLS BAR) */
+.timeframe-bar {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.tf-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tf-btn.active {
+  background: var(--accent-blue);
+  color: #0b0f19;
+}
+
+/* TABULKA CASH FLOW STATISTIK */
+.cf-stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cf-tbl-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.cf-tbl-row.header {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.72rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.cf-tbl-row.footer {
+  border-top: 1px dashed var(--border-color);
+  padding-top: 10px;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.cf-tbl-row strong {
+  text-align: right;
+}
+
+/* KARTA ASSETS DONUT (INVESTICE) */
+.assets-ring-card {
+  background: linear-gradient(135deg, #182235, #0f172a);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ring-left {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+.ring-center-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-green);
+}
+
+.ring-right {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ring-right .ar-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.ring-right .ar-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.ring-right .ar-subval {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+/* Zbytek layoutu */
 .balance-card {
   background: linear-gradient(135deg, #1e293b, #0f172a);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -121,71 +299,6 @@ body {
   font-weight: 600;
 }
 
-/* Karta měsíční čisté bilance */
-.month-balance-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-
-.mb-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.mb-val {
-  font-size: 1.15rem;
-}
-
-.mb-subgrid {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-color);
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.metric-box {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px 8px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.metric-box .m-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.metric-box .m-val {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.metric-box.green .m-val { color: var(--accent-green); }
-.metric-box.red .m-val { color: var(--accent-red); }
-.metric-box.yellow .m-val { color: var(--accent-yellow); }
-
-/* Analytické centrum */
 .analytics-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -214,12 +327,17 @@ body {
   font-weight: 600;
 }
 
-#cashflow-forecast-chart {
+.canvas-wrapper {
   width: 100%;
-  height: 160px;
-  background: var(--bg-card-sub);
-  border-radius: 10px;
-  display: block;
+  position: relative;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: space-around;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 8px;
 }
 
 .category-bars-wrap {
@@ -263,7 +381,6 @@ body {
   transition: width 0.4s ease;
 }
 
-/* Modul Investice & Web */
 .invest-summary-card {
   background: linear-gradient(135deg, #1e2942, #151d30);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -281,15 +398,8 @@ body {
   gap: 4px;
 }
 
-.inv-lbl {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.inv-val {
-  font-size: 0.95rem;
-  font-weight: 800;
-}
+.inv-lbl { font-size: 0.7rem; color: var(--text-muted); }
+.inv-val { font-size: 0.95rem; font-weight: 800; }
 
 .investments-container {
   display: flex;
@@ -313,16 +423,8 @@ body {
   align-items: center;
 }
 
-.inv-card-name {
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
-.inv-card-profit {
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
+.inv-card-name { font-weight: 700; font-size: 1.05rem; }
+.inv-card-profit { font-weight: 700; font-size: 0.9rem; }
 .inv-card-profit.positive { color: var(--accent-green); }
 .inv-card-profit.negative { color: var(--accent-red); }
 
@@ -336,17 +438,8 @@ body {
   font-size: 0.8rem;
 }
 
-.inv-val-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.inv-val-item .sub-lbl {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-}
-
+.inv-val-item { display: flex; flex-direction: column; gap: 2px; }
+.inv-val-item .sub-lbl { font-size: 0.65rem; color: var(--text-muted); }
 .inv-val-item .main-val { font-weight: 700; }
 
 .inv-card-footer {
@@ -366,6 +459,7 @@ body {
 
 .text-green { color: var(--accent-green); }
 .text-red { color: var(--accent-red); }
+.text-blue { color: var(--accent-blue); }
 
 .web-earnings-list {
   display: flex;
@@ -382,7 +476,7 @@ body {
   font-size: 0.85rem;
 }
 
-/* Modul Energie */
+/* Energie */
 .energy-overview-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -431,21 +525,9 @@ body {
   text-align: center;
 }
 
-.eval-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.eval-item .e-lbl {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.eval-item .e-val {
-  font-size: 1rem;
-  font-weight: 800;
-}
+.eval-item { display: flex; flex-direction: column; gap: 3px; }
+.eval-item .e-lbl { font-size: 0.7rem; color: var(--text-muted); }
+.eval-item .e-val { font-size: 1rem; font-weight: 800; }
 
 .eval-status-bar {
   display: flex;
@@ -505,7 +587,6 @@ body {
 }
 
 .calc-result-item .res-lbl { color: var(--text-muted); }
-
 .calc-result-item .res-val {
   font-weight: 800;
   color: var(--accent-blue);
@@ -526,15 +607,7 @@ body {
   margin-bottom: 12px;
 }
 
-.chart-header h3 {
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.canvas-wrapper {
-  width: 100%;
-  position: relative;
-}
+.chart-header h3 { font-size: 0.9rem; font-weight: 700; }
 
 #energy-chart {
   width: 100%;
@@ -542,14 +615,6 @@ body {
   background: var(--bg-card-sub);
   border-radius: 10px;
   display: block;
-}
-
-.chart-legend {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 8px;
 }
 
 .meter-history-container {
@@ -568,34 +633,11 @@ body {
   align-items: center;
 }
 
-.m-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.m-date {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.m-note {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.m-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.m-kwh {
-  font-weight: 800;
-  font-size: 0.95rem;
-  color: var(--accent-blue);
-}
+.m-left { display: flex; flex-direction: column; gap: 2px; }
+.m-date { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
+.m-note { font-size: 0.75rem; color: var(--text-muted); }
+.m-right { display: flex; align-items: center; gap: 10px; }
+.m-kwh { font-weight: 800; font-size: 0.95rem; color: var(--accent-blue); }
 
 .m-diff-tag {
   font-size: 0.75rem;
@@ -646,11 +688,7 @@ body {
   align-items: center;
 }
 
-.appliance-name {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
+.appliance-name { font-weight: 700; font-size: 1rem; }
 .appliance-specs {
   font-size: 0.75rem;
   color: var(--accent-blue);
@@ -669,22 +707,9 @@ body {
   text-align: center;
 }
 
-.cost-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cost-col .c-lbl {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-}
-
-.cost-col .c-val {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
+.cost-col { display: flex; flex-direction: column; gap: 2px; }
+.cost-col .c-lbl { font-size: 0.65rem; color: var(--text-muted); }
+.cost-col .c-val { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
 
 .appliance-footer {
   display: flex;
@@ -700,20 +725,9 @@ body {
   font-weight: 600;
 }
 
-.warranty-badge.ok {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
-}
-
-.warranty-badge.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
-}
-
-.warranty-badge.expired {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
-}
+.warranty-badge.ok { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+.warranty-badge.warning { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); }
+.warranty-badge.expired { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
 
 .btn-delete-appliance {
   background: none;
@@ -726,9 +740,7 @@ body {
 
 .btn-delete-appliance:hover { color: var(--accent-red); }
 
-/* Společná tlačítka */
 .action-bar { margin-bottom: 14px; }
-
 .action-btn-main {
   width: 100%;
   padding: 12px;
@@ -767,8 +779,6 @@ body {
   font-size: 0.9rem;
 }
 
-.text-blue { color: var(--accent-blue); font-size: 1.1rem; }
-
 .summary-progress-bar {
   height: 8px;
   background: var(--bg-card-sub);
@@ -783,7 +793,6 @@ body {
   transition: width 0.3s ease;
 }
 
-/* Seznam položek plateb */
 .entries-list {
   display: flex;
   flex-direction: column;
@@ -832,51 +841,16 @@ body {
   color: #0b0f19;
 }
 
-.entry-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.entry-title {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.entry-item.paid .entry-title {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-.entry-sub {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-}
-
-.entry-badge {
-  background: var(--bg-card-sub);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.entry-amount {
-  font-weight: 700;
-  font-size: 1rem;
-  white-space: nowrap;
-}
-
+.entry-info { display: flex; flex-direction: column; }
+.entry-title { font-weight: 600; font-size: 0.95rem; }
+.entry-item.paid .entry-title { text-decoration: line-through; color: var(--text-muted); }
+.entry-sub { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; margin-top: 2px; }
+.entry-badge { background: var(--bg-card-sub); padding: 2px 6px; border-radius: 4px; }
+.entry-amount { font-weight: 700; font-size: 1rem; white-space: nowrap; }
 .entry-amount.expense { color: var(--accent-red); }
 .entry-amount.income { color: var(--accent-green); }
 
-/* Modul Cíle */
-.goals-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
+.goals-container { display: flex; flex-direction: column; gap: 12px; }
 .goal-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -887,23 +861,9 @@ body {
   gap: 10px;
 }
 
-.goal-card.paused {
-  opacity: 0.55;
-  border-style: dashed;
-}
-
-.goal-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.goal-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+.goal-card.paused { opacity: 0.55; border-style: dashed; }
+.goal-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.goal-header-left { display: flex; align-items: center; gap: 8px; }
 .goal-prio-tag {
   background: var(--bg-card-sub);
   color: var(--accent-yellow);
@@ -912,55 +872,14 @@ body {
   padding: 3px 7px;
   border-radius: 6px;
 }
-
-.goal-name {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.goal-status-badge {
-  font-size: 0.7rem;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.goal-status-badge.active {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
-}
-
-.goal-status-badge.paused {
-  background: rgba(148, 163, 184, 0.15);
-  color: var(--text-muted);
-}
-
-.goal-amounts {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.goal-progress-wrap {
-  height: 10px;
-  background: var(--bg-card-sub);
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.goal-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #0ea5e9, #10b981);
-  transition: width 0.3s ease;
-}
-
-.goal-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
+.goal-name { font-weight: 700; font-size: 1rem; }
+.goal-status-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
+.goal-status-badge.active { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+.goal-status-badge.paused { background: rgba(148, 163, 184, 0.15); color: var(--text-muted); }
+.goal-amounts { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); }
+.goal-progress-wrap { height: 10px; background: var(--bg-card-sub); border-radius: 5px; overflow: hidden; }
+.goal-progress-fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #10b981); transition: width 0.3s ease; }
+.goal-actions { display: flex; gap: 8px; margin-top: 4px; }
 .goal-btn {
   flex: 1;
   background: var(--bg-card-sub);
@@ -973,23 +892,9 @@ body {
   cursor: pointer;
 }
 
-/* Modul Dluhy & Pohledávky */
 .section-title-wrap { margin-bottom: 10px; }
-
-.section-title-wrap h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.debts-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+.section-title-wrap h2 { font-size: 1rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.debts-container { display: flex; flex-direction: column; gap: 10px; }
 .debt-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -999,37 +904,13 @@ body {
   flex-direction: column;
   gap: 10px;
 }
-
-.debt-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.debt-name {
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
-.debt-total {
-  font-weight: 800;
-  font-size: 1.1rem;
-}
-
+.debt-card-header { display: flex; justify-content: space-between; align-items: center; }
+.debt-name { font-weight: 700; font-size: 1.05rem; }
+.debt-total { font-weight: 800; font-size: 1.1rem; }
 .debt-total.receivable { color: var(--accent-green); }
 .debt-total.payable { color: var(--accent-red); }
-
-.debt-sub-info {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.debt-actions-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-}
-
+.debt-sub-info { font-size: 0.8rem; color: var(--text-muted); }
+.debt-actions-row { display: flex; gap: 8px; margin-top: 2px; }
 .debt-btn {
   flex: 1;
   padding: 8px;
@@ -1041,52 +922,15 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+.debt-btn.btn-pay { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border-color: rgba(16, 185, 129, 0.3); }
+.debt-btn.btn-lend { background: rgba(56, 189, 248, 0.15); color: var(--accent-blue); border-color: rgba(56, 189, 248, 0.3); }
 
-.debt-btn.btn-pay {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
-  border-color: rgba(16, 185, 129, 0.3);
-}
+.settings-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 16px; }
+.settings-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+.settings-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+.settings-btns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.import-status { margin-top: 8px; font-size: 0.8rem; font-weight: 600; }
 
-.debt-btn.btn-lend {
-  background: rgba(56, 189, 248, 0.15);
-  color: var(--accent-blue);
-  border-color: rgba(56, 189, 248, 0.3);
-}
-
-/* Modul Nastavení */
-.settings-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 16px;
-}
-
-.settings-card h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.settings-desc {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
-.settings-btns-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.import-status {
-  margin-top: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-/* Modální okno */
 .modal {
   position: fixed;
   inset: 0;
@@ -1097,9 +941,7 @@ body {
   padding: 16px;
   z-index: 200;
 }
-
 .modal.hidden { display: none; }
-
 .modal-content {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -1108,29 +950,10 @@ body {
   max-width: 420px;
   padding: 20px;
 }
-
-.modal-content h2 {
-  font-size: 1.2rem;
-  margin-bottom: 16px;
-}
-
-.form-group {
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-group label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.form-group input[type="text"],
-.form-group input[type="password"],
-.form-group input[type="number"],
-.form-group input[type="date"],
-.form-group select {
+.modal-content h2 { font-size: 1.2rem; margin-bottom: 16px; }
+.form-group { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 0.8rem; color: var(--text-muted); }
+.form-group input, .form-group select {
   background: var(--bg-card-sub);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -1139,54 +962,13 @@ body {
   font-size: 0.95rem;
   outline: none;
 }
+.radio-row { display: flex; gap: 20px; font-size: 0.9rem; color: var(--text-main); }
+.checkbox-row { flex-direction: row; align-items: center; gap: 8px; }
+.checkbox-row label { color: var(--text-main); font-size: 0.85rem; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.btn-primary { flex: 1; background-color: var(--accent-blue); color: #0b0f19; border: none; border-radius: 8px; padding: 10px; font-weight: 700; cursor: pointer; }
+.btn-secondary { flex: 1; background-color: var(--bg-card-sub); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer; }
 
-.radio-row {
-  display: flex;
-  gap: 20px;
-  font-size: 0.9rem;
-  color: var(--text-main);
-}
-
-.checkbox-row {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-.checkbox-row label {
-  color: var(--text-main);
-  font-size: 0.85rem;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.btn-primary {
-  flex: 1;
-  background-color: var(--accent-blue);
-  color: #0b0f19;
-  border: none;
-  border-radius: 8px;
-  padding: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btn-secondary {
-  flex: 1;
-  background-color: var(--bg-card-sub);
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Spodní navigace */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -1200,7 +982,6 @@ body {
   align-items: center;
   z-index: 100;
 }
-
 .nav-item {
   background: none;
   border: none;
@@ -1212,11 +993,6 @@ body {
   cursor: pointer;
   flex: 1;
 }
-
 .nav-item .icon { font-size: 1.25rem; }
-.nav-item .label {
-  font-size: 0.62rem;
-  font-weight: 600;
-}
-
+.nav-item .label { font-size: 0.62rem; font-weight: 600; }
 .nav-item.active { color: var(--accent-blue); }
