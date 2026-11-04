@@ -161,21 +161,71 @@ body {
   font-weight: 800;
 }
 
-.transfer-quick-bar {
-  margin-top: 12px;
-  display: flex;
+/* RYCHLÁ TLAČÍTKA NA HLAVNÍ KARTĚ */
+.quick-entry-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
 }
 
-.btn-transfer-action {
-  width: 100%;
-  background: rgba(56, 189, 248, 0.12);
-  border: 1px dashed rgba(56, 189, 248, 0.4);
-  color: var(--accent-blue);
-  font-weight: 700;
-  font-size: 0.8rem;
-  padding: 8px;
+.btn-quick-action {
+  padding: 10px 6px;
   border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  font-weight: 700;
   cursor: pointer;
+  text-align: center;
+  transition: transform 0.1s ease;
+}
+
+.btn-quick-action:active {
+  transform: scale(0.97);
+}
+
+.btn-quick-action.green {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.btn-quick-action.red {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--accent-red);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.btn-quick-action.blue {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-blue);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+/* PLOVOUCÍ TLAČÍTKO + (FAB) */
+.fab-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  color: #0b0f19;
+  border: none;
+  font-size: 2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.4);
+  cursor: pointer;
+  z-index: 150;
+  transition: transform 0.15s ease;
+}
+
+.fab-btn:active {
+  transform: scale(0.92);
 }
 
 /* VÝBĚR PENĚŽENKY VE FORMULÁŘI */
@@ -202,7 +252,6 @@ body {
   accent-color: var(--accent-blue);
 }
 
-/* TAG PENĚŽENKY */
 .entry-wallet-tag {
   font-size: 0.68rem;
   padding: 2px 6px;
@@ -480,11 +529,7 @@ body {
 .gm-lbl { font-size: 0.65rem; color: var(--text-muted); }
 .gm-val { font-size: 0.95rem; font-weight: 800; }
 
-.gold-bars-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.gold-bars-container { display: flex; flex-direction: column; gap: 8px; }
 
 .gold-bar-item {
   background: var(--bg-card-sub);
@@ -678,7 +723,13 @@ body {
 .m-right { display: flex; align-items: center; gap: 10px; }
 .m-kwh { font-weight: 800; font-size: 0.95rem; color: var(--accent-blue); }
 
-.m-diff-tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+.m-diff-tag {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
 .m-diff-tag.surplus { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
 .m-diff-tag.deficit { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
 
@@ -835,7 +886,6 @@ body {
   cursor: pointer;
 }
 
-/* Tlačítko pro smazání cíle */
 .goal-btn.btn-del-goal {
   flex: 0 0 36px;
   background: rgba(239, 68, 68, 0.15);
@@ -843,9 +893,7 @@ body {
   color: var(--accent-red);
 }
 
-.goal-btn.btn-del-goal:hover {
-  background: rgba(239, 68, 68, 0.3);
-}
+.goal-btn.btn-del-goal:hover { background: rgba(239, 68, 68, 0.3); }
 
 .section-title-wrap { margin-bottom: 10px; }
 .section-title-wrap h2 { font-size: 1rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
