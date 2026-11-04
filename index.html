@@ -397,7 +397,6 @@
 
     <!-- 5. Investice, Investown & Zlaté slitky -->
     <section id="tab-invest" class="tab-panel">
-      <!-- DONUT GRAF AKTIV -->
       <div class="assets-ring-card">
         <div class="ring-left">
           <canvas id="assets-donut-chart" width="100" height="100"></canvas>
@@ -411,7 +410,7 @@
         </div>
       </div>
 
-      <!-- INVESTOWN KARTA: ODDĚLENÝ VKLAD VS. VÝNOS -->
+      <!-- INVESTOWN KARTA: VKLAD, PRODEJ/VÝBĚR A VÝNOS -->
       <div class="investown-hub-card">
         <div class="inv-hub-top">
           <div class="inv-hub-brand">
@@ -445,10 +444,11 @@
           </div>
         </div>
 
-        <!-- TLAČÍTKA PRO PŘÍRŮSTEK (VKLAD 500 KČ) VS. PŘIPSÁNÍ ZISKU -->
+        <!-- 3 AKČNÍ TLAČÍTKA INVESTOWNU (VKLAD, PRODEJ, VÝNOS) -->
         <div class="itown-actions-row">
-          <button id="btn-itown-deposit-500" class="btn-itown-action green">+ 500 Kč Měsíční vklad</button>
-          <button id="btn-itown-add-yield" class="btn-itown-action blue">+ Zadat výnos / úrok</button>
+          <button id="btn-itown-deposit-500" class="btn-itown-action green">+ 500 Kč Vklad</button>
+          <button id="btn-itown-sell" class="btn-itown-action orange">− Prodej / Výběr</button>
+          <button id="btn-itown-add-yield" class="btn-itown-action blue">+ Připsat výnos</button>
         </div>
 
         <div class="inv-hub-status-row">
@@ -484,7 +484,7 @@
         <div id="gold-bars-list" class="gold-bars-container" style="margin-top: 10px;"></div>
       </div>
 
-      <!-- KŘIVKA RŮSTU PORTFOLIA (VLOŽENO VS. HODNOTA) -->
+      <!-- KŘIVKA RŮSTU PORTFOLIA -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
           <h3>Křivka růstu portfolia (Investice + Zlato)</h3>
@@ -535,7 +535,25 @@
         <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
       </div>
 
-      <!-- Modální okno: Připsat výnos / úrok na Investown -->
+      <!-- Modální okno: Prodej / Výběr z Investownu -->
+      <div id="modal-itown-sell" class="modal hidden">
+        <div class="modal-content">
+          <h2>Prodej / Výběr z Investownu</h2>
+          <form id="form-itown-sell">
+            <div class="form-group">
+              <label for="itown-sell-amount">Částka k prodeji / výběru (Kč)</label>
+              <input type="number" id="itown-sell-amount" step="1" required placeholder="např. 2500">
+            </div>
+            <p class="settings-desc">Tato částka poníží tvou zainvestovanou jistinu na Investownu a vrátí peníze zpět jako příjem na bankovní účet.</p>
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-itown-sell" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary" style="background:var(--accent-yellow); color:#0b0f19;">Prodat / Vybrat</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modální okno: Připsat výnos na Investown -->
       <div id="modal-itown-yield" class="modal hidden">
         <div class="modal-content">
           <h2>Připsat měsíční výnos (Investown)</h2>
