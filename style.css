@@ -521,7 +521,7 @@ body {
 
 .cf-tbl-row strong { text-align: right; }
 
-/* Donut karta */
+/* Donut karta v investicích */
 .assets-ring-card {
   background: linear-gradient(135deg, #182235, #0f172a);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -751,20 +751,75 @@ body {
 .gb-right { display: flex; align-items: center; gap: 10px; }
 .gb-val { font-weight: 800; font-size: 0.95rem; }
 
-/* Karta závazku */
-.debt-plan-box {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 8px 10px;
+/* Karta závazku: Rozpis položek a plán */
+.debt-sub-items-list {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  margin: 4px 0 6px 0;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(11, 15, 25, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin: 6px 0;
 }
 
-.debt-plan-box span { color: var(--text-muted); }
-.debt-plan-box strong { color: var(--accent-yellow); }
+.debt-sub-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.debt-sub-item-row .ds-lbl {
+  color: var(--text-muted);
+}
+
+.debt-sub-item-row .ds-val {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.debt-sub-item-note {
+  font-size: 0.72rem;
+  color: var(--accent-green);
+  margin-top: -2px;
+}
+
+.debt-payoff-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--bg-card-sub);
+  border: 1px dashed rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  margin: 6px 0;
+}
+
+.dpm-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dpm-lbl {
+  color: var(--text-muted);
+}
+
+.dpm-val {
+  font-weight: 800;
+  color: var(--accent-yellow);
+}
+
+.btn-edit-item {
+  background: none;
+  border: none;
+  color: var(--accent-yellow);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 4px;
+}
 
 .debt-btn.btn-extra {
   background: rgba(245, 158, 11, 0.15);
