@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupDebtTxModal();
     setupApplianceModal();
     setupMeterReadingModal();
+    setupEnergySimulator();
     setupInvestmentModal();
     setupSettingsAndBackup();
     await loadMonthData();
@@ -809,7 +810,6 @@ async function renderInvestments() {
   profitDisp.textContent = `${totalProfit >= 0 ? '+' : ''}${Money.toCzkInt(totalProfit)}`;
   profitDisp.style.color = totalProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 
-  // Zobrazení výdělků z webu za aktuální měsíc
   const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   const allEntries = await dbGetAll('entries');
   const webEntries = allEntries.filter(e => e.monthYear === monthKey && e.isIncome && e.category === 'Web & Projekty');
@@ -873,7 +873,7 @@ function setupInvestmentModal() {
   });
 }
 
-// 12. Modul Energie
+// 12. Modul Energie & Simulátor spotřeby
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -975,6 +975,54 @@ async function renderEnergy() {
     diffDisplay.textContent = `Nedoplatek cca ${Money.toCzkInt(diffCents)} / měsíc`;
     diffDisplay.style.color = 'var(--accent-red)';
   }
+}
+
+// Simulátor nákladů při zvolené spotřebě
+function setupEnergySimulator() {
+  const kwhInput = document.getElementById('calc-kwh-input');
+  const kwhRange = document.getElementById('calc-kwh-range');
+  const rateLabel = document.getElementById('calc-unit-rate');
+  const costDisp = document.getElementById('calc-result-cost');
+  const balanceDisp = document.getElementById('calc-result-balance');
+
+  if (!kwhInput || !kwhRange) return;
+
+  async function updateSimulation() {
+    const kwhRecord = await dbGet('settings', 'kwh_price');
+    const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+    const kwhPriceCzk = kwhPriceCents / 100;
+    
+    rateLabel.textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč`;
+
+    const kwh = parseFloat(kwhInput.value) || 0;
+    const totalCostCents = Math.round(kwh * kwhPriceCents);
+    costDisp.textContent = Money.toCzkInt(totalCostCents);
+
+    const templates = await dbGetAll('templates');
+    const cez = templates.find(t => t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez'));
+    const cezDepositCents = cez ? cez.amount : 300000;
+
+    const diffCents = cezDepositCents - totalCostCents;
+    if (diffCents >= 0) {
+      balanceDisp.textContent = `+${Money.toCzkInt(diffCents)} (přeplatek)`;
+      balanceDisp.style.color = 'var(--accent-green)';
+    } else {
+      balanceDisp.textContent = `${Money.toCzkInt(diffCents)} (nedoplatek)`;
+      balanceDisp.style.color = 'var(--accent-red)';
+    }
+  }
+
+  kwhInput.addEventListener('input', () => {
+    kwhRange.value = kwhInput.value;
+    updateSimulation();
+  });
+
+  kwhRange.addEventListener('input', () => {
+    kwhInput.value = kwhRange.value;
+    updateSimulation();
+  });
+
+  updateSimulation();
 }
 
 async function renderMeterReadingsHistory() {
@@ -1369,7 +1417,6 @@ async function parseAndImportAirBankCsv(csvText) {
       }
     }
 
-    // Inteligentní rozpoznání kategorie pro příjem
     let category = isIncome ? 'Příjmy' : 'Ostatní';
     const lowerTitle = title.toLowerCase();
     if (isIncome) {
