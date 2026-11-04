@@ -470,7 +470,6 @@ async function drawSalaryTrendChart(allEntries) {
     months.push({ key: mKey, label: `${monthNames[d.getMonth()]}` });
   }
 
-  // Sečteme reálné výplaty zadané uživatelem
   const points = months.map(m => {
     const salaryEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && (e.category === 'Výplata' || e.title.toLowerCase().includes('výplata') || e.title.toLowerCase().includes('mzda')));
     const total = salaryEntries.reduce((acc, e) => acc + e.amount, 0);
@@ -1206,7 +1205,7 @@ function setupGoalsModal() {
   };
 }
 
-// 15. Dluhy
+// 15. Dluhy: PROVIDENT & AVAFIN S DOPOČTEM DO KDY A MIMOŘÁDNOU SPLÁTKOU
 async function renderDebts() {
   const debts = await dbGetAll('debts');
   const recContainer = document.getElementById('receivables-list');
@@ -1214,6 +1213,11 @@ async function renderDebts() {
 
   recContainer.innerHTML = '';
   payContainer.innerHTML = '';
+
+  const monthNames = [
+    'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
+    'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'
+  ];
 
   debts.forEach(d => {
     const card = document.createElement('div');
@@ -1240,18 +1244,37 @@ async function renderDebts() {
 
       recContainer.appendChild(card);
     } else {
+      // ZÁVAZKY: Výpočet zbývajících měsíců a přesného konce splácení
+      let remainingMonths = 0;
+      let endDateStr = 'Splaceno';
+
+      if (d.total > 0 && d.monthly > 0) {
+        remainingMonths = Math.ceil(d.total / d.monthly);
+        const endD = new Date(currentDate);
+        endD.setMonth(endD.getMonth() + remainingMonths);
+        endDateStr = `${monthNames[endD.getMonth()]} ${endD.getFullYear()}`;
+      }
+
       card.innerHTML = `
         <div class="debt-card-header">
           <span class="debt-name">${d.name}</span>
           <span class="debt-total payable">${Money.toCzk(d.total)}</span>
         </div>
-        <div class="debt-sub-info">Měsíční splátka: ${Money.toCzk(d.monthly)} (k ${d.day}. dni)</div>
+        <div class="debt-sub-info">Měsíční splátka: <strong>${Money.toCzk(d.monthly)}</strong> (k ${d.day}. dni)</div>
+        
+        <div class="debt-plan-box">
+          <span>Zbývá: <strong>${remainingMonths} měsíců</strong></span>
+          <span>Konec splácení: <strong>${endDateStr}</strong></span>
+        </div>
+
         <div class="debt-actions-row">
-          <button class="debt-btn btn-pay" data-id="${d.id}">Potvrdit splátku (${Money.toCzkInt(d.monthly)})</button>
+          <button class="debt-btn btn-pay btn-confirm-monthly">Potvrdit splátku (${Money.toCzkInt(d.monthly)})</button>
+          <button class="debt-btn btn-extra btn-open-extra-pay">⚡ Mimořádná splátka</button>
         </div>
       `;
 
-      card.querySelector('.debt-btn').onclick = async () => {
+      // 1. Běžná měsíční splátka
+      card.querySelector('.btn-confirm-monthly').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
         d.total -= payAmount;
@@ -1271,6 +1294,11 @@ async function renderDebts() {
 
         await loadMonthData();
         await renderDebts();
+      };
+
+      // 2. Mimořádná splátka libovolné výše
+      card.querySelector('.btn-open-extra-pay').onclick = () => {
+        openExtraPayModal(d);
       };
 
       payContainer.appendChild(card);
@@ -1348,6 +1376,62 @@ function setupDebtTxModal() {
     await loadMonthData();
     await renderDebts();
   };
+
+  // MODÁLNÍ OKNO PRO MIMOŘÁDNOU SPLÁTKU
+  const modalExtra = document.getElementById('modal-extra-pay');
+  const formExtra = document.getElementById('form-extra-pay');
+  const btnCancelExtra = document.getElementById('btn-cancel-extra-pay');
+
+  if (btnCancelExtra) {
+    btnCancelExtra.onclick = () => modalExtra.classList.add('hidden');
+  }
+
+  if (formExtra) {
+    formExtra.onsubmit = async (e) => {
+      e.preventDefault();
+      const debtId = parseInt(document.getElementById('extra-pay-debt-id').value, 10);
+      const extraCzk = parseFloat(document.getElementById('extra-pay-amount').value);
+
+      if (isNaN(extraCzk) || extraCzk <= 0) return;
+
+      const debt = await dbGet('debts', debtId);
+      if (!debt) return;
+
+      const extraCents = Money.toCents(extraCzk);
+      const actualPay = Math.min(debt.total, extraCents);
+      debt.total -= actualPay;
+      await dbSet('debts', debt);
+
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: `Mimořádná splátka: ${debt.name}`,
+        amount: actualPay,
+        category: 'Závazky',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: false,
+        paid: true
+      });
+
+      modalExtra.classList.add('hidden');
+      alert(`Mimořádná splátka ${extraCzk.toLocaleString('cs-CZ')} Kč proběhla. Dluh i datum doplacení byly okamžitě přepočítány.`);
+      await loadMonthData();
+      await renderDebts();
+    };
+  }
+}
+
+function openExtraPayModal(debt) {
+  const modal = document.getElementById('modal-extra-pay');
+  const form = document.getElementById('form-extra-pay');
+  const title = document.getElementById('modal-extra-pay-title');
+  const idInput = document.getElementById('extra-pay-debt-id');
+
+  form.reset();
+  idInput.value = debt.id;
+  title.textContent = `Mimořádná splátka: ${debt.name}`;
+  modal.classList.remove('hidden');
 }
 
 // 16. Investice: Investown, Slitky & Ostatní
@@ -1466,12 +1550,65 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// LOGIKA INVESTOWNU: AUTOMATICKÝ PŘEPOČET PŘI ZADÁNÍ ZISKU
+// LOGIKA INVESTOWNU: MIMOŘÁDNÝ VKLAD LIBOVOLNÉ ČÁSTKY, PRODEJ, ZISK
 function setupInvestownSpecifics() {
-  const btnDep = document.getElementById('btn-itown-deposit-500');
+  const btnDepCustom = document.getElementById('btn-itown-deposit-custom');
   const btnSell = document.getElementById('btn-itown-sell');
   const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
 
+  // 1. Modální okno pro vklad libovolné částky
+  const modalDep = document.getElementById('modal-itown-deposit-custom');
+  const formDep = document.getElementById('form-itown-deposit-custom');
+  const btnCancelDep = document.getElementById('btn-cancel-itown-deposit-custom');
+  const inputDep = document.getElementById('itown-deposit-amount-input');
+
+  if (btnDepCustom) {
+    btnDepCustom.onclick = () => {
+      formDep.reset();
+      inputDep.value = 500;
+      modalDep.classList.remove('hidden');
+    };
+  }
+
+  if (btnCancelDep) {
+    btnCancelDep.onclick = () => modalDep.classList.add('hidden');
+  }
+
+  if (formDep) {
+    formDep.onsubmit = async (e) => {
+      e.preventDefault();
+      const depositCzk = parseFloat(inputDep.value);
+      if (isNaN(depositCzk) || depositCzk <= 0) return;
+
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) {
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
+      }
+
+      const depCents = Money.toCents(depositCzk);
+      itownRecord.invested += depCents;
+      await dbSet('settings', itownRecord);
+
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: `Investown vklad (+${depositCzk} Kč)`,
+        amount: depCents,
+        category: 'Investice',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: false,
+        paid: true
+      });
+
+      modalDep.classList.add('hidden');
+      alert(`Částka ${depositCzk.toLocaleString('cs-CZ')} Kč byla úspěšně připsána k jistině Investownu a odečtena z bankovního účtu.`);
+      await loadMonthData();
+      await renderInvestments();
+    };
+  }
+
+  // 2. Modální okno pro zadání zisku
   const modalProfit = document.getElementById('modal-itown-profit-direct');
   const formProfit = document.getElementById('form-itown-profit-direct');
   const inputProfit = document.getElementById('itown-direct-profit-input');
@@ -1513,34 +1650,7 @@ function setupInvestownSpecifics() {
     };
   }
 
-  if (btnDep) {
-    btnDep.onclick = async () => {
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) {
-        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302 };
-      }
-
-      itownRecord.invested += 50000;
-      await dbSet('settings', itownRecord);
-
-      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: 'Investown vklad (přírůstek jistiny)',
-        amount: 50000,
-        category: 'Investice',
-        day: new Date().getDate(),
-        wallet: 'bank',
-        isIncome: false,
-        paid: true
-      });
-
-      alert('500 Kč bylo připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
-      await loadMonthData();
-      await renderInvestments();
-    };
-  }
-
+  // 3. Prodej / Výběr z Investownu
   const modalSell = document.getElementById('modal-itown-sell');
   const formSell = document.getElementById('form-itown-sell');
   const btnCancelSell = document.getElementById('btn-cancel-itown-sell');
