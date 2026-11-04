@@ -53,6 +53,11 @@
           <button id="btn-quick-add-expense" class="btn-quick-action red">− Výdaj</button>
           <button id="btn-quick-transfer" class="btn-quick-action blue">🔄 Převod</button>
         </div>
+
+        <!-- TLAČÍTKO PRO VARIABILNÍ MĚSÍČNÍ VÝPLATU -->
+        <button id="btn-quick-salary" class="btn-quick-salary-banner">
+          💰 Zadat výplatu za tento měsíc
+        </button>
       </div>
 
       <!-- TACHOMETRY -->
@@ -114,18 +119,18 @@
         </div>
       </div>
 
-      <!-- KŘIVKA VÝPLATY -->
+      <!-- KŘIVKA VÝPLATY (VARIABILNÍ PODLE ZADANÝCH PŘÍJMŮ) -->
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Monitoring mzdy & pravidelných příjmů</h3>
+          <h3>Historie výplat & Měsíční průměr</h3>
           <span class="badge-sub" id="income-trend-badge">Průměr: 0 Kč</span>
         </div>
         <div class="canvas-wrapper">
           <canvas id="salary-trend-chart" width="400" height="170"></canvas>
         </div>
         <div class="chart-legend">
-          <span>🟢 Mzda / Výplata</span>
-          <span id="salary-avg-legend">⚪ Průměrná mzda</span>
+          <span>🟢 Skutečná čistá mzda</span>
+          <span id="salary-avg-legend">⚪ Průměr ze zadaných výplat</span>
         </div>
       </div>
 
@@ -245,7 +250,7 @@
 
             <div class="form-group">
               <label for="entry-title">Název / Popis</label>
-              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd, Výplata">
+              <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd, Výplata Datart">
             </div>
 
             <div class="form-group">
@@ -372,7 +377,7 @@
       </div>
     </section>
 
-    <!-- 4. Dluhy & Závazky s dynamickým dopočtem splátek -->
+    <!-- 4. Dluhy & Pohledávky -->
     <section id="tab-debts" class="tab-panel">
       <div class="section-title-wrap">
         <h2>Kdo mi dluží (Pohledávky)</h2>
@@ -384,27 +389,26 @@
       </div>
       <div id="payables-list" class="debts-container"></div>
 
-      <!-- Modální okno pro mimořádné a variabilní splátky -->
       <div id="modal-debt-tx" class="modal hidden">
         <div class="modal-content">
-          <h2 id="modal-debt-tx-title">Splátka dluhu</h2>
+          <h2 id="modal-debt-tx-title">Upravit dluh</h2>
           <form id="form-debt-tx">
             <input type="hidden" id="debt-tx-id">
             <input type="hidden" id="debt-tx-action">
 
             <div class="form-group">
-              <label for="debt-tx-amount">Částka splátky (Kč)</label>
+              <label for="debt-tx-amount">Částka (Kč)</label>
               <input type="number" id="debt-tx-amount" step="1" required placeholder="0">
             </div>
 
             <div class="form-group">
-              <label for="debt-tx-note">Důvod / Poznámka (např. Mimořádná splátka)</label>
-              <input type="text" id="debt-tx-note" placeholder="např. Mimořádná splátka z výplaty">
+              <label for="debt-tx-note">Důvod / Poznámka</label>
+              <input type="text" id="debt-tx-note" placeholder="např. Část splátky">
             </div>
 
             <div class="modal-actions">
               <button type="button" id="btn-cancel-debt-tx" class="btn-secondary">Zrušit</button>
-              <button type="submit" class="btn-primary">Provést splátku</button>
+              <button type="submit" class="btn-primary">Potvrdit</button>
             </div>
           </form>
         </div>
@@ -427,7 +431,7 @@
         </div>
       </div>
 
-      <!-- INVESTOWN KARTA: ČISTÁ DATA S FLEXIBILNÍM VKLADEM -->
+      <!-- INVESTOWN KARTA: ČISTÁ DATA BEZ ODHADŮ -->
       <div class="investown-hub-card">
         <div class="inv-hub-top">
           <div class="inv-hub-brand">
@@ -454,7 +458,7 @@
         </div>
 
         <div class="itown-actions-row">
-          <button id="btn-itown-deposit-open" class="btn-itown-action green">+ Vklad / Investovat</button>
+          <button id="btn-itown-deposit-500" class="btn-itown-action green">+ 500 Kč Vklad</button>
           <button id="btn-itown-sell" class="btn-itown-action orange">− Prodej / Výběr</button>
           <button id="btn-itown-quick-sync-profit" class="btn-itown-action blue">📈 Zadat zisk z mobilu</button>
         </div>
@@ -537,37 +541,6 @@
           <strong id="disp-month-web-earnings" class="text-green">0 Kč</strong>
         </div>
         <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
-      </div>
-
-      <!-- Modální okno: VKLAD DO INVESTOWNU (FLEXIBILNÍ ČÁSTKA) -->
-      <div id="modal-itown-deposit" class="modal hidden">
-        <div class="modal-content">
-          <h2>Vklad do Investownu</h2>
-          <form id="form-itown-deposit">
-            <div class="form-group">
-              <label for="itown-deposit-amount">Částka vkladu (Kč)</label>
-              <input type="number" id="itown-deposit-amount" step="1" value="500" required placeholder="500">
-            </div>
-            <div class="form-group">
-              <label>Zdroj peněz</label>
-              <div class="wallet-select-row">
-                <label class="wallet-radio-box">
-                  <input type="radio" name="itownDepositWallet" value="bank" checked>
-                  <span>🏦 Bankovní účet</span>
-                </label>
-                <label class="wallet-radio-box">
-                  <input type="radio" name="itownDepositWallet" value="cash">
-                  <span>💵 Hotovost</span>
-                </label>
-              </div>
-            </div>
-            <p class="settings-desc">Zvýší tvou vloženou jistinu a odečte peníze ze zvoleného zdroje. Čistý zisk zůstane nedotčen.</p>
-            <div class="modal-actions">
-              <button type="button" id="btn-cancel-itown-deposit" class="btn-secondary">Zrušit</button>
-              <button type="submit" class="btn-primary">Vložit do Investownu</button>
-            </div>
-          </form>
-        </div>
       </div>
 
       <!-- Modální okno: Zadat celkový zisk Investownu -->
