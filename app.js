@@ -1,5 +1,14 @@
 // Stav aplikace
 let currentDate = new Date(2026, 10, 1); // Listopad 2026
+let deferredPrompt = null;
+
+// Sledování výzvy k instalaci PWA
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btnInstall = document.getElementById('btn-install-pwa');
+  if (btnInstall) btnInstall.style.display = 'block';
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -10,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupGoalsModal();
     setupDebtTxModal();
     setupApplianceModal();
+    setupSettingsAndBackup();
     await loadMonthData();
   } catch (err) {
     console.error('Inicializace selhala:', err);
@@ -42,6 +52,8 @@ function setupNavigation() {
         await renderDebts();
       } else if (targetTab === 'energy') {
         await renderEnergy();
+      } else if (targetTab === 'settings') {
+        await renderSettings();
       }
     });
   });
@@ -141,7 +153,7 @@ async function calculateOverview(entries) {
 
 async function getCalculatedBalance(optionalEntries) {
   const initCapRecord = await dbGet('settings', 'initial_capital');
-  const initialCapital = initCapRecord ? initCapRecord.value : 0;
+  const initialCapital = initCapRecord ? initCapRecord.value : 5100000;
 
   const entries = optionalEntries || await dbGetAll('entries');
   let totalIncome = 0;
@@ -577,18 +589,16 @@ function setupDebtTxModal() {
 // 9. Modul Energie & Spotřebiče & Záruky
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
-  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650; // např. 6,50 Kč/kWh
+  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
   const kwhPriceCzk = kwhPriceCents / 100;
 
   document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
 
-  // Najdeme měsíční zálohu za ČEZ ze šablon
   const templates = await dbGetAll('templates');
   const cez = templates.find(t => t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez'));
   const cezDepositCents = cez ? cez.amount : 300000;
   document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
 
-  // Načteme spotřebiče
   const appliances = await dbGetAll('energy');
   const container = document.getElementById('appliances-list');
   container.innerHTML = '';
@@ -596,8 +606,6 @@ async function renderEnergy() {
   let totalMonthlyCostCents = 0;
 
   appliances.forEach(app => {
-    // Výpočet kWh
-    // Příkon (W) * hodiny denně / 1000 = kWh za den
     const kwhPerHour = app.power / 1000;
     const kwhPerDay = kwhPerHour * app.hours;
     const kwhPerMonth = kwhPerDay * 30;
@@ -608,7 +616,6 @@ async function renderEnergy() {
 
     totalMonthlyCostCents += costMonthCents;
 
-    // Výpočet záruky
     let warrantyHtml = '';
     if (app.purchaseDate && app.warrantyMonths) {
       const pDate = new Date(app.purchaseDate);
@@ -666,11 +673,9 @@ async function renderEnergy() {
     container.appendChild(card);
   });
 
-  // Souhrn očekávaných nákladů a bilance vs. záloha
   document.getElementById('disp-expected-energy-cost').textContent = Money.toCzkInt(totalMonthlyCostCents);
 
   const diffCents = cezDepositCents - totalMonthlyCostCents;
-  const diffRow = document.getElementById('energy-diff-row');
   const diffDisplay = document.getElementById('disp-energy-diff');
 
   if (diffCents >= 0) {
@@ -719,4 +724,191 @@ function setupApplianceModal() {
     modal.classList.add('hidden');
     await renderEnergy();
   });
+}
+
+// 10. Modul Nastavení, Zálohování & Import CSV
+async function renderSettings() {
+  const initCapRecord = await dbGet('settings', 'initial_capital');
+  const paydayRecord = await dbGet('settings', 'payday');
+  const kwhRecord = await dbGet('settings', 'kwh_price');
+
+  document.getElementById('set-initial-capital').value = initCapRecord ? initCapRecord.value / 100 : 51000;
+  document.getElementById('set-payday').value = paydayRecord ? paydayRecord.value : 10;
+  document.getElementById('set-kwh-price').value = kwhRecord ? kwhRecord.value / 100 : 6.5;
+}
+
+function setupSettingsAndBackup() {
+  // Uložení finančních parametrů
+  document.getElementById('btn-save-settings').addEventListener('click', async () => {
+    const initCap = parseFloat(document.getElementById('set-initial-capital').value);
+    const payday = parseInt(document.getElementById('set-payday').value, 10);
+    const kwh = parseFloat(document.getElementById('set-kwh-price').value);
+
+    if (!isNaN(initCap)) await dbSet('settings', { key: 'initial_capital', value: Money.toCents(initCap) });
+    if (!isNaN(payday)) await dbSet('settings', { key: 'payday', value: payday });
+    if (!isNaN(kwh)) await dbSet('settings', { key: 'kwh_price', value: Money.toCents(kwh) });
+
+    alert('Parametry byly úspěšně uloženy!');
+    await loadMonthData();
+  });
+
+  // Export JSON do souboru
+  document.getElementById('btn-export-json').addEventListener('click', async () => {
+    const backup = await createFullBackup();
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kolobeznik-dispecink-zaloha-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Kopírování JSON do schránky
+  document.getElementById('btn-copy-json').addEventListener('click', async () => {
+    const backup = await createFullBackup();
+    await navigator.clipboard.writeText(JSON.stringify(backup, null, 2));
+    alert('Záloha byla zkopírována do schránky!');
+  });
+
+  // Obnova ze souboru JSON
+  const fileRestoreInput = document.getElementById('restore-file-input');
+  document.getElementById('btn-trigger-restore').addEventListener('click', () => fileRestoreInput.click());
+
+  fileRestoreInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const backupData = JSON.parse(event.target.result);
+        await restoreFromBackup(backupData);
+        alert('Data byla úspěšně obnovena!');
+        window.location.reload();
+      } catch (err) {
+        alert('Chyba při obnově: Neplatný formát souboru.');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Import bankovního výpisu CSV
+  const csvFileInput = document.getElementById('csv-file-input');
+  document.getElementById('btn-trigger-csv').addEventListener('click', () => csvFileInput.click());
+
+  csvFileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const count = await parseAndImportCsv(text);
+      const status = document.getElementById('csv-import-status');
+      status.textContent = `Úspěšně importováno ${count} transakcí do aktuálního měsíce.`;
+      status.style.color = 'var(--accent-green)';
+      await loadMonthData();
+    };
+    reader.readAsText(file);
+  });
+
+  // Tlačítko instalace PWA
+  const btnInstall = document.getElementById('btn-install-pwa');
+  btnInstall.addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredPrompt = null;
+        btnInstall.style.display = 'none';
+      }
+    } else {
+      alert('Aplikaci nainstaluješ v nabídce prohlížeče klepnutím na „Přidat na plochu“.');
+    }
+  });
+}
+
+// Pomocné funkce pro zálohu
+async function createFullBackup() {
+  return {
+    version: DB_VERSION,
+    date: new Date().toISOString(),
+    settings: await dbGetAll('settings'),
+    templates: await dbGetAll('templates'),
+    entries: await dbGetAll('entries'),
+    goals: await dbGetAll('goals'),
+    debts: await dbGetAll('debts'),
+    energy: await dbGetAll('energy')
+  };
+}
+
+async function restoreFromBackup(data) {
+  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy'];
+  for (const store of stores) {
+    if (data[store]) {
+      const tx = dbInstance.transaction(store, 'readwrite');
+      const os = tx.objectStore(store);
+      os.clear();
+      for (const item of data[store]) {
+        os.put(item);
+      }
+    }
+  }
+}
+
+// Parser bankovního CSV
+async function parseAndImportCsv(csvText) {
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) return 0;
+
+  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  let importedCount = 0;
+
+  // Hledání oddělovače (středník nebo čárka)
+  const delimiter = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+
+  // Najdeme indexy klíčových sloupců
+  const dateIdx = headers.findIndex(h => h.includes('datum') || h.includes('date'));
+  const amountIdx = headers.findIndex(h => h.includes('částka') || h.includes('castka') || h.includes('objem') || h.includes('amount'));
+  const noteIdx = headers.findIndex(h => h.includes('název') || h.includes('popis') || h.includes('zpráva') || h.includes('poznámka') || h.includes('protiúčet'));
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cols.length <= amountIdx) continue;
+
+    // Normalizace částky (nahrazení mezer a desetinné čárky tečkou)
+    const rawAmount = cols[amountIdx].replace(/\s/g, '').replace(',', '.');
+    const amountNum = parseFloat(rawAmount);
+
+    if (isNaN(amountNum) || amountNum === 0) continue;
+
+    const isIncome = amountNum > 0;
+    const absAmountCents = Math.round(Math.abs(amountNum) * 100);
+    const title = (noteIdx !== -1 && cols[noteIdx]) ? cols[noteIdx] : (isIncome ? 'Bankovní příjem' : 'Bankovní platba');
+
+    let day = 10;
+    if (dateIdx !== -1 && cols[dateIdx]) {
+      const parts = cols[dateIdx].split(/[\.\-\/]/);
+      if (parts.length >= 1) {
+        const parsedDay = parseInt(parts[0], 10);
+        if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) day = parsedDay;
+      }
+    }
+
+    await dbAdd('entries', {
+      monthYear: monthKey,
+      title: title.slice(0, 50),
+      amount: absAmountCents,
+      category: isIncome ? 'Příjmy' : 'Ostatní',
+      day,
+      isIncome,
+      paid: true // Bankovní transakce už reálně proběhla
+    });
+
+    importedCount++;
+  }
+
+  return importedCount;
 }
