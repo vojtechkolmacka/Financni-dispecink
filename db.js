@@ -1,17 +1,15 @@
 // Správa lokálního úložiště IndexedDB a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Navýšení verze pro novou tabulku odečtů
 
 let dbInstance = null;
 
-// Pomocné funkce pro přesnou práci s haléři
 const Money = {
   toCents: (czk) => Math.round(Number(czk) * 100),
   toCzk: (cents) => (cents / 100).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč',
   toCzkInt: (cents) => Math.round(cents / 100).toLocaleString('cs-CZ') + ' Kč'
 };
 
-// Otevření a inicializace IndexedDB
 function initDB() {
   return new Promise((resolve, reject) => {
     if (navigator.storage && navigator.storage.persist) {
@@ -25,40 +23,34 @@ function initDB() {
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
 
-      // 1. Nastavení aplikace
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'key' });
       }
 
-      // 2. Šablony pravidelných měsíčních plateb
       if (!db.objectStoreNames.contains('templates')) {
         db.createObjectStore('templates', { keyPath: 'id', autoIncrement: true });
       }
 
-      // 3. Konkrétní měsíční položky (výdaje a příjmy)
       if (!db.objectStoreNames.contains('entries')) {
         const entryStore = db.createObjectStore('entries', { keyPath: 'id', autoIncrement: true });
         entryStore.createIndex('monthYear', 'monthYear', { unique: false });
       }
 
-      // 4. Finanční cíle
       if (!db.objectStoreNames.contains('goals')) {
         db.createObjectStore('goals', { keyPath: 'id', autoIncrement: true });
       }
 
-      // 5. Dluhy a pohledávky
       if (!db.objectStoreNames.contains('debts')) {
         db.createObjectStore('debts', { keyPath: 'id', autoIncrement: true });
       }
 
-      // 6. Energie a spotřebiče
       if (!db.objectStoreNames.contains('energy')) {
         db.createObjectStore('energy', { keyPath: 'id', autoIncrement: true });
       }
 
-      // 7. Záruky spotřebičů a techniky
-      if (!db.objectStoreNames.contains('warranties')) {
-        db.createObjectStore('warranties', { keyPath: 'id', autoIncrement: true });
+      // Nová tabulka pro stavy elektroměru celého domu
+      if (!db.objectStoreNames.contains('meter_readings')) {
+        db.createObjectStore('meter_readings', { keyPath: 'id', autoIncrement: true });
       }
     };
 
@@ -75,19 +67,16 @@ function initDB() {
   });
 }
 
-// Naplnění výchozími daty při prvním startu
 async function seedInitialData() {
   const settings = await dbGet('settings', 'initial_capital');
-  if (settings) return; // Data již existují
+  if (settings) return;
 
   console.log('Inicializace výchozích dat dispečinku...');
 
-  // Výchozí kapitál upraven na 51 000 Kč (v haléřích: 5 100 000)
   await dbSet('settings', { key: 'initial_capital', value: 5100000 });
   await dbSet('settings', { key: 'payday', value: 10 });
   await dbSet('settings', { key: 'kwh_price', value: 650 });
 
-  // Šablony pravidelných plateb
   const templates = [
     { title: 'ČEZ (elektřina)', amount: 300000, category: 'Energie', day: 15, active: true },
     { title: 'Terapie', amount: 200000, category: 'Zdraví', day: 1, active: true },
@@ -106,7 +95,6 @@ async function seedInitialData() {
   ];
   for (const t of templates) await dbAdd('templates', t);
 
-  // Výchozí cíle
   const goals = [
     { title: 'Brikety na zimu', target: 1100000, priority: 1, paused: false },
     { title: 'Právní výdaje', target: 2000000, priority: 2, paused: false },
@@ -117,7 +105,6 @@ async function seedInitialData() {
   ];
   for (const g of goals) await dbAdd('goals', g);
 
-  // Výchozí dluhy a pohledávky
   const debts = [
     { type: 'payable', name: 'Provident', total: 7732733, monthly: 150000, day: 10 },
     { type: 'payable', name: 'AvaFin / Crediton', total: 1952400, monthly: 110000, day: 10 },
@@ -126,9 +113,16 @@ async function seedInitialData() {
     { type: 'receivable', name: 'MAGDA', total: 270000, note: 'Elektřina, drogerie, půjčky, bazén' }
   ];
   for (const d of debts) await dbAdd('debts', d);
+
+  // Ukázkové první dva odečty pro okamžité vykreslení křivky
+  const meterReadings = [
+    { date: '2026-10-01', value: 12450.0, note: 'Výchozí stav' },
+    { date: '2026-10-15', value: 12590.0, note: 'Běžný provoz' },
+    { date: '2026-11-01', value: 12780.0, note: 'Zatopeno a přitápění' }
+  ];
+  for (const m of meterReadings) await dbAdd('meter_readings', m);
 }
 
-// CRUD operace pro IndexedDB
 function dbGet(storeName, key) {
   return new Promise((resolve, reject) => {
     const tx = dbInstance.transaction(storeName, 'readonly');
