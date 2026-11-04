@@ -751,7 +751,7 @@ body {
 .gb-right { display: flex; align-items: center; gap: 10px; }
 .gb-val { font-weight: 800; font-size: 0.95rem; }
 
-/* Karta závazku: detaily a mimořádné splátky */
+/* Karta závazku */
 .debt-plan-box {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border-color);
@@ -1160,6 +1160,7 @@ body {
 .settings-btns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .import-status { margin-top: 8px; font-size: 0.8rem; font-weight: 600; }
 
+/* MODÁLNÍ OKNA */
 .modal {
   position: fixed;
   inset: 0;
@@ -1178,6 +1179,8 @@ body {
   width: 100%;
   max-width: 420px;
   padding: 20px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 .modal-content h2 { font-size: 1.2rem; margin-bottom: 16px; }
 .form-group { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
