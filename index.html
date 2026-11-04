@@ -204,8 +204,9 @@
 
     <!-- 2. Platby -->
     <section id="tab-payments" class="tab-panel">
-      <div class="action-bar">
+      <div class="action-bar-split">
         <button id="btn-add-entry" class="action-btn-main">+ Přidat položku ručně</button>
+        <button id="btn-manage-templates" class="action-btn-sub">⚙️ Stálé měsíční platby</button>
       </div>
 
       <div class="payments-summary-card">
@@ -285,7 +286,7 @@
             </div>
 
             <div class="form-group checkbox-row" id="wrap-entry-recurring">
-              <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou platbu</label>
+              <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou měsíční platbu</label>
             </div>
 
             <div id="wrap-recurring-frequency" class="recurring-freq-box hidden">
@@ -308,6 +309,23 @@
               <button type="submit" class="btn-primary">Uložit položku</button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- Modální okno: Správa stálých měsíčních šablon -->
+      <div id="modal-templates" class="modal hidden">
+        <div class="modal-content modal-large">
+          <div class="modal-header-row">
+            <h2>Správa stálých měsíčních plateb</h2>
+            <button type="button" id="btn-add-new-template" class="btn-small-primary">+ Nový stálý výdaj</button>
+          </div>
+          <p class="settings-desc">Zde můžeš trvale přidávat, upravovat nebo odstraňovat pravidelné výdaje, které dispečink generuje každý měsíc.</p>
+          
+          <div id="templates-manage-list" class="templates-manage-container" style="margin-top: 14px;"></div>
+
+          <div class="modal-actions" style="margin-top: 16px;">
+            <button type="button" id="btn-close-templates" class="btn-secondary">Zavřít</button>
+          </div>
         </div>
       </div>
 
@@ -388,7 +406,7 @@
       </div>
       <div id="payables-list" class="debts-container"></div>
 
-      <!-- Modální okno: Pohledávky (Půjčit / Repay) -->
+      <!-- Modální okno: Pohledávky -->
       <div id="modal-debt-tx" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-debt-tx-title">Upravit pohledávku</h2>
@@ -414,7 +432,7 @@
         </div>
       </div>
 
-      <!-- NOVÉ MODÁLNÍ OKNO: MIMOŘÁDNÁ SPLÁTKA ZÁVAZKU (PROVIDENT / AVAFIN) -->
+      <!-- Modální okno: Mimořádná splátka půjčky -->
       <div id="modal-extra-pay" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-extra-pay-title">Mimořádná splátka půjčky</h2>
@@ -439,6 +457,7 @@
 
     <!-- 5. Investice, Investown & Zlaté slitky -->
     <section id="tab-invest" class="tab-panel">
+      <!-- DONUT GRAF AKTIV -->
       <div class="assets-ring-card">
         <div class="ring-left">
           <canvas id="assets-donut-chart" width="100" height="100"></canvas>
@@ -452,7 +471,7 @@
         </div>
       </div>
 
-      <!-- INVESTOWN KARTA: ČISTÁ DATA S MIMOŘÁDNÝM VKLADEM -->
+      <!-- INVESTOWN KARTA: ČISTÁ DATA -->
       <div class="investown-hub-card">
         <div class="inv-hub-top">
           <div class="inv-hub-brand">
@@ -478,7 +497,6 @@
           </div>
         </div>
 
-        <!-- TLAČÍTKA: VKLAD LIBOVOLNÉ VÝŠE, PRODEJ, ZADAT ZISK -->
         <div class="itown-actions-row">
           <button id="btn-itown-deposit-custom" class="btn-itown-action green">+ Vložit peníze</button>
           <button id="btn-itown-sell" class="btn-itown-action orange">− Prodej / Výběr</button>
@@ -565,7 +583,7 @@
         <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
       </div>
 
-      <!-- Modální okno: VKLAD LIBOVOLNÉ ČÁSTKY DO INVESTOWNU -->
+      <!-- Modální okno: Vložit peníze na Investown -->
       <div id="modal-itown-deposit-custom" class="modal hidden">
         <div class="modal-content">
           <h2>Vložit peníze na Investown</h2>
@@ -831,9 +849,20 @@
       </div>
     </section>
 
-    <!-- 7. Nastavení & Ochrana dat -->
+    <!-- 7. Nastavení & Správa stálých plateb -->
     <section id="tab-settings" class="tab-panel">
+      <!-- SPRÁVA STÁLÝCH ŠABLON PLATEB -->
       <div class="settings-card" style="border-color: rgba(56, 189, 248, 0.4);">
+        <div class="modal-header-row">
+          <h3>📅 Šablony stálých plateb</h3>
+          <button id="btn-add-template-direct" class="btn-small-primary">+ Přidat stálý výdaj</button>
+        </div>
+        <p class="settings-desc">Pravidelné měsíční, pololetní a roční platby, které dispečink automaticky započítává do rozpočtu.</p>
+        <div id="settings-templates-list" class="templates-manage-container" style="margin-top: 12px;"></div>
+      </div>
+
+      <!-- OCHRANA DAT PROTI SMAZÁNÍ -->
+      <div class="settings-card" style="margin-top: 14px;">
         <h3>🛡️ Nezávislé cloud zrcadlení (Ochrana proti smazání)</h3>
         <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu.</p>
         <div class="form-group" style="margin-top: 10px;">
