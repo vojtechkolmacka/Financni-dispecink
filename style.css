@@ -161,7 +161,7 @@ body {
   font-weight: 800;
 }
 
-/* Rychlá tlačítka */
+/* Rychlá tlačítka na ploše */
 .quick-entry-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -243,6 +243,137 @@ body {
 .fab-btn:active {
   transform: scale(0.90);
   background-color: #0284c7;
+}
+
+/* Tlačítka správy plateb */
+.action-bar-split {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.action-btn-main {
+  flex: 2;
+  padding: 12px;
+  background-color: var(--accent-blue);
+  color: #0b0f19;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.action-btn-sub {
+  flex: 1.3;
+  padding: 12px 6px;
+  background-color: var(--bg-card-sub);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.78rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Seznam stálých šablon plateb */
+.templates-manage-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.template-manage-item {
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.template-manage-item.paused {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.tmi-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tmi-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.tmi-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tmi-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tmi-amount {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--accent-red);
+}
+
+.btn-tmi-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-tmi-del {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-tmi-del:hover {
+  color: var(--accent-red);
+}
+
+/* Tlačítko smazat u položky v měsíčním seznamu */
+.btn-delete-entry {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-delete-entry:hover {
+  color: var(--accent-red);
+}
+
+/* Modální okna */
+.modal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-large {
+  max-width: 480px;
 }
 
 /* Formuláře - peněženka */
@@ -428,7 +559,7 @@ body {
 
 .cf-tbl-row strong { text-align: right; }
 
-/* Donut karta */
+/* Donut karta v investicích */
 .assets-ring-card {
   background: linear-gradient(135deg, #182235, #0f172a);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -658,7 +789,7 @@ body {
 .gb-right { display: flex; align-items: center; gap: 10px; }
 .gb-val { font-weight: 800; font-size: 0.95rem; }
 
-/* Karta závazku (Provident & AvaFin): detaily a mimořádné splátky */
+/* Karta závazku: detaily a mimořádné splátky */
 .debt-plan-box {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border-color);
@@ -906,19 +1037,6 @@ body {
 
 .btn-delete-appliance { background: none; border: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; padding: 4px; }
 .btn-delete-appliance:hover { color: var(--accent-red); }
-
-.action-bar { margin-bottom: 14px; }
-.action-btn-main {
-  width: 100%;
-  padding: 12px;
-  background-color: var(--accent-blue);
-  color: #0b0f19;
-  font-weight: 700;
-  font-size: 0.95rem;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-}
 
 .btn-small-primary {
   background: var(--accent-blue);
