@@ -249,15 +249,31 @@
       <div id="goals-list" class="goals-container"></div>
     </section>
 
-    <!-- 4. Dluhy & Pohledávky -->
+    <!-- 4. Dluhy & Pohledávky (Podrobná správa) -->
     <section id="tab-debts" class="tab-panel">
-      <div class="section-title-wrap">
+      <!-- SOUHRNNÉ KARTY NAHOŘE -->
+      <div class="debts-top-summary-grid">
+        <div class="debts-sum-card red">
+          <span class="dsc-lbl">MOJE DLUHY</span>
+          <strong class="dsc-val" id="disp-total-payables">0 Kč</strong>
+          <span class="dsc-sub">Pravidlo 10. dne</span>
+        </div>
+        <div class="debts-sum-card green">
+          <span class="dsc-lbl">DLUŽÍ MNĚ</span>
+          <strong class="dsc-val" id="disp-total-receivables">0 Kč</strong>
+          <span class="dsc-sub">Při úhradě se přičte na účet</span>
+        </div>
+      </div>
+
+      <div class="section-title-row" style="margin-top: 16px;">
         <h2>Kdo mi dluží (Pohledávky)</h2>
+        <button id="btn-add-debtor" class="btn-small-primary">+ Nová osoba</button>
       </div>
       <div id="receivables-list" class="debts-container"></div>
 
-      <div class="section-title-wrap" style="margin-top: 24px;">
-        <h2>Moje závazky (Půjčky)</h2>
+      <div class="section-title-row" style="margin-top: 24px;">
+        <h2>Moje půjčky k úhradě</h2>
+        <button id="btn-add-loan" class="btn-small-secondary">+ Nová půjčka</button>
       </div>
       <div id="payables-list" class="debts-container"></div>
     </section>
@@ -530,7 +546,83 @@
       </div>
     </section>
 
-    <!-- MODÁLNÍ OKNA: PŘÍMO V HLAVNÍM OBSAHU -->
+    <!-- MODÁLNÍ OKNA: UMÍSTĚNA GLOBÁLNĚ -->
+
+    <!-- Modální okno: Přidat nového dlužníka / osobu -->
+    <div id="modal-new-debtor" class="modal hidden">
+      <div class="modal-content">
+        <h2>Přidat novou osobu (Dlužníka)</h2>
+        <form id="form-new-debtor">
+          <div class="form-group">
+            <label for="debtor-name-input">Jméno osoby / Přezdívka</label>
+            <input type="text" id="debtor-name-input" required placeholder="např. TOMÁŠ, PETR">
+          </div>
+          <div class="form-group">
+            <label for="debtor-item-label-input">Název první položky dluhu</label>
+            <input type="text" id="debtor-item-label-input" required placeholder="např. Půjčka, Nákup">
+          </div>
+          <div class="form-group">
+            <label for="debtor-item-amount-input">Částka (Kč)</label>
+            <input type="number" id="debtor-item-amount-input" step="1" required placeholder="např. 1500">
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="btn-cancel-new-debtor" class="btn-secondary">Zrušit</button>
+            <button type="submit" class="btn-primary">Přidat dlužníka</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modální okno: Přidat novou půjčku (Závazek) -->
+    <div id="modal-new-loan" class="modal hidden">
+      <div class="modal-content">
+        <h2>Přidat nový úvěr / závazek</h2>
+        <form id="form-new-loan">
+          <div class="form-group">
+            <label for="loan-name-input">Název společnosti / věřitele</label>
+            <input type="text" id="loan-name-input" required placeholder="např. Zonky, Banka">
+          </div>
+          <div class="form-group">
+            <label for="loan-total-input">Celkový dluh k doplacení (Kč)</label>
+            <input type="number" id="loan-total-input" step="1" required placeholder="např. 50000">
+          </div>
+          <div class="form-group">
+            <label for="loan-monthly-input">Měsíční splátka (Kč)</label>
+            <input type="number" id="loan-monthly-input" step="1" required placeholder="např. 1500">
+          </div>
+          <div class="form-group">
+            <label for="loan-day-input">Den splatnosti v měsíci (1–31)</label>
+            <input type="number" id="loan-day-input" min="1" max="31" value="10">
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="btn-cancel-new-loan" class="btn-secondary">Zrušit</button>
+            <button type="submit" class="btn-primary">Uložit závazek</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modální okno: Přidat položku dluhu k existující osobě -->
+    <div id="modal-add-sub-item" class="modal hidden">
+      <div class="modal-content">
+        <h2 id="modal-add-sub-item-title">Nová položka dluhu</h2>
+        <form id="form-add-sub-item">
+          <input type="hidden" id="sub-item-debt-id">
+          <div class="form-group">
+            <label for="sub-item-label-input">Název položky</label>
+            <input type="text" id="sub-item-label-input" required placeholder="např. Benzín, Oběd, Půjčka">
+          </div>
+          <div class="form-group">
+            <label for="sub-item-amount-input">Částka (Kč)</label>
+            <input type="number" id="sub-item-amount-input" step="1" required placeholder="např. 500">
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="btn-cancel-add-sub-item" class="btn-secondary">Zrušit</button>
+            <button type="submit" class="btn-primary">Přidat položku</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- Modální okno: Přidat příjem / výdaj -->
     <div id="modal-entry" class="modal hidden">
@@ -672,7 +764,7 @@
       </div>
     </div>
 
-    <!-- Modální okno: Úprava pohledávky -->
+    <!-- Modální okno: Úprava pohledávky (Půjčit / Repay) -->
     <div id="modal-debt-tx" class="modal hidden">
       <div class="modal-content">
         <h2 id="modal-debt-tx-title">Upravit pohledávku</h2>
