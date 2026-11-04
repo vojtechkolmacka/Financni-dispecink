@@ -823,12 +823,13 @@ function setupQuickEntryButtons() {
     modal.classList.remove('hidden');
   }
 
-  document.getElementById('btn-quick-add-income').addEventListener('click', () => openEntryWithType('income'));
-  document.getElementById('btn-quick-add-expense').addEventListener('click', () => openEntryWithType('expense'));
+  const btnInc = document.getElementById('btn-quick-add-income');
+  const btnExp = document.getElementById('btn-quick-add-expense');
+  const fabBtn = document.getElementById('fab-add-btn');
 
-  document.getElementById('fab-add-btn').addEventListener('click', () => {
-    openEntryWithType('expense');
-  });
+  if (btnInc) btnInc.onclick = () => openEntryWithType('income');
+  if (btnExp) btnExp.onclick = () => openEntryWithType('expense');
+  if (fabBtn) fabBtn.onclick = () => openEntryWithType('expense');
 }
 
 function setupPaymentsModal() {
@@ -839,24 +840,24 @@ function setupPaymentsModal() {
   const radioTypes = form.querySelectorAll('input[name="entryType"]');
   const recurringWrap = document.getElementById('wrap-entry-recurring');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     recurringWrap.style.display = 'flex';
     document.getElementById('modal-entry-title').textContent = 'Nová položka';
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
   radioTypes.forEach(radio => {
-    radio.addEventListener('change', () => {
+    radio.onchange = () => {
       recurringWrap.style.display = radio.value === 'income' ? 'none' : 'flex';
-    });
+    };
   });
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const isIncome = form.querySelector('input[name="entryType"]:checked').value === 'income';
@@ -895,7 +896,7 @@ function setupPaymentsModal() {
 
     modal.classList.add('hidden');
     await loadMonthData();
-  });
+  };
 }
 
 function setupTransferModal() {
@@ -904,16 +905,16 @@ function setupTransferModal() {
   const btnCancel = document.getElementById('btn-cancel-transfer');
   const form = document.getElementById('form-transfer');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const direction = document.getElementById('transfer-direction').value;
@@ -973,7 +974,7 @@ function setupTransferModal() {
 
     modal.classList.add('hidden');
     await loadMonthData();
-  });
+  };
 }
 
 // 14. Cíle
@@ -1036,13 +1037,13 @@ async function renderGoals() {
       </div>
     `;
 
-    card.querySelector('.btn-toggle-pause').addEventListener('click', async () => {
+    card.querySelector('.btn-toggle-pause').onclick = async () => {
       goal.paused = !goal.paused;
       await dbSet('goals', goal);
       await renderGoals();
-    });
+    };
 
-    card.querySelector('.btn-prio-up').addEventListener('click', async () => {
+    card.querySelector('.btn-prio-up').onclick = async () => {
       if (index > 0) {
         const prevGoal = goals[index - 1];
         const temp = goal.priority;
@@ -1052,9 +1053,9 @@ async function renderGoals() {
         await dbSet('goals', prevGoal);
         await renderGoals();
       }
-    });
+    };
 
-    card.querySelector('.btn-prio-down').addEventListener('click', async () => {
+    card.querySelector('.btn-prio-down').onclick = async () => {
       if (index < goals.length - 1) {
         const nextGoal = goals[index + 1];
         const temp = goal.priority;
@@ -1064,9 +1065,9 @@ async function renderGoals() {
         await dbSet('goals', nextGoal);
         await renderGoals();
       }
-    });
+    };
 
-    card.querySelector('.btn-del-goal').addEventListener('click', async () => {
+    card.querySelector('.btn-del-goal').onclick = async () => {
       if (!confirm(`Opravdu chceš smazat cíl „${goal.title}“?`)) return;
 
       await dbDelete('goals', goal.id);
@@ -1082,7 +1083,7 @@ async function renderGoals() {
       }
 
       await renderGoals();
-    });
+    };
 
     container.appendChild(card);
   });
@@ -1094,16 +1095,16 @@ function setupGoalsModal() {
   const btnCancel = document.getElementById('btn-cancel-goal');
   const form = document.getElementById('form-goal');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const title = document.getElementById('goal-title').value.trim();
@@ -1123,7 +1124,7 @@ function setupGoalsModal() {
 
     modal.classList.add('hidden');
     await renderGoals();
-  });
+  };
 }
 
 // 15. Dluhy
@@ -1153,9 +1154,9 @@ async function renderDebts() {
       `;
 
       card.querySelectorAll('.debt-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.onclick = () => {
           openDebtTxModal(d, btn.dataset.action);
-        });
+        };
       });
 
       recContainer.appendChild(card);
@@ -1171,7 +1172,7 @@ async function renderDebts() {
         </div>
       `;
 
-      card.querySelector('.debt-btn').addEventListener('click', async () => {
+      card.querySelector('.debt-btn').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
         d.total -= payAmount;
@@ -1191,7 +1192,7 @@ async function renderDebts() {
 
         await loadMonthData();
         await renderDebts();
-      });
+      };
 
       payContainer.appendChild(card);
     }
@@ -1221,11 +1222,11 @@ function setupDebtTxModal() {
   const btnCancel = document.getElementById('btn-cancel-debt-tx');
   const form = document.getElementById('form-debt-tx');
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const id = parseInt(document.getElementById('debt-tx-id').value, 10);
@@ -1267,10 +1268,10 @@ function setupDebtTxModal() {
     modal.classList.add('hidden');
     await loadMonthData();
     await renderDebts();
-  });
+  };
 }
 
-// 16. Investice: Investown (Oddělený vklad vs. zisk) & Slitky
+// 16. Investice, Investown (Vklad, Prodej, Výnos) & Slitky
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -1280,14 +1281,13 @@ async function renderInvestments() {
   let totalInvested = 0;
   let totalCurrent = 0;
 
-  // Načtení dat specificky pro Investown
   let itownRecord = await dbGet('settings', 'itown_data');
   if (!itownRecord) {
     itownRecord = {
       key: 'itown_data',
-      invested: 718116, // Vložená jistina v haléřích (10 624 - 3 443)
-      profit: 344302,   // Čistý zisk v haléřích
-      free: 28564       // Volné peníze
+      invested: 718116, // Vložená jistina v haléřích (10 624 - 3 443)[span_0](start_span)[span_0](end_span)
+      profit: 344302,   // Čistý zisk v haléřích[span_1](start_span)[span_1](end_span)
+      free: 28564       // Volné peníze[span_2](start_span)[span_2](end_span)
     };
     await dbSet('settings', itownRecord);
   }
@@ -1301,7 +1301,6 @@ async function renderInvestments() {
   totalInvested += itownRecord.invested;
   totalCurrent += itownTotal;
 
-  // Ostatní platformy
   investments.forEach(inv => {
     totalInvested += inv.invested;
     totalCurrent += inv.current;
@@ -1334,15 +1333,14 @@ async function renderInvestments() {
       </div>
     `;
 
-    card.querySelector('.btn-del-reading').addEventListener('click', async () => {
+    card.querySelector('.btn-del-reading').onclick = async () => {
       await dbDelete('investments', inv.id);
       await renderInvestments();
-    });
+    };
 
     container.appendChild(card);
   });
 
-  // Zlaté slitky
   await renderGoldBars(goldBars);
   goldBars.forEach(g => {
     totalInvested += g.bought;
@@ -1388,63 +1386,124 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// LOGIKA PRO ODDĚLENÍ VKLADU A ZISKU NA INVESTOWNU
+// INVESTOWN: VKLAD 500 KČ, PRODEJ/VÝBĚR A VÝNOS
 function setupInvestownSpecifics() {
-  // 1. Tlačítko: +500 Kč Vklad (Zvýší vloženou jistinu, zisk nemění, odečte z účtu)
-  document.getElementById('btn-itown-deposit-500').addEventListener('click', async () => {
-    let itownRecord = await dbGet('settings', 'itown_data');
-    if (!itownRecord) return;
+  const btnDep = document.getElementById('btn-itown-deposit-500');
+  const btnSell = document.getElementById('btn-itown-sell');
+  const btnYield = document.getElementById('btn-itown-add-yield');
 
-    itownRecord.invested += 50000; // +500 Kč
-    await dbSet('settings', itownRecord);
+  // 1. Vklad 500 Kč
+  if (btnDep) {
+    btnDep.onclick = async () => {
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) {
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302, free: 28564 };
+      }
 
-    // Záznam odchozí platby z bankovního účtu
-    const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-    await dbAdd('entries', {
-      monthYear: monthKey,
-      title: 'Investown vklad (přírůstek jistiny)',
-      amount: 50000,
-      category: 'Investice',
-      day: new Date().getDate(),
-      wallet: 'bank',
-      isIncome: false,
-      paid: true
-    });
+      itownRecord.invested += 50000;
+      await dbSet('settings', itownRecord);
 
-    alert('500 Kč bylo úspěšně připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
-    await loadMonthData();
-    await renderInvestments();
-  });
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: 'Investown vklad (přírůstek jistiny)',
+        amount: 50000,
+        category: 'Investice',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: false,
+        paid: true
+      });
 
-  // 2. Tlačítko: Zadat výnos / úrok (Navýší čistý zisk a portfolio, nemění vklad)
+      alert('500 Kč bylo úspěšně připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
+      await loadMonthData();
+      await renderInvestments();
+    };
+  }
+
+  // 2. Prodej / Výběr z Investownu
+  const modalSell = document.getElementById('modal-itown-sell');
+  const formSell = document.getElementById('form-itown-sell');
+  const btnCancelSell = document.getElementById('btn-cancel-itown-sell');
+
+  if (btnSell) {
+    btnSell.onclick = () => {
+      formSell.reset();
+      modalSell.classList.remove('hidden');
+    };
+  }
+
+  if (btnCancelSell) {
+    btnCancelSell.onclick = () => modalSell.classList.add('hidden');
+  }
+
+  if (formSell) {
+    formSell.onsubmit = async (e) => {
+      e.preventDefault();
+      const sellAmountCzk = parseFloat(document.getElementById('itown-sell-amount').value);
+      if (isNaN(sellAmountCzk) || sellAmountCzk <= 0) return;
+
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) return;
+
+      const sellCents = Money.toCents(sellAmountCzk);
+      itownRecord.invested = Math.max(0, itownRecord.invested - sellCents);
+      await dbSet('settings', itownRecord);
+
+      // Vrácení peněz na bankovní účet
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: `Investown prodej/výběr (+${sellAmountCzk} Kč)`,
+        amount: sellCents,
+        category: 'Investice',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: true,
+        paid: true
+      });
+
+      modalSell.classList.add('hidden');
+      alert(`Prodej v hodnotě ${sellAmountCzk} Kč proběhl. Peníze byly připsány na bankovní účet.`);
+      await loadMonthData();
+      await renderInvestments();
+    };
+  }
+
+  // 3. Připsat výnos / úrok
   const modalYield = document.getElementById('modal-itown-yield');
   const formYield = document.getElementById('form-itown-yield');
+  const btnCancelYield = document.getElementById('btn-cancel-itown-yield');
 
-  document.getElementById('btn-itown-add-yield').addEventListener('click', () => {
-    formYield.reset();
-    modalYield.classList.remove('hidden');
-  });
+  if (btnYield) {
+    btnYield.onclick = () => {
+      formYield.reset();
+      modalYield.classList.remove('hidden');
+    };
+  }
 
-  document.getElementById('btn-cancel-itown-yield').addEventListener('click', () => {
-    modalYield.classList.add('hidden');
-  });
+  if (btnCancelYield) {
+    btnCancelYield.onclick = () => modalYield.classList.add('hidden');
+  }
 
-  formYield.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const yieldAmountCzk = parseFloat(document.getElementById('itown-yield-amount').value);
-    if (isNaN(yieldAmountCzk) || yieldAmountCzk <= 0) return;
+  if (formYield) {
+    formYield.onsubmit = async (e) => {
+      e.preventDefault();
+      const yieldAmountCzk = parseFloat(document.getElementById('itown-yield-amount').value);
+      if (isNaN(yieldAmountCzk) || yieldAmountCzk <= 0) return;
 
-    let itownRecord = await dbGet('settings', 'itown_data');
-    if (!itownRecord) return;
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) return;
 
-    const yieldCents = Money.toCents(yieldAmountCzk);
-    itownRecord.profit += yieldCents; // Přičteme k čistému zisku
-    await dbSet('settings', itownRecord);
+      const yieldCents = Money.toCents(yieldAmountCzk);
+      itownRecord.profit += yieldCents;
+      await dbSet('settings', itownRecord);
 
-    modalYield.classList.add('hidden');
-    alert(`Výnos +${yieldAmountCzk} Kč byl připsán k tvému celkovému zisku.`);
-    await renderInvestments();
-  });
+      modalYield.classList.add('hidden');
+      alert(`Výnos +${yieldAmountCzk} Kč byl připsán k tvému celkovému zisku.`);
+      await renderInvestments();
+    };
+  }
 }
 
 async function renderGoldBars(goldBars) {
@@ -1473,10 +1532,10 @@ async function renderGoldBars(goldBars) {
       </div>
     `;
 
-    row.querySelector('.btn-del-reading').addEventListener('click', async () => {
+    row.querySelector('.btn-del-reading').onclick = async () => {
       await dbDelete('gold_bars', gb.id);
       await renderInvestments();
-    });
+    };
 
     container.appendChild(row);
   });
@@ -1492,16 +1551,16 @@ function setupGoldModal() {
   const btnCancel = document.getElementById('btn-cancel-gold');
   const form = document.getElementById('form-gold');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('gold-name').value.trim();
@@ -1520,10 +1579,9 @@ function setupGoldModal() {
 
     modal.classList.add('hidden');
     await renderInvestments();
-  });
+  };
 }
 
-// KŘIVKA INVESTIC: ODDĚLENÁ VLOŽENÁ JISTINA VS. REÁLNÁ HODNOTA
 async function drawInvestmentTrendChart(investedCents, currentCents) {
   const canvas = document.getElementById('invest-trend-chart');
   if (!canvas) return;
@@ -1548,10 +1606,9 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   const curVal = currentCents / 100;
   const invVal = investedCents / 100;
 
-  // Simulace přírůstků v čase: vložená jistina roste skokově o vklady, celková hodnota roste plynule o výnosy
   const points = months.map((m, idx) => {
     const factor = (idx + 1) / months.length;
-    const invPoint = Math.round(invVal - (months.length - 1 - idx) * 500); // Každý měsíc o 500 méně v historii
+    const invPoint = Math.round(invVal - (months.length - 1 - idx) * 500);
     return {
       label: m,
       inv: Math.max(1000, invPoint),
@@ -1565,7 +1622,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   const chartW = width - paddingX * 2;
   const chartH = height - paddingY * 2;
 
-  // 1. Šedá čára: Pouze vložené peníze (přírůstky)
   ctx.strokeStyle = '#94a3b8';
   ctx.setLineDash([4, 4]);
   ctx.lineWidth = 2;
@@ -1579,7 +1635,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // 2. Modrá křivka: Celková hodnota (včetně čistého zisku)
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1593,7 +1648,6 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   });
   ctx.stroke();
 
-  // Plocha zisku mezi vloženou jistinou a hodnotou
   ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
@@ -1748,16 +1802,16 @@ function setupInvestmentModal() {
   const btnCancel = document.getElementById('btn-cancel-investment');
   const form = document.getElementById('form-investment');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('inv-name').value.trim();
@@ -1776,7 +1830,7 @@ function setupInvestmentModal() {
 
     modal.classList.add('hidden');
     await renderInvestments();
-  });
+  };
 }
 
 // 17. Energie
@@ -1860,10 +1914,10 @@ async function renderEnergy() {
       </div>
     `;
 
-    card.querySelector('.btn-delete-appliance').addEventListener('click', async () => {
+    card.querySelector('.btn-delete-appliance').onclick = async () => {
       await dbDelete('energy', app.id);
       await renderEnergy();
-    });
+    };
 
     container.appendChild(card);
   });
@@ -1979,15 +2033,15 @@ function setupEnergySimulator() {
     }
   }
 
-  kwhInput.addEventListener('input', () => {
+  kwhInput.oninput = () => {
     kwhRange.value = kwhInput.value;
     updateSimulation();
-  });
+  };
 
-  kwhRange.addEventListener('input', () => {
+  kwhRange.oninput = () => {
     kwhInput.value = kwhRange.value;
     updateSimulation();
-  });
+  };
 
   updateSimulation();
 }
@@ -2037,10 +2091,10 @@ async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
       </div>
     `;
 
-    row.querySelector('.btn-del-reading').addEventListener('click', async () => {
+    row.querySelector('.btn-del-reading').onclick = async () => {
       await dbDelete('meter_readings', r.id);
       await renderEnergy();
-    });
+    };
 
     container.appendChild(row);
   });
@@ -2141,10 +2195,10 @@ async function drawEnergyConsumptionChart() {
     ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#94a3b8';
+    ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(c.pt.val.toFixed(1), c.x, c.y - 8);
+    ctx.fillText(`${c.pt.val.toFixed(1)}`, c.x, c.y - 8);
 
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(c.pt.date, c.x, height - 8);
@@ -2157,17 +2211,17 @@ function setupMeterReadingModal() {
   const btnCancel = document.getElementById('btn-cancel-meter');
   const form = document.getElementById('form-meter');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     document.getElementById('meter-date').value = new Date().toISOString().slice(0, 10);
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const date = document.getElementById('meter-date').value;
@@ -2184,7 +2238,7 @@ function setupMeterReadingModal() {
 
     modal.classList.add('hidden');
     await renderEnergy();
-  });
+  };
 }
 
 function setupApplianceModal() {
@@ -2193,16 +2247,16 @@ function setupApplianceModal() {
   const btnCancel = document.getElementById('btn-cancel-appliance');
   const form = document.getElementById('form-appliance');
 
-  btnOpen.addEventListener('click', () => {
+  btnOpen.onclick = () => {
     form.reset();
     modal.classList.remove('hidden');
-  });
+  };
 
-  btnCancel.addEventListener('click', () => {
+  btnCancel.onclick = () => {
     modal.classList.add('hidden');
-  });
+  };
 
-  form.addEventListener('submit', async (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('appliance-name').value.trim();
@@ -2223,7 +2277,7 @@ function setupApplianceModal() {
 
     modal.classList.add('hidden');
     await renderEnergy();
-  });
+  };
 }
 
 // 18. Nastavení & Air Bank CSV Parser
@@ -2248,112 +2302,136 @@ async function renderSettings() {
 }
 
 function setupSettingsAndBackup() {
-  document.getElementById('btn-save-cloud-sync').addEventListener('click', async () => {
-    const token = document.getElementById('set-gh-token').value.trim();
-    if (!token) return alert('Zadej prosím platný token.');
-
-    await dbSet('settings', { key: CLOUD_CONFIG.tokenKey, value: token });
-    localStorage.setItem(CLOUD_CONFIG.tokenKey, token);
-
-    const status = document.getElementById('cloud-sync-status');
-    status.textContent = 'Ověřuji zrcadlo na GitHubu...';
-    status.style.color = 'var(--accent-yellow)';
-
-    await autoSyncToCloud();
-    status.textContent = '✅ Ochrana aktivována! Data se automaticky zrcadlí.';
-    status.style.color = 'var(--accent-green)';
-  });
-
-  document.getElementById('btn-force-cloud-sync').addEventListener('click', async () => {
-    await autoSyncToCloud();
-    alert('Zrcadlení do cloudu dokončeno!');
-  });
-
-  document.getElementById('btn-save-settings').addEventListener('click', async () => {
-    const bankCap = parseFloat(document.getElementById('set-bank-capital').value);
-    const cashCap = parseFloat(document.getElementById('set-cash-capital').value);
-    const payday = parseInt(document.getElementById('set-payday').value, 10);
-    const kwh = parseFloat(document.getElementById('set-kwh-price').value);
-
-    if (!isNaN(bankCap)) await dbSet('settings', { key: 'bank_capital', value: Money.toCents(bankCap) });
-    if (!isNaN(cashCap)) await dbSet('settings', { key: 'cash_capital', value: Money.toCents(cashCap) });
-    if (!isNaN(payday)) await dbSet('settings', { key: 'payday', value: payday });
-    if (!isNaN(kwh)) await dbSet('settings', { key: 'kwh_price', value: Money.toCents(kwh) });
-
-    alert('Parametry uloženy!');
-    await loadMonthData();
-  });
-
-  document.getElementById('btn-export-json').addEventListener('click', async () => {
-    const backup = await createFullBackup();
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dispecink-zaloha-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  document.getElementById('btn-copy-json').addEventListener('click', async () => {
-    const backup = await createFullBackup();
-    await navigator.clipboard.writeText(JSON.stringify(backup, null, 2));
-    alert('Záloha zkopírována do schránky!');
-  });
-
+  const btnSaveSync = document.getElementById('btn-save-cloud-sync');
+  const btnForceSync = document.getElementById('btn-force-cloud-sync');
+  const btnSaveSet = document.getElementById('btn-save-settings');
+  const btnExport = document.getElementById('btn-export-json');
+  const btnCopy = document.getElementById('btn-copy-json');
+  const btnTriggerRestore = document.getElementById('btn-trigger-restore');
   const fileRestoreInput = document.getElementById('restore-file-input');
-  document.getElementById('btn-trigger-restore').addEventListener('click', () => fileRestoreInput.click());
-
-  fileRestoreInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const backupData = JSON.parse(event.target.result);
-        await restoreFromBackup(backupData);
-        alert('Data byla úspěšně obnovena!');
-        window.location.reload();
-      } catch (err) {
-        alert('Chyba: Neplatný formát souboru.');
-      }
-    };
-    reader.readAsText(file);
-  });
-
+  const btnTriggerCsv = document.getElementById('btn-trigger-csv');
   const csvFileInput = document.getElementById('csv-file-input');
-  document.getElementById('btn-trigger-csv').addEventListener('click', () => csvFileInput.click());
+  const btnInstall = document.getElementById('btn-install-pwa');
 
-  csvFileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  if (btnSaveSync) {
+    btnSaveSync.onclick = async () => {
+      const token = document.getElementById('set-gh-token').value.trim();
+      if (!token) return alert('Zadej prosím platný token.');
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target.result;
-      const count = await parseAndImportAirBankCsv(text);
-      const status = document.getElementById('csv-import-status');
-      status.textContent = `Zpracováno a automaticky roztříděno ${count} plateb z Air Bank!`;
+      await dbSet('settings', { key: CLOUD_CONFIG.tokenKey, value: token });
+      localStorage.setItem(CLOUD_CONFIG.tokenKey, token);
+
+      const status = document.getElementById('cloud-sync-status');
+      status.textContent = 'Ověřuji zrcadlo na GitHubu...';
+      status.style.color = 'var(--accent-yellow)';
+
+      await autoSyncToCloud();
+      status.textContent = '✅ Ochrana aktivována! Data se automaticky zrcadlí.';
       status.style.color = 'var(--accent-green)';
+    };
+  }
+
+  if (btnForceSync) {
+    btnForceSync.onclick = async () => {
+      await autoSyncToCloud();
+      alert('Zrcadlení do cloudu dokončeno!');
+    };
+  }
+
+  if (btnSaveSet) {
+    btnSaveSet.onclick = async () => {
+      const bankCap = parseFloat(document.getElementById('set-bank-capital').value);
+      const cashCap = parseFloat(document.getElementById('set-cash-capital').value);
+      const payday = parseInt(document.getElementById('set-payday').value, 10);
+      const kwh = parseFloat(document.getElementById('set-kwh-price').value);
+
+      if (!isNaN(bankCap)) await dbSet('settings', { key: 'bank_capital', value: Money.toCents(bankCap) });
+      if (!isNaN(cashCap)) await dbSet('settings', { key: 'cash_capital', value: Money.toCents(cashCap) });
+      if (!isNaN(payday)) await dbSet('settings', { key: 'payday', value: payday });
+      if (!isNaN(kwh)) await dbSet('settings', { key: 'kwh_price', value: Money.toCents(kwh) });
+
+      alert('Parametry uloženy!');
       await loadMonthData();
     };
-    reader.readAsText(file, 'windows-1250');
-  });
+  }
 
-  const btnInstall = document.getElementById('btn-install-pwa');
-  btnInstall.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        deferredPrompt = null;
-        btnInstall.style.display = 'none';
+  if (btnExport) {
+    btnExport.onclick = async () => {
+      const backup = await createFullBackup();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dispecink-zaloha-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+  }
+
+  if (btnCopy) {
+    btnCopy.onclick = async () => {
+      const backup = await createFullBackup();
+      await navigator.clipboard.writeText(JSON.stringify(backup, null, 2));
+      alert('Záloha zkopírována do schránky!');
+    };
+  }
+
+  if (btnTriggerRestore && fileRestoreInput) {
+    btnTriggerRestore.onclick = () => fileRestoreInput.click();
+
+    fileRestoreInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const backupData = JSON.parse(event.target.result);
+          await restoreFromBackup(backupData);
+          alert('Data byla úspěšně obnovena!');
+          window.location.reload();
+        } catch (err) {
+          alert('Chyba: Neplatný formát souboru.');
+        }
+      };
+      reader.readAsText(file);
+    };
+  }
+
+  if (btnTriggerCsv && csvFileInput) {
+    btnTriggerCsv.onclick = () => csvFileInput.click();
+
+    csvFileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target.result;
+        const count = await parseAndImportAirBankCsv(text);
+        const status = document.getElementById('csv-import-status');
+        status.textContent = `Zpracováno a automaticky roztříděno ${count} plateb z Air Bank!`;
+        status.style.color = 'var(--accent-green)';
+        await loadMonthData();
+      };
+      reader.readAsText(file, 'windows-1250');
+    };
+  }
+
+  if (btnInstall) {
+    btnInstall.onclick = async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          deferredPrompt = null;
+          btnInstall.style.display = 'none';
+        }
+      } else {
+        alert('V nabídce prohlížeče klepni na „Přidat na plochu“.');
       }
-    } else {
-      alert('V nabídce prohlížeče klepni na „Přidat na plochu“.');
-    }
-  });
+    };
+  }
 }
 
 async function createFullBackup() {
