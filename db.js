@@ -14,7 +14,6 @@ const Money = {
 // Otevření a inicializace IndexedDB
 function initDB() {
   return new Promise((resolve, reject) => {
-    // Požadavek na trvalé úložiště proti promazání systémem
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().then(persisted => {
         console.log(`Perzistence úložiště: ${persisted ? 'Povolena' : 'Standardní'}`);
@@ -26,7 +25,7 @@ function initDB() {
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
 
-      // 1. Nastavení aplikace (výchozí kapitál, datum výplaty apod.)
+      // 1. Nastavení aplikace
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'key' });
       }
@@ -83,10 +82,10 @@ async function seedInitialData() {
 
   console.log('Inicializace výchozích dat dispečinku...');
 
-  // Výchozí kapitál 71 700 Kč (v haléřích)
-  await dbSet('settings', { key: 'initial_capital', value: 7170000 });
-  await dbSet('settings', { key: 'payday', value: 10 }); // Výplata typicky 10. v měsíci
-  await dbSet('settings', { key: 'kwh_price', value: 650 }); // Výchozí cena elektřiny 6,50 Kč/kWh (v haléřích)
+  // Výchozí kapitál upraven na 51 000 Kč (v haléřích: 5 100 000)
+  await dbSet('settings', { key: 'initial_capital', value: 5100000 });
+  await dbSet('settings', { key: 'payday', value: 10 });
+  await dbSet('settings', { key: 'kwh_price', value: 650 });
 
   // Šablony pravidelných plateb
   const templates = [
