@@ -1271,7 +1271,7 @@ function setupDebtTxModal() {
   };
 }
 
-// 16. Investice, Investown (Vklad, Prodej, Výnos) & Slitky
+// 16. Investice: Investown (Automatický přepočet zisku), Slitky & Ostatní
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -1281,26 +1281,31 @@ async function renderInvestments() {
   let totalInvested = 0;
   let totalCurrent = 0;
 
+  // 1. INVESTOWN: Vložená jistina + Zisk = Celková hodnota
   let itownRecord = await dbGet('settings', 'itown_data');
   if (!itownRecord) {
     itownRecord = {
       key: 'itown_data',
-      invested: 718116, // Vložená jistina v haléřích (10 624 - 3 443)[span_0](start_span)[span_0](end_span)
-      profit: 344302,   // Čistý zisk v haléřích[span_1](start_span)[span_1](end_span)
-      free: 28564       // Volné peníze[span_2](start_span)[span_2](end_span)
+      invested: 718116, // Vložená jistina (10 624 - 3 443)[span_1](start_span)[span_1](end_span)
+      profit: 344302,   // Čistý zisk[span_2](start_span)[span_2](end_span)
+      free: 28564       // Volné peníze[span_3](start_span)[span_3](end_span)
     };
     await dbSet('settings', itownRecord);
   }
 
   const itownTotal = itownRecord.invested + itownRecord.profit;
+  const itownRoi = itownRecord.invested > 0 ? ((itownRecord.profit / itownRecord.invested) * 100).toFixed(1) : 0;
+
   document.getElementById('itown-disp-total').textContent = Money.toCzk(itownTotal);
   document.getElementById('itown-disp-invested').textContent = Money.toCzk(itownRecord.invested);
   document.getElementById('itown-disp-profit').textContent = `+ ${Money.toCzk(itownRecord.profit)}`;
   document.getElementById('itown-disp-free').textContent = Money.toCzk(itownRecord.free);
+  document.getElementById('itown-disp-roi').textContent = `${itownRoi} % zisk celkem`;
 
   totalInvested += itownRecord.invested;
   totalCurrent += itownTotal;
 
+  // 2. Ostatní platformy
   investments.forEach(inv => {
     totalInvested += inv.invested;
     totalCurrent += inv.current;
@@ -1341,6 +1346,7 @@ async function renderInvestments() {
     container.appendChild(card);
   });
 
+  // 3. Zlaté slitky
   await renderGoldBars(goldBars);
   goldBars.forEach(g => {
     totalInvested += g.bought;
@@ -1386,11 +1392,57 @@ async function renderInvestments() {
   document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
 }
 
-// INVESTOWN: VKLAD 500 KČ, PRODEJ/VÝBĚR A VÝNOS
+// LOGIKA INVESTOWNU: AUTOMATICKÝ PŘEPOČET PŘI ZADÁNÍ ZISKU
 function setupInvestownSpecifics() {
   const btnDep = document.getElementById('btn-itown-deposit-500');
   const btnSell = document.getElementById('btn-itown-sell');
-  const btnYield = document.getElementById('btn-itown-add-yield');
+  const btnSyncProfit = document.getElementById('btn-itown-quick-sync-profit');
+  const btnEditPill = document.getElementById('btn-itown-edit-profit');
+
+  // Modální okno pro přímé zadání zisku
+  const modalProfit = document.getElementById('modal-itown-profit-direct');
+  const formProfit = document.getElementById('form-itown-profit-direct');
+  const inputProfit = document.getElementById('itown-direct-profit-input');
+  const btnCancelProfit = document.getElementById('btn-cancel-itown-profit-direct');
+
+  function openDirectProfitModal() {
+    dbGet('settings', 'itown_data').then(rec => {
+      if (rec && rec.profit) {
+        inputProfit.value = (rec.profit / 100).toFixed(2);
+      }
+      modalProfit.classList.remove('hidden');
+    });
+  }
+
+  if (btnSyncProfit) btnSyncProfit.onclick = openDirectProfitModal;
+  if (btnEditPill) btnEditPill.onclick = openDirectProfitModal;
+
+  if (btnCancelProfit) {
+    btnCancelProfit.onclick = () => modalProfit.classList.add('hidden');
+  }
+
+  // ULOŽENÍ NOVÉHO ZISKU S AUTOMATICKÝM PŘEPOČTEM
+  if (formProfit) {
+    formProfit.onsubmit = async (e) => {
+      e.preventDefault();
+      const newProfitCzk = parseFloat(inputProfit.value);
+      if (isNaN(newProfitCzk) || newProfitCzk < 0) return;
+
+      let itownRecord = await dbGet('settings', 'itown_data');
+      if (!itownRecord) {
+        itownRecord = { key: 'itown_data', invested: 718116, profit: 344302, free: 28564 };
+      }
+
+      // Nastavíme nový celkový zisk
+      itownRecord.profit = Money.toCents(newProfitCzk);
+      await dbSet('settings', itownRecord);
+
+      modalProfit.classList.add('hidden');
+      alert(`Celkový zisk byl aktualizován na ${newProfitCzk.toLocaleString('cs-CZ')} Kč. Celková hodnota portfolia a graf se samy přepočítaly.`);
+      
+      await renderInvestments();
+    };
+  }
 
   // 1. Vklad 500 Kč
   if (btnDep) {
@@ -1415,7 +1467,7 @@ function setupInvestownSpecifics() {
         paid: true
       });
 
-      alert('500 Kč bylo úspěšně připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
+      alert('500 Kč bylo připsáno k vložené jistině Investownu a odečteno z bankovního účtu.');
       await loadMonthData();
       await renderInvestments();
     };
@@ -1450,7 +1502,6 @@ function setupInvestownSpecifics() {
       itownRecord.invested = Math.max(0, itownRecord.invested - sellCents);
       await dbSet('settings', itownRecord);
 
-      // Vrácení peněz na bankovní účet
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       await dbAdd('entries', {
         monthYear: monthKey,
@@ -1466,41 +1517,6 @@ function setupInvestownSpecifics() {
       modalSell.classList.add('hidden');
       alert(`Prodej v hodnotě ${sellAmountCzk} Kč proběhl. Peníze byly připsány na bankovní účet.`);
       await loadMonthData();
-      await renderInvestments();
-    };
-  }
-
-  // 3. Připsat výnos / úrok
-  const modalYield = document.getElementById('modal-itown-yield');
-  const formYield = document.getElementById('form-itown-yield');
-  const btnCancelYield = document.getElementById('btn-cancel-itown-yield');
-
-  if (btnYield) {
-    btnYield.onclick = () => {
-      formYield.reset();
-      modalYield.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancelYield) {
-    btnCancelYield.onclick = () => modalYield.classList.add('hidden');
-  }
-
-  if (formYield) {
-    formYield.onsubmit = async (e) => {
-      e.preventDefault();
-      const yieldAmountCzk = parseFloat(document.getElementById('itown-yield-amount').value);
-      if (isNaN(yieldAmountCzk) || yieldAmountCzk <= 0) return;
-
-      let itownRecord = await dbGet('settings', 'itown_data');
-      if (!itownRecord) return;
-
-      const yieldCents = Money.toCents(yieldAmountCzk);
-      itownRecord.profit += yieldCents;
-      await dbSet('settings', itownRecord);
-
-      modalYield.classList.add('hidden');
-      alert(`Výnos +${yieldAmountCzk} Kč byl připsán k tvému celkovému zisku.`);
       await renderInvestments();
     };
   }
@@ -1582,6 +1598,7 @@ function setupGoldModal() {
   };
 }
 
+// KŘIVKA INVESTIC: ODDĚLENÁ VLOŽENÁ JISTINA VS. REÁLNÁ HODNOTA
 async function drawInvestmentTrendChart(investedCents, currentCents) {
   const canvas = document.getElementById('invest-trend-chart');
   if (!canvas) return;
