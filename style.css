@@ -158,7 +158,7 @@ body {
 .metric-box.red .m-val { color: var(--accent-red); }
 .metric-box.yellow .m-val { color: var(--accent-yellow); }
 
-/* Záložka Platby & Cíle */
+/* Společné prvky pro formuláře a lišty */
 .action-bar {
   margin-bottom: 14px;
 }
@@ -636,6 +636,38 @@ body {
 
 .btn-delete-appliance:hover {
   color: var(--accent-red);
+}
+
+/* Modul Nastavení & Zálohování */
+.settings-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.settings-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.settings-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.settings-btns-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.import-status {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 /* Modální okno */
