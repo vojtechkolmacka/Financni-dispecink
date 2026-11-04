@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 let dbInstance = null;
 
@@ -49,7 +49,7 @@ function initDB() {
           await seedInitialData();
         }
       } catch (e) {
-        console.warn('Init seed error:', e);
+        console.warn('Init error:', e);
       }
       resolve(dbInstance);
     };
@@ -64,7 +64,7 @@ function initDB() {
 async function seedInitialData() {
   const settings = await dbGet('settings', 'initial_capital');
   if (settings) {
-    await ensureUpdatedTemplates();
+    await ensureUpdatedLoanData();
     return;
   }
 
@@ -110,12 +110,68 @@ async function seedInitialData() {
   ];
   for (const g of goals) await dbAddInternal('goals', g);
 
+  // Detailní rozpis závazků a pohledávek
   const debts = [
-    { type: 'payable', name: 'Provident', total: 7732733, monthly: 150000, day: 10 },
-    { type: 'payable', name: 'AvaFin / Crediton', total: 1952400, monthly: 110000, day: 10 },
-    { type: 'receivable', name: 'KOV', total: 665000, note: 'Půjčky, elektřina, drogerie, bazén' },
-    { type: 'receivable', name: 'JIŘÍ', total: 75000, note: 'Elektřina, drogerie, bazén' },
-    { type: 'receivable', name: 'MAGDA', total: 270000, note: 'Elektřina, drogerie, půjčky, bazén' }
+    {
+      type: 'payable',
+      name: 'Provident',
+      total: 7732733, // 77 327,33 Kč
+      monthly: 150000, // 1 500 Kč
+      day: 10,
+      contractNumber: 'PRV-2024-88',
+      principalLeft: 5800000, // Zbývající jistina
+      feeLeft: 1932733, // Úroky a poplatky
+      paidSoFar: 2250000, // Již zaplaceno
+      items: [
+        { label: 'Půjčka / Jistina k doplacení', amount: 5800000 },
+        { label: 'Poplatky a úrok', amount: 1932733 }
+      ]
+    },
+    {
+      type: 'payable',
+      name: 'AvaFin / Crediton',
+      total: 1952400, // 19 524,00 Kč
+      monthly: 110000, // 1 100 Kč
+      day: 10,
+      contractNumber: 'CRD-55019',
+      principalLeft: 1500000,
+      feeLeft: 452400,
+      paidSoFar: 880000,
+      items: [
+        { label: 'Půjčka / Jistina k doplacení', amount: 1500000 },
+        { label: 'Poplatky za správu a úrok', amount: 452400 }
+      ]
+    },
+    {
+      type: 'receivable',
+      name: 'KOV',
+      total: 665000,
+      items: [
+        { id: 'kov_1', label: 'Půjčky', amount: 340000 },
+        { id: 'kov_2', label: 'Elektřina a drogerie', amount: 275000 },
+        { id: 'kov_3', label: 'Fólie na bazén', amount: 50000 }
+      ]
+    },
+    {
+      type: 'receivable',
+      name: 'JIŘÍ',
+      total: 75000,
+      items: [
+        { id: 'jiri_1', label: 'Půjčky', amount: 0 },
+        { id: 'jiri_2', label: 'Elektřina a drogerie', amount: 25000, note: 'Zaplaceno 1 250 Kč (2026-10-13)' },
+        { id: 'jiri_3', label: 'Fólie na bazén', amount: 50000 }
+      ]
+    },
+    {
+      type: 'receivable',
+      name: 'MAGDA',
+      total: 270000,
+      items: [
+        { id: 'magda_1', label: 'Půjčky', amount: 70000 },
+        { id: 'magda_2', label: 'Elektřina a drogerie', amount: 150000 },
+        { id: 'magda_3', label: 'Fólie na bazén', amount: 50000 }
+      ]
+    }
   ];
   for (const d of debts) await dbAddInternal('debts', d);
 
@@ -127,53 +183,32 @@ async function seedInitialData() {
   for (const m of meterReadings) await dbAddInternal('meter_readings', m);
 }
 
-async function ensureUpdatedTemplates() {
-  const templates = await dbGetAll('templates');
+// Zajištění podrobných položek u existujících záznamů půjček
+async function ensureUpdatedLoanData() {
+  const debts = await dbGetAll('debts');
   let changed = false;
 
-  const pvzp = templates.find(t => t.title && t.title.includes('PVZP'));
-  if (pvzp) {
-    await dbDelete('templates', pvzp.id);
-    changed = true;
-  }
-
-  if (!templates.some(t => t.title && t.title.includes('Pojištění nemovitosti'))) {
-    await dbAddInternal('templates', {
-      title: 'Pojištění nemovitosti',
-      amount: 155900,
-      category: 'Bydlení',
-      day: 20,
-      frequency: 'semi-annual',
-      dueMonths: [5, 11],
-      active: true
-    });
-    changed = true;
-  }
-
-  if (!templates.some(t => t.title && t.title.includes('Povinné ručení'))) {
-    await dbAddInternal('templates', {
-      title: 'Povinné ručení',
-      amount: 65100,
-      category: 'Doprava & Benzín',
-      day: 15,
-      frequency: 'annual',
-      dueMonths: [7],
-      active: true
-    });
-    changed = true;
-  }
-
-  if (!templates.some(t => t.title && t.title.includes('Svoz odpadu'))) {
-    await dbAddInternal('templates', {
-      title: 'Svoz odpadu',
-      amount: 82100,
-      category: 'Bydlení',
-      day: 15,
-      frequency: 'annual',
-      dueMonths: [1],
-      active: true
-    });
-    changed = true;
+  for (const d of debts) {
+    if (d.type === 'payable' && (!d.items || d.items.length === 0)) {
+      if (d.name.includes('Provident')) {
+        d.principalLeft = Math.round(d.total * 0.75);
+        d.feeLeft = d.total - d.principalLeft;
+        d.items = [
+          { label: 'Půjčka / Jistina k doplacení', amount: d.principalLeft },
+          { label: 'Poplatky a úrok', amount: d.feeLeft }
+        ];
+        changed = true;
+      } else if (d.name.includes('AvaFin') || d.name.includes('Crediton')) {
+        d.principalLeft = Math.round(d.total * 0.77);
+        d.feeLeft = d.total - d.principalLeft;
+        d.items = [
+          { label: 'Půjčka / Jistina k doplacení', amount: d.principalLeft },
+          { label: 'Poplatky za správu a úrok', amount: d.feeLeft }
+        ];
+        changed = true;
+      }
+      await dbSetInternal('debts', d);
+    }
   }
 
   if (changed) triggerAutoCloudSync();
