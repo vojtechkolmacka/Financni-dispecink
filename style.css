@@ -356,6 +356,307 @@ body {
   font-size: 0.85rem;
 }
 
+/* Modul Energie & Simulátor spotřeby */
+.energy-overview-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.energy-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.energy-row strong { color: var(--text-main); }
+
+.energy-row.highlight {
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.energy-row.highlight strong {
+  color: var(--accent-yellow);
+  font-size: 1.05rem;
+}
+
+.energy-row.balance {
+  border-top: 1px dashed var(--border-color);
+  padding-top: 10px;
+  font-weight: 700;
+}
+
+.energy-calc-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calc-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calc-input-row input {
+  flex: 1;
+}
+
+.unit-tag {
+  font-weight: 700;
+  color: var(--accent-blue);
+  background: var(--bg-card-sub);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.kwh-slider {
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--accent-blue);
+}
+
+.calc-results-box {
+  background: var(--bg-card-sub);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calc-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.calc-result-item .res-lbl {
+  color: var(--text-muted);
+}
+
+.calc-result-item .res-val {
+  font-weight: 800;
+  color: var(--accent-blue);
+  font-size: 0.95rem;
+}
+
+.chart-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.chart-header h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.canvas-wrapper {
+  width: 100%;
+  position: relative;
+}
+
+#energy-chart {
+  width: 100%;
+  height: 180px;
+  background: var(--bg-card-sub);
+  border-radius: 10px;
+  display: block;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.meter-history-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meter-history-item {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.m-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-date {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.m-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.m-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.m-kwh {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--accent-blue);
+}
+
+.m-delta {
+  font-size: 0.75rem;
+  color: var(--accent-yellow);
+  background: var(--bg-card-sub);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-del-reading {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-del-reading:hover { color: var(--accent-red); }
+
+.appliances-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appliance-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appliance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.appliance-name {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.appliance-specs {
+  font-size: 0.75rem;
+  color: var(--accent-blue);
+  background: var(--bg-card-sub);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.appliance-costs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: var(--bg-card-sub);
+  padding: 8px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.cost-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cost-col .c-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.cost-col .c-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.appliance-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.warranty-badge {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.warranty-badge.ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.warranty-badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+}
+
+.warranty-badge.expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.btn-delete-appliance {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-delete-appliance:hover { color: var(--accent-red); }
+
 /* Společná tlačítka */
 .action-bar {
   margin-bottom: 14px;
@@ -690,249 +991,6 @@ body {
   color: var(--accent-blue);
   border-color: rgba(56, 189, 248, 0.3);
 }
-
-/* Modul Energie */
-.energy-overview-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.energy-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.energy-row strong { color: var(--text-main); }
-
-.energy-row.highlight {
-  border-top: 1px solid var(--border-color);
-  padding-top: 10px;
-  color: var(--text-main);
-  font-weight: 600;
-}
-
-.energy-row.highlight strong {
-  color: var(--accent-yellow);
-  font-size: 1.05rem;
-}
-
-.energy-row.balance {
-  border-top: 1px dashed var(--border-color);
-  padding-top: 10px;
-  font-weight: 700;
-}
-
-.chart-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 14px;
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.chart-header h3 {
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.canvas-wrapper {
-  width: 100%;
-  position: relative;
-}
-
-#energy-chart {
-  width: 100%;
-  height: 180px;
-  background: var(--bg-card-sub);
-  border-radius: 10px;
-  display: block;
-}
-
-.chart-legend {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 8px;
-}
-
-.meter-history-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.meter-history-item {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.m-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.m-date {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.m-note {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.m-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.m-kwh {
-  font-weight: 800;
-  font-size: 1rem;
-  color: var(--accent-blue);
-}
-
-.m-delta {
-  font-size: 0.75rem;
-  color: var(--accent-yellow);
-  background: var(--bg-card-sub);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.btn-del-reading {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.btn-del-reading:hover { color: var(--accent-red); }
-
-.appliances-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.appliance-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.appliance-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.appliance-name {
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.appliance-specs {
-  font-size: 0.75rem;
-  color: var(--accent-blue);
-  background: var(--bg-card-sub);
-  padding: 2px 8px;
-  border-radius: 6px;
-}
-
-.appliance-costs-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  background: var(--bg-card-sub);
-  padding: 8px;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.cost-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cost-col .c-lbl {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-}
-
-.cost-col .c-val {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.appliance-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.warranty-badge {
-  font-size: 0.7rem;
-  padding: 2px 7px;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.warranty-badge.ok {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--accent-green);
-}
-
-.warranty-badge.warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent-yellow);
-}
-
-.warranty-badge.expired {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--accent-red);
-}
-
-.btn-delete-appliance {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.btn-delete-appliance:hover { color: var(--accent-red); }
 
 /* Modul Nastavení */
 .settings-card {
