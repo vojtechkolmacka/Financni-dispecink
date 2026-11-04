@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupDebtTxModal();
     setupApplianceModal();
     setupMeterReadingModal();
+    setupInvestmentModal();
     setupSettingsAndBackup();
     await loadMonthData();
   } catch (err) {
@@ -59,6 +60,8 @@ function setupNavigation() {
         await renderGoals();
       } else if (targetTab === 'debts') {
         await renderDebts();
+      } else if (targetTab === 'invest') {
+        await renderInvestments();
       } else if (targetTab === 'energy') {
         await renderEnergy();
       } else if (targetTab === 'settings') {
@@ -206,7 +209,7 @@ function calculateSafeSpend(balance, unpaidBills, paydayDay) {
   }
 }
 
-// 5. ANALYTIKA: PREDIKCE CASHFLOW DO KONCE MĚSÍCE (CANVAS)
+// 5. Predikce cashflow do konce měsíce
 async function drawCashflowForecast(entries) {
   const canvas = document.getElementById('cashflow-forecast-chart');
   if (!canvas) return;
@@ -225,16 +228,13 @@ async function drawCashflowForecast(entries) {
   const startBalance = await getCalculatedBalance(entries);
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
 
-  // Simulujeme den po dni vývoj zůstatku
   const dailyBalances = [];
   let simBalance = startBalance;
 
   for (let day = 1; day <= daysInMonth; day++) {
-    // Odečteme neuhrazené výdaje připadající na tento den
     const dueBills = entries.filter(e => !e.isIncome && !e.paid && e.day === day);
     dueBills.forEach(b => simBalance -= b.amount);
 
-    // Přičteme případné plánované příjmy
     const dueIncomes = entries.filter(e => e.isIncome && !e.paid && e.day === day);
     dueIncomes.forEach(inc => simBalance += inc.amount);
 
@@ -247,7 +247,7 @@ async function drawCashflowForecast(entries) {
   document.getElementById('forecast-min-val').textContent = Money.toCzkInt(minBalance);
   const safetyTag = document.getElementById('forecast-safety-tag');
 
-  if (minBalance >= 1000000) { // nad 10 000 Kč
+  if (minBalance >= 1000000) {
     safetyTag.textContent = '🛡️ Rezerva bezpečná';
     safetyTag.style.color = 'var(--accent-green)';
   } else if (minBalance >= 0) {
@@ -264,7 +264,6 @@ async function drawCashflowForecast(entries) {
   const chartH = height - paddingY * 2;
   const valRange = (maxBalance - Math.min(0, minBalance)) || 1;
 
-  // Nulová linka, pokud je minBalance záporný
   if (minBalance < 0) {
     const zeroY = height - paddingY - ((0 - Math.min(0, minBalance)) / valRange) * chartH;
     ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
@@ -276,7 +275,6 @@ async function drawCashflowForecast(entries) {
     ctx.setLineDash([]);
   }
 
-  // Kreslení simulační křivky
   ctx.strokeStyle = '#38bdf8';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -292,7 +290,6 @@ async function drawCashflowForecast(entries) {
   });
   ctx.stroke();
 
-  // Vyplnění plochy
   ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
@@ -302,7 +299,6 @@ async function drawCashflowForecast(entries) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Popisky začátku, 15. dne a konce měsíce
   ctx.fillStyle = '#94a3b8';
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
@@ -311,7 +307,7 @@ async function drawCashflowForecast(entries) {
   ctx.fillText(`${daysInMonth}.`, width - paddingX, height - 8);
 }
 
-// 6. ANALYTIKA: STRUKTURA VÝDAJŮ PODLE KATEGORIÍ
+// 6. Struktura výdajů podle kategorií
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
   container.innerHTML = '';
@@ -331,10 +327,8 @@ function renderCategoryBreakdown(entries) {
     return;
   }
 
-  // Seřadíme kategorie od nejvyšší sumy
   const sortedCategories = Object.keys(catSums).sort((a, b) => catSums[b] - catSums[a]);
 
-  // Barvy pro nejčastější kategorie
   const catColors = {
     'Energie': '#f59e0b',
     'Závazky': '#ef4444',
@@ -344,7 +338,7 @@ function renderCategoryBreakdown(entries) {
     'Jídlo & Drogerie': '#10b981',
     'Zdraví': '#14b8a6',
     'Doprava & Koloběžka': '#f97316',
-    'Investice & Spoření': '#06b6d4',
+    'Investice': '#06b6d4',
     'Zvířata': '#84cc16'
   };
 
@@ -757,7 +751,129 @@ function setupDebtTxModal() {
   });
 }
 
-// 11. Modul Energie
+// 11. Modul Investice & Web výdělky
+async function renderInvestments() {
+  const investments = await dbGetAll('investments');
+  const container = document.getElementById('investments-list');
+  container.innerHTML = '';
+
+  let totalInvested = 0;
+  let totalCurrent = 0;
+
+  investments.forEach(inv => {
+    totalInvested += inv.invested;
+    totalCurrent += inv.current;
+
+    const profit = inv.current - inv.invested;
+    const percent = inv.invested > 0 ? ((profit / inv.invested) * 100).toFixed(1) : 0;
+    const profitClass = profit >= 0 ? 'positive' : 'negative';
+    const profitSign = profit >= 0 ? '+' : '';
+
+    const card = document.createElement('div');
+    card.className = 'investment-card';
+    card.innerHTML = `
+      <div class="inv-card-header">
+        <span class="inv-card-name">${inv.name}</span>
+        <span class="inv-card-profit ${profitClass}">${profitSign}${Money.toCzkInt(profit)} (${profitSign}${percent} %)</span>
+      </div>
+      <div class="inv-values-grid">
+        <div class="inv-val-item">
+          <span class="sub-lbl">Vloženo</span>
+          <span class="main-val">${Money.toCzkInt(inv.invested)}</span>
+        </div>
+        <div class="inv-val-item">
+          <span class="sub-lbl">Aktuální stav</span>
+          <span class="main-val text-blue">${Money.toCzkInt(inv.current)}</span>
+        </div>
+      </div>
+      <div class="inv-card-footer">
+        <span>${inv.note || 'Dlouhodobé aktivum'}</span>
+        <button class="btn-del-reading" data-id="${inv.id}" title="Smazat">🗑️</button>
+      </div>
+    `;
+
+    card.querySelector('.btn-del-reading').addEventListener('click', async () => {
+      const tx = dbInstance.transaction('investments', 'readwrite');
+      tx.objectStore('investments').delete(inv.id);
+      tx.oncomplete = () => renderInvestments();
+    });
+
+    container.appendChild(card);
+  });
+
+  const totalProfit = totalCurrent - totalInvested;
+  document.getElementById('disp-total-invested').textContent = Money.toCzkInt(totalInvested);
+  document.getElementById('disp-total-current').textContent = Money.toCzkInt(totalCurrent);
+  
+  const profitDisp = document.getElementById('disp-total-profit');
+  profitDisp.textContent = `${totalProfit >= 0 ? '+' : ''}${Money.toCzkInt(totalProfit)}`;
+  profitDisp.style.color = totalProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  // Zobrazení výdělků z webu za aktuální měsíc
+  const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  const allEntries = await dbGetAll('entries');
+  const webEntries = allEntries.filter(e => e.monthYear === monthKey && e.isIncome && e.category === 'Web & Projekty');
+
+  const webContainer = document.getElementById('web-earnings-items');
+  webContainer.innerHTML = '';
+  let webSum = 0;
+
+  if (webEntries.length === 0) {
+    webContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">V tomto měsíci zatím není zaevidován příjem z webu. Přidej jej v záložce Platby (+ Položka -> Příjem -> Web & Projekty).</span>';
+  } else {
+    webEntries.forEach(we => {
+      webSum += we.amount;
+      const row = document.createElement('div');
+      row.className = 'web-earn-row';
+      row.innerHTML = `
+        <span>${we.title} (${we.day}. v měsíci)</span>
+        <strong class="text-green">+ ${Money.toCzk(we.amount)}</strong>
+      `;
+      webContainer.appendChild(row);
+    });
+  }
+
+  document.getElementById('disp-month-web-earnings').textContent = Money.toCzk(webSum);
+}
+
+function setupInvestmentModal() {
+  const modal = document.getElementById('modal-investment');
+  const btnOpen = document.getElementById('btn-add-investment');
+  const btnCancel = document.getElementById('btn-cancel-investment');
+  const form = document.getElementById('form-investment');
+
+  btnOpen.addEventListener('click', () => {
+    form.reset();
+    modal.classList.remove('hidden');
+  });
+
+  btnCancel.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('inv-name').value.trim();
+    const investedCzk = parseFloat(document.getElementById('inv-invested').value);
+    const currentCzk = parseFloat(document.getElementById('inv-current').value);
+    const note = document.getElementById('inv-note').value.trim();
+
+    if (!name || isNaN(investedCzk) || isNaN(currentCzk)) return;
+
+    await dbAdd('investments', {
+      name,
+      invested: Money.toCents(investedCzk),
+      current: Money.toCents(currentCzk),
+      note
+    });
+
+    modal.classList.add('hidden');
+    await renderInvestments();
+  });
+}
+
+// 12. Modul Energie
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
   const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
@@ -771,6 +887,7 @@ async function renderEnergy() {
   document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
 
   await drawEnergyConsumptionChart();
+  await renderMeterReadingsHistory();
 
   const appliances = await dbGetAll('energy');
   const container = document.getElementById('appliances-list');
@@ -858,6 +975,51 @@ async function renderEnergy() {
     diffDisplay.textContent = `Nedoplatek cca ${Money.toCzkInt(diffCents)} / měsíc`;
     diffDisplay.style.color = 'var(--accent-red)';
   }
+}
+
+async function renderMeterReadingsHistory() {
+  const container = document.getElementById('meter-readings-history');
+  container.innerHTML = '';
+
+  const readings = await dbGetAll('meter_readings');
+  readings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (readings.length === 0) {
+    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím nejsou zapsány žádné odečty.</span>';
+    return;
+  }
+
+  readings.forEach((r, idx) => {
+    const row = document.createElement('div');
+    row.className = 'meter-history-item';
+
+    let deltaHtml = '';
+    if (idx < readings.length - 1) {
+      const prev = readings[idx + 1];
+      const diff = (r.value - prev.value).toFixed(1);
+      deltaHtml = `<span class="m-delta">+${diff} kWh</span>`;
+    }
+
+    row.innerHTML = `
+      <div class="m-left">
+        <span class="m-date">${r.date}</span>
+        <span class="m-note">${r.note || 'Pravidelný odečet'}</span>
+      </div>
+      <div class="m-right">
+        ${deltaHtml}
+        <span class="m-kwh">${r.value.toLocaleString('cs-CZ')} kWh</span>
+        <button class="btn-del-reading" data-id="${r.id}" title="Smazat">🗑️</button>
+      </div>
+    `;
+
+    row.querySelector('.btn-del-reading').addEventListener('click', async () => {
+      const tx = dbInstance.transaction('meter_readings', 'readwrite');
+      tx.objectStore('meter_readings').delete(r.id);
+      tx.oncomplete = () => renderEnergy();
+    });
+
+    container.appendChild(row);
+  });
 }
 
 async function drawEnergyConsumptionChart() {
@@ -1040,7 +1202,7 @@ function setupApplianceModal() {
   });
 }
 
-// 12. Nastavení, Zálohování & Air Bank CSV Parser
+// 13. Nastavení, Zálohování & Air Bank CSV Parser
 async function renderSettings() {
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
@@ -1147,12 +1309,13 @@ async function createFullBackup() {
     goals: await dbGetAll('goals'),
     debts: await dbGetAll('debts'),
     energy: await dbGetAll('energy'),
-    meter_readings: await dbGetAll('meter_readings')
+    meter_readings: await dbGetAll('meter_readings'),
+    investments: await dbGetAll('investments')
   };
 }
 
 async function restoreFromBackup(data) {
-  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings'];
+  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments'];
   for (const store of stores) {
     if (data[store]) {
       const tx = dbInstance.transaction(store, 'readwrite');
@@ -1206,11 +1369,24 @@ async function parseAndImportAirBankCsv(csvText) {
       }
     }
 
+    // Inteligentní rozpoznání kategorie pro příjem
+    let category = isIncome ? 'Příjmy' : 'Ostatní';
+    const lowerTitle = title.toLowerCase();
+    if (isIncome) {
+      if (lowerTitle.includes('web') || lowerTitle.includes('affil') || lowerTitle.includes('reklama') || lowerTitle.includes('kolobeznik')) {
+        category = 'Web & Projekty';
+      } else if (lowerTitle.includes('investown') || lowerTitle.includes('výnos') || lowerTitle.includes('dividenda')) {
+        category = 'Investice';
+      } else if (lowerTitle.includes('mzda') || lowerTitle.includes('plat') || lowerTitle.includes('výplata')) {
+        category = 'Výplata';
+      }
+    }
+
     await dbAdd('entries', {
       monthYear: monthKey,
       title: title.slice(0, 50),
       amount: absAmountCents,
-      category: isIncome ? 'Příjmy' : 'Ostatní',
+      category,
       day,
       isIncome,
       paid: true
