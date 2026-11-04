@@ -22,13 +22,14 @@
   </header>
 
   <main id="app-content">
-    <!-- 1. Přehled -->
+    <!-- 1. Přehled & Řídicí analytické centrum -->
     <section id="tab-overview" class="tab-panel active">
       <div class="balance-card">
         <span class="card-label">Disponibilní zůstatek na účtu</span>
         <div class="balance-amount" id="disp-account-balance">0 Kč</div>
         <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
       </div>
+
       <div class="metrics-grid">
         <div class="metric-box green">
           <span class="m-label">Příjmy</span>
@@ -41,6 +42,32 @@
         <div class="metric-box yellow">
           <span class="m-label">Zbývá doplatit</span>
           <span class="m-val" id="metric-remaining">0 Kč</span>
+        </div>
+      </div>
+
+      <!-- ANALÝZA 1: PREDIKCE VÝVOJE ZŮSTATKU DO VÝPLATY -->
+      <div class="analytics-card">
+        <div class="analytics-header">
+          <h3>Predikce vývoje cashflow (do konce měsíce)</h3>
+          <span class="badge-sub">Křivka zůstatku</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="cashflow-forecast-chart" width="400" height="180"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>📉 Odhad minimálního zůstatku: <strong id="forecast-min-val" class="text-blue">0 Kč</strong></span>
+          <span id="forecast-safety-tag">🛡️ Rezerva OK</span>
+        </div>
+      </div>
+
+      <!-- ANALÝZA 2: KAM JDOU PENÍZE (KATEGORIE VÝDAJŮ) -->
+      <div class="analytics-card" style="margin-top: 14px;">
+        <div class="analytics-header">
+          <h3>Kam jdou peníze (Struktura výdajů)</h3>
+          <span class="badge-sub">Žrouti rozpočtu</span>
+        </div>
+        <div id="category-breakdown-list" class="category-bars-wrap">
+          <!-- Dynamické pruhové grafy výdajů -->
         </div>
       </div>
     </section>
@@ -63,7 +90,7 @@
 
       <div id="payments-list" class="entries-list"></div>
 
-      <!-- Modální okno pro zadání platby / příjmu -->
+      <!-- Modální okno položky -->
       <div id="modal-entry" class="modal hidden">
         <div class="modal-content">
           <h2 id="modal-entry-title">Nová položka</h2>
@@ -97,6 +124,8 @@
                 <option value="Jídlo & Drogerie">Jídlo & Drogerie</option>
                 <option value="Doprava & Koloběžka">Doprava & Koloběžka</option>
                 <option value="Zvířata">Zvířata</option>
+                <option value="Zdraví">Zdraví & Terapie</option>
+                <option value="Investice & Spoření">Investice & Spoření</option>
                 <option value="Příjmy">Příjmy & Výplata</option>
                 <option value="Ostatní">Ostatní</option>
               </select>
@@ -135,7 +164,7 @@
 
       <div id="goals-list" class="goals-container"></div>
 
-      <!-- Modální okno: Přidat cíl -->
+      <!-- Modální okno: Cíl -->
       <div id="modal-goal" class="modal hidden">
         <div class="modal-content">
           <h2>Nový cíl</h2>
@@ -200,7 +229,6 @@
 
     <!-- 5. Energie & Monitoring spotřeby domu -->
     <section id="tab-energy" class="tab-panel">
-      <!-- Finanční přehled energií -->
       <div class="energy-overview-card">
         <div class="energy-row">
           <span>Cena elektřiny:</span>
@@ -220,7 +248,7 @@
         </div>
       </div>
 
-      <!-- GRAF CELKOVÉ SPOTŘEBY DOMU -->
+      <!-- Graf spotřeby domu -->
       <div class="chart-card" style="margin-top: 14px;">
         <div class="chart-header">
           <h3>Křivka celkové spotřeby domu (kWh/den)</h3>
@@ -312,18 +340,16 @@
       </div>
     </section>
 
-    <!-- 6. Nastavení, Zálohování & Air Bank / CSV -->
+    <!-- 6. Nastavení & Air Bank -->
     <section id="tab-settings" class="tab-panel">
-      <!-- Propojení s Air Bank -->
       <div class="settings-card">
         <h3>Propojení s Air Bank (Výpisy & Pohyby)</h3>
-        <p class="settings-desc">Air Bank nepovoluje přímé volání účtu bez licence ČNB. Nejrychlejší přímé propojení je nahrání CSV výpisu z aplikace My Air, který dispečink okamžitě zpracuje.</p>
+        <p class="settings-desc">Nahraj vyexportovaný soubor CSV z bankovnictví My Air. Dispečink automaticky zpracuje všechny transakce a zařadí je.</p>
         <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
         <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Importovat CSV výpis z Air Bank</button>
         <div id="csv-import-status" class="import-status"></div>
       </div>
 
-      <!-- Finanční parametry -->
       <div class="settings-card" style="margin-top: 14px;">
         <h3>Finanční a energetické parametry</h3>
         <div class="form-group" style="margin-top: 10px;">
@@ -341,7 +367,6 @@
         <button id="btn-save-settings" class="action-btn-main" style="margin-top: 8px;">Uložit parametry</button>
       </div>
 
-      <!-- Záloha a obnova databáze -->
       <div class="settings-card" style="margin-top: 14px;">
         <h3>Záloha a obnova databáze</h3>
         <p class="settings-desc">Kompletní záloha všech tabulek dispečinku do jednoho souboru JSON.</p>
@@ -353,7 +378,6 @@
         <button id="btn-trigger-restore" class="btn-secondary" style="margin-top: 8px; width: 100%;">📥 Obnovit ze souboru JSON</button>
       </div>
 
-      <!-- Instalace PWA -->
       <div class="settings-card" style="margin-top: 14px; text-align: center;">
         <h3>Mobilní aplikace (PWA)</h3>
         <p class="settings-desc">Spouštěj aplikaci offline přímo z plochy telefonu.</p>
