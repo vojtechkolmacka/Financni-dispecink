@@ -158,7 +158,7 @@ body {
 .metric-box.red .m-val { color: var(--accent-red); }
 .metric-box.yellow .m-val { color: var(--accent-yellow); }
 
-/* Analytické centrum v přehledu */
+/* Analytické centrum */
 .analytics-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -195,7 +195,6 @@ body {
   display: block;
 }
 
-/* Pruhový graf výdajů podle kategorií */
 .category-bars-wrap {
   display: flex;
   flex-direction: column;
@@ -235,6 +234,126 @@ body {
   height: 100%;
   border-radius: 4px;
   transition: width 0.4s ease;
+}
+
+/* Modul Investice & Web */
+.invest-summary-card {
+  background: linear-gradient(135deg, #1e2942, #151d30);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+
+.inv-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inv-lbl {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.inv-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.investments-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.investment-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inv-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inv-card-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.inv-card-profit {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.inv-card-profit.positive { color: var(--accent-green); }
+.inv-card-profit.negative { color: var(--accent-red); }
+
+.inv-values-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-card-sub);
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.inv-val-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-val-item .sub-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.inv-val-item .main-val {
+  font-weight: 700;
+}
+
+.inv-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.web-earnings-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.text-green { color: var(--accent-green); }
+
+.web-earnings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.web-earn-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: var(--bg-card-sub);
+  border-radius: 8px;
+  font-size: 0.85rem;
 }
 
 /* Společná tlačítka */
@@ -320,9 +439,7 @@ body {
   transition: background-color 0.2s;
 }
 
-.entry-item.paid {
-  opacity: 0.6;
-}
+.entry-item.paid { opacity: 0.6; }
 
 .entry-left {
   display: flex;
@@ -385,13 +502,8 @@ body {
   white-space: nowrap;
 }
 
-.entry-amount.expense {
-  color: var(--accent-red);
-}
-
-.entry-amount.income {
-  color: var(--accent-green);
-}
+.entry-amount.expense { color: var(--accent-red); }
+.entry-amount.income { color: var(--accent-green); }
 
 /* Modul Cíle */
 .goals-container {
@@ -541,13 +653,8 @@ body {
   font-size: 1.1rem;
 }
 
-.debt-total.receivable {
-  color: var(--accent-green);
-}
-
-.debt-total.payable {
-  color: var(--accent-red);
-}
+.debt-total.receivable { color: var(--accent-green); }
+.debt-total.payable { color: var(--accent-red); }
 
 .debt-sub-info {
   font-size: 0.8rem;
@@ -584,7 +691,7 @@ body {
   border-color: rgba(56, 189, 248, 0.3);
 }
 
-/* Modul Energie & Graf spotřeby domu */
+/* Modul Energie */
 .energy-overview-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -602,9 +709,7 @@ body {
   color: var(--text-muted);
 }
 
-.energy-row strong {
-  color: var(--text-main);
-}
+.energy-row strong { color: var(--text-main); }
 
 .energy-row.highlight {
   border-top: 1px solid var(--border-color);
@@ -663,6 +768,69 @@ body {
   color: var(--text-muted);
   margin-top: 8px;
 }
+
+.meter-history-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meter-history-item {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.m-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-date {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.m-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.m-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.m-kwh {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--accent-blue);
+}
+
+.m-delta {
+  font-size: 0.75rem;
+  color: var(--accent-yellow);
+  background: var(--bg-card-sub);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-del-reading {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-del-reading:hover { color: var(--accent-red); }
 
 .appliances-container {
   display: flex;
@@ -764,11 +932,9 @@ body {
   padding: 4px;
 }
 
-.btn-delete-appliance:hover {
-  color: var(--accent-red);
-}
+.btn-delete-appliance:hover { color: var(--accent-red); }
 
-/* Modul Nastavení & Zálohování */
+/* Modul Nastavení */
 .settings-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -812,9 +978,7 @@ body {
   z-index: 200;
 }
 
-.modal.hidden {
-  display: none;
-}
+.modal.hidden { display: none; }
 
 .modal-content {
   background-color: var(--bg-card);
@@ -928,15 +1092,10 @@ body {
   flex: 1;
 }
 
-.nav-item .icon {
-  font-size: 1.25rem;
-}
-
+.nav-item .icon { font-size: 1.25rem; }
 .nav-item .label {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 600;
 }
 
-.nav-item.active {
-  color: var(--accent-blue);
-}
+.nav-item.active { color: var(--accent-blue); }
