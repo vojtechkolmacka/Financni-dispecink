@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 2; // Navýšení verze pro novou tabulku odečtů
+const DB_VERSION = 3; // Verze 3: přidání investičního portfolia
 
 let dbInstance = null;
 
@@ -48,9 +48,13 @@ function initDB() {
         db.createObjectStore('energy', { keyPath: 'id', autoIncrement: true });
       }
 
-      // Nová tabulka pro stavy elektroměru celého domu
       if (!db.objectStoreNames.contains('meter_readings')) {
         db.createObjectStore('meter_readings', { keyPath: 'id', autoIncrement: true });
+      }
+
+      // Nové úložiště pro investice & aktiva
+      if (!db.objectStoreNames.contains('investments')) {
+        db.createObjectStore('investments', { keyPath: 'id', autoIncrement: true });
       }
     };
 
@@ -82,7 +86,7 @@ async function seedInitialData() {
     { title: 'Terapie', amount: 200000, category: 'Zdraví', day: 1, active: true },
     { title: 'Provident (splátka)', amount: 150000, category: 'Závazky', day: 10, active: true },
     { title: 'AvaFin / Crediton (splátka)', amount: 110000, category: 'Závazky', day: 10, active: true },
-    { title: 'Investown (investice)', amount: 50000, category: 'Investice', day: 10, active: true },
+    { title: 'Investown (pravidelná investice)', amount: 50000, category: 'Investice', day: 10, active: true },
     { title: 'T-Mobile (internet)', amount: 45000, category: 'Komunikace', day: 20, active: true },
     { title: 'PVZP (pojištění)', amount: 40000, category: 'Pojištění', day: 20, active: true },
     { title: 'Vodafone (telefon)', amount: 26600, category: 'Komunikace', day: 15, active: true },
@@ -90,7 +94,7 @@ async function seedInitialData() {
     { title: 'Spotify', amount: 18500, category: 'Zábava', day: 5, active: true },
     { title: 'Česká televize', amount: 15000, category: 'Služby', day: 15, active: true },
     { title: 'Google AI Pro', amount: 13990, category: 'Služby', day: 8, active: true },
-    { title: 'Penzijní příspěvek', amount: 10000, category: 'Spoření', day: 15, active: true },
+    { title: 'Penzijní příspěvek', amount: 10000, category: 'Investice', day: 15, active: true },
     { title: 'SIPO', amount: 7700, category: 'Bydlení', day: 12, active: true }
   ];
   for (const t of templates) await dbAdd('templates', t);
@@ -114,13 +118,19 @@ async function seedInitialData() {
   ];
   for (const d of debts) await dbAdd('debts', d);
 
-  // Ukázkové první dva odečty pro okamžité vykreslení křivky
   const meterReadings = [
     { date: '2026-10-01', value: 12450.0, note: 'Výchozí stav' },
     { date: '2026-10-15', value: 12590.0, note: 'Běžný provoz' },
-    { date: '2026-11-01', value: 12780.0, note: 'Zatopeno a přitápění' }
+    { date: '2026-11-01', value: 12780.0, note: 'Topná sezóna' }
   ];
   for (const m of meterReadings) await dbAdd('meter_readings', m);
+
+  // Výchozí investiční položky
+  const investments = [
+    { name: 'Investown nemovitosti', invested: 1500000, current: 1585000, note: 'Měsíční výnosy reinvestovány' },
+    { name: 'Doplňkové penzijní spoření', invested: 1200000, current: 1240000, note: 'Příspěvek 100 Kč/měsíc' }
+  ];
+  for (const inv of investments) await dbAdd('investments', inv);
 }
 
 function dbGet(storeName, key) {
