@@ -185,7 +185,7 @@
           <h2 id="modal-debt-tx-title">Upravit dluh</h2>
           <form id="form-debt-tx">
             <input type="hidden" id="debt-tx-id">
-            <input type="hidden" id="debt-tx-action"> <!-- lend / repay -->
+            <input type="hidden" id="debt-tx-action">
 
             <div class="form-group">
               <label for="debt-tx-amount">Částka (Kč)</label>
@@ -206,8 +206,78 @@
       </div>
     </section>
 
-    <!-- 5. Energie -->
-    <section id="tab-energy" class="tab-panel"></section>
+    <!-- 5. Energie & Spotřebiče & Záruky -->
+    <section id="tab-energy" class="tab-panel">
+      <!-- Energetický přehled -->
+      <div class="energy-overview-card">
+        <div class="energy-row">
+          <span>Cena elektřiny:</span>
+          <strong id="disp-kwh-price">6,50 Kč / kWh</strong>
+        </div>
+        <div class="energy-row">
+          <span>Měsíční záloha (ČEZ):</span>
+          <strong id="disp-cez-deposit">3 000 Kč</strong>
+        </div>
+        <div class="energy-row highlight">
+          <span>Očekávaný měsíční provoz:</span>
+          <strong id="disp-expected-energy-cost">0 Kč</strong>
+        </div>
+        <div class="energy-row balance" id="energy-diff-row">
+          <span>Měsíční bilance (záloha vs. odhad):</span>
+          <strong id="disp-energy-diff">0 Kč</strong>
+        </div>
+      </div>
+
+      <div class="action-bar" style="margin-top: 14px;">
+        <button id="btn-add-appliance" class="action-btn-main">+ Přidat spotřebič / zařízení</button>
+      </div>
+
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2>Evidence spotřebičů & Náklady na provoz</h2>
+      </div>
+
+      <div id="appliances-list" class="appliances-container">
+        <!-- Dynamický seznam spotřebičů s cenou za h/den/měsíc a zárukou -->
+      </div>
+
+      <!-- Modální okno: Přidat spotřebič -->
+      <div id="modal-appliance" class="modal hidden">
+        <div class="modal-content">
+          <h2>Nový spotřebič</h2>
+          <form id="form-appliance">
+            <div class="form-group">
+              <label for="appliance-name">Název spotřebiče / přístroje</label>
+              <input type="text" id="appliance-name" required placeholder="např. Robotický vysavač, Bojler, PC">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-power">Příkon ve Wattech (W)</label>
+              <input type="number" id="appliance-power" required placeholder="např. 60, 2000">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-hours">Denní provoz v hodinách (h)</label>
+              <input type="number" id="appliance-hours" step="0.1" value="2" required placeholder="např. 1.5, 24">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-warranty-date">Datum nákupu (pro sledování záruky)</label>
+              <input type="date" id="appliance-warranty-date">
+            </div>
+
+            <div class="form-group">
+              <label for="appliance-warranty-months">Záruka (měsíce)</label>
+              <input type="number" id="appliance-warranty-months" value="24">
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" id="btn-cancel-appliance" class="btn-secondary">Zrušit</button>
+              <button type="submit" class="btn-primary">Uložit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
 
     <!-- 6. Nastavení -->
     <section id="tab-settings" class="tab-panel"></section>
