@@ -87,15 +87,10 @@ body {
   flex: 1;
 }
 
-.tab-panel {
-  display: none;
-}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
-.tab-panel.active {
-  display: block;
-}
-
-/* Karty a metriky */
+/* Karty zůstatku a bilance */
 .balance-card {
   background: linear-gradient(135deg, #1e293b, #0f172a);
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -103,7 +98,7 @@ body {
   padding: 20px;
   text-align: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .card-label {
@@ -124,6 +119,38 @@ body {
   font-size: 0.9rem;
   color: var(--accent-blue);
   font-weight: 600;
+}
+
+/* Karta měsíční čisté bilance */
+.month-balance-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.mb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.mb-val {
+  font-size: 1.15rem;
+}
+
+.mb-subgrid {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .metrics-grid {
@@ -170,7 +197,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .analytics-header h3 {
@@ -320,9 +347,7 @@ body {
   color: var(--text-muted);
 }
 
-.inv-val-item .main-val {
-  font-weight: 700;
-}
+.inv-val-item .main-val { font-weight: 700; }
 
 .inv-card-footer {
   display: flex;
@@ -340,6 +365,7 @@ body {
 }
 
 .text-green { color: var(--accent-green); }
+.text-red { color: var(--accent-red); }
 
 .web-earnings-list {
   display: flex;
@@ -356,7 +382,7 @@ body {
   font-size: 0.85rem;
 }
 
-/* Modul Energie & Měsíční vyhodnocení */
+/* Modul Energie */
 .energy-overview-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -388,7 +414,6 @@ body {
   font-size: 1.05rem;
 }
 
-/* Box vyhodnocení měsíčního odečtu */
 .meter-evaluation-box {
   background: var(--bg-card-sub);
   border: 1px solid var(--border-color);
@@ -431,9 +456,7 @@ body {
   font-size: 0.85rem;
 }
 
-.eval-trend-text {
-  font-weight: 700;
-}
+.eval-trend-text { font-weight: 700; }
 
 .energy-calc-wrap {
   display: flex;
