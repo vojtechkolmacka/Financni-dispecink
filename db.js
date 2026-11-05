@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 let dbInstance = null;
 
@@ -62,12 +62,6 @@ function initDB() {
 }
 
 async function seedInitialData() {
-  const settings = await dbGet('settings', 'initial_capital');
-  if (settings) {
-    await ensureUpdatedLoanData();
-    return;
-  }
-
   await dbSetInternal('settings', { key: 'initial_capital', value: 5100000 });
   await dbSetInternal('settings', { key: 'bank_capital', value: 4600000 });
   await dbSetInternal('settings', { key: 'cash_capital', value: 500000 });
@@ -110,41 +104,13 @@ async function seedInitialData() {
   ];
   for (const g of goals) await dbAddInternal('goals', g);
 
+  // Přesná data dlužníků a půjček ze screenshotu
   const debts = [
-    {
-      type: 'payable',
-      name: 'Provident',
-      total: 7732733,
-      monthly: 150000,
-      day: 10,
-      contractNumber: 'PRV-2024-88',
-      principalLeft: 5800000,
-      feeLeft: 1932733,
-      paidSoFar: 2250000,
-      items: [
-        { label: 'Půjčka / Jistina k doplacení', amount: 5800000 },
-        { label: 'Poplatky a úrok', amount: 1932733 }
-      ]
-    },
-    {
-      type: 'payable',
-      name: 'AvaFin / Crediton',
-      total: 1952400,
-      monthly: 110000,
-      day: 10,
-      contractNumber: 'CRD-55019',
-      principalLeft: 1500000,
-      feeLeft: 452400,
-      paidSoFar: 880000,
-      items: [
-        { label: 'Půjčka / Jistina k doplacení', amount: 1500000 },
-        { label: 'Poplatky za správu a úrok', amount: 452400 }
-      ]
-    },
+    // POHLEDÁVKY (Dlužníci) - Celkem 10 100 Kč
     {
       type: 'receivable',
       name: 'KOV',
-      total: 665000,
+      total: 665000, // 6 650 Kč
       items: [
         { id: 'kov_1', label: 'Půjčky', amount: 340000 },
         { id: 'kov_2', label: 'Elektřina a drogerie', amount: 275000 },
@@ -154,7 +120,7 @@ async function seedInitialData() {
     {
       type: 'receivable',
       name: 'JIŘÍ',
-      total: 75000,
+      total: 75000, // 750 Kč
       items: [
         { id: 'jiri_1', label: 'Půjčky', amount: 0 },
         { id: 'jiri_2', label: 'Elektřina a drogerie', amount: 25000, note: 'Zaplaceno 1 250 Kč (2026-10-13)' },
@@ -164,52 +130,32 @@ async function seedInitialData() {
     {
       type: 'receivable',
       name: 'MAGDA',
-      total: 270000,
+      total: 270000, // 2 700 Kč
       items: [
         { id: 'magda_1', label: 'Půjčky', amount: 70000 },
         { id: 'magda_2', label: 'Elektřina a drogerie', amount: 150000 },
         { id: 'magda_3', label: 'Fólie na bazén', amount: 50000 }
       ]
+    },
+
+    // MOJE PŮJČKY K ÚHRADĚ - Celkem 96 851,33 Kč
+    {
+      type: 'payable',
+      name: 'Provident',
+      total: 7732733, // 77 327,33 Kč
+      monthly: 150000, // Měsíční splátka 1 500 Kč
+      day: 10
+    },
+    {
+      type: 'payable',
+      name: 'AvaFin/Crediton',
+      total: 1952400, // 19 524 Kč
+      monthly: 110000, // Měsíční splátka 1 100 Kč
+      day: 10
     }
   ];
+
   for (const d of debts) await dbAddInternal('debts', d);
-
-  const meterReadings = [
-    { date: '2026-08-31', value: 12100.0, note: 'Konec léta' },
-    { date: '2026-09-30', value: 12480.0, note: 'Začátek podzimu' },
-    { date: '2026-10-31', value: 12940.0, note: 'Topná sezóna začala' }
-  ];
-  for (const m of meterReadings) await dbAddInternal('meter_readings', m);
-}
-
-async function ensureUpdatedLoanData() {
-  const debts = await dbGetAll('debts');
-  let changed = false;
-
-  for (const d of debts) {
-    if (d.type === 'payable' && (!d.items || d.items.length === 0)) {
-      if (d.name.includes('Provident')) {
-        d.principalLeft = Math.round(d.total * 0.75);
-        d.feeLeft = d.total - d.principalLeft;
-        d.items = [
-          { label: 'Půjčka / Jistina k doplacení', amount: d.principalLeft },
-          { label: 'Poplatky a úrok', amount: d.feeLeft }
-        ];
-        changed = true;
-      } else if (d.name.includes('AvaFin') || d.name.includes('Crediton')) {
-        d.principalLeft = Math.round(d.total * 0.77);
-        d.feeLeft = d.total - d.principalLeft;
-        d.items = [
-          { label: 'Půjčka / Jistina k doplacení', amount: d.principalLeft },
-          { label: 'Poplatky za správu a úrok', amount: d.feeLeft }
-        ];
-        changed = true;
-      }
-      await dbSetInternal('debts', d);
-    }
-  }
-
-  if (changed) triggerAutoCloudSync();
 }
 
 function dbGet(storeName, key) {
