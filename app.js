@@ -157,10 +157,21 @@ async function loadMonthData() {
       }
 
       if (isDue) {
+        // Pokud jde o ČEZ, dynamicky upravíme částku podle měsíce (do 09/2026: 2 770 Kč, od 10/2026: 3 000 Kč)
+        let amount = t.amount;
+        if (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')) {
+          if (targetYear < 2026 || (targetYear === 2026 && targetMonthNum <= 9)) {
+            amount = 277000;
+          } else {
+            const cezDep = await dbGet('settings', 'cez_deposit');
+            amount = cezDep ? cezDep.value : 300000;
+          }
+        }
+
         const newEntry = {
           monthYear: monthKey,
           title: t.title,
-          amount: t.amount,
+          amount: amount,
           category: t.category,
           day: t.day,
           wallet: 'bank',
@@ -1654,7 +1665,7 @@ async function renderDebts() {
     else {
       totalPayables += d.total;
 
-      // Dynamický dopočet počtu měsíců a data doplacení
+      // Dynamický dopočet počtu měsíců a odhadovaného data doplacení
       let remainingMonths = 0;
       let endDateStr = 'Splaceno';
 
@@ -1764,12 +1775,14 @@ async function renderDebts() {
     }
   });
 
+  // Horní souhrnné karty
   const dispPayEl = document.getElementById('disp-total-payables');
   const dispRecEl = document.getElementById('disp-total-receivables');
   if (dispPayEl) dispPayEl.textContent = Money.toCzk(totalPayables);
   if (dispRecEl) dispRecEl.textContent = Money.toCzkInt(totalReceivables);
 }
 
+// Otevření okna pro Půjčit / Přičíst dlužníkovi
 function openLendDetailedModal(debt) {
   const modal = document.getElementById('modal-lend-detailed');
   const form = document.getElementById('form-lend-detailed');
@@ -1793,6 +1806,7 @@ function openLendDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
+// Otevření okna pro Zadat úhradu od dlužníka
 function openRepayDetailedModal(debt) {
   const modal = document.getElementById('modal-repay-detailed');
   const form = document.getElementById('form-repay-detailed');
@@ -2486,551 +2500,6 @@ function drawDonutChart(canvasId, percent) {
   ctx.clearRect(0, 0, 100, 100);
 
   const cx = 50;
-  cy = 50;
-  const r = 38;
-  const lineWidth = 12;
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = lineWidth;
-  ctx.stroke();
-
-  if (percent > 0) {
-    const end = (percent / 100) * (Math.PI * 2) - (Math.PI / 2);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, -Math.PI / 2, end);
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  }
-}
-
-function setupInvestmentModal() {
-  const modal = document.getElementById('modal-investment');
-  const btnOpen = document.getElementById('btn-add-investment');
-  const btnCancel = document.getElementById('btn-cancel-investment');
-  const form = document.getElementById('form-investment');
-
-  if (btnOpen) {
-    btnOpen.onclick = () => {
-      form.reset();
-      modal.classList.remove('hidden');
-    };
-  }
-
-  if (btnCancel) {
-    btnCancel.onclick = () => modal.classList.add('hidden');
-  }
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById('inv-name').value.trim();
-    const investedCzk = parseFloat(document.getElementById('inv-invested').value);
-    const currentCzk = parseFloat(document.getElementById('inv-current').value);
-    const note = document.getElementById('inv-note').value.trim();
-
-    if (!name || isNaN(investedCzk) || isNaN(currentCzk)) return;
-
-    await dbAdd('investments', {
-      name,
-      invested: Money.toCents(investedCzk),
-      current: Money.toCents(currentCzk),
-      note
-    });
-
-    modal.classList.add('hidden');
-    await renderInvestments();
-  };
-}
-
-// 19. Energie
-async function renderEnergy() {
-  const kwhRecord = await dbGet('settings', 'kwh_price');
-  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
-  const kwhPriceCzk = kwhPriceCents / 100;
-
-  document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
-
-  const templates = await dbGetAll('templates');
-  const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
-  const cezDepositCents = cez ? cez.amount : 300000;
-  document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
-
-  const maxKwh = ((cezDepositCents / 100) / kwhPriceCzk).toFixed(1);
-  document.getElementById('disp-max-allowed-kwh').textContent = `${maxKwh} kWh / měsíc`;
-
-  await evaluateLastMeterReading(cezDepositCents, kwhPriceCents);
-  await drawEnergyConsumptionChart();
-  await renderMeterReadingsHistory(cezDepositCents, kwhPriceCents);
-
-  const appliances = await dbGetAll('energy');
-  const container = document.getElementById('appliances-list');
-  if (!container) return;
-  container.innerHTML = '';
-
-  appliances.forEach(app => {
-    const kwhPerHour = app.power / 1000;
-    const kwhPerDay = kwhPerHour * app.hours;
-    const kwhPerMonth = kwhPerDay * 30;
-
-    const costHourCents = Math.round(kwhPerHour * kwhPriceCents);
-    const costDayCents = Math.round(kwhPerDay * kwhPriceCents);
-    const costMonthCents = Math.round(kwhPerMonth * kwhPriceCents);
-
-    let warrantyHtml = '';
-    if (app.purchaseDate && app.warrantyMonths) {
-      const pDate = new Date(app.purchaseDate);
-      const expiryDate = new Date(pDate.setMonth(pDate.getMonth() + parseInt(app.warrantyMonths, 10)));
-      const now = new Date();
-      const diffTime = expiryDate - now;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 0) {
-        warrantyHtml = `<span class="warranty-badge expired">⚠️ Záruka vypršela</span>`;
-      } else if (diffDays <= 60) {
-        warrantyHtml = `<span class="warranty-badge warning">⏳ Záruka končí za ${diffDays} dní</span>`;
-      } else {
-        warrantyHtml = `<span class="warranty-badge ok">🛡️ Záruka OK (${diffDays} dní)</span>`;
-      }
-    } else {
-      warrantyHtml = `<span class="warranty-badge">Bez evidence záruky</span>`;
-    }
-
-    const card = document.createElement('div');
-    card.className = 'appliance-card';
-    card.innerHTML = `
-      <div class="appliance-header">
-        <span class="appliance-name">${app.name}</span>
-        <span class="appliance-specs">${app.power} W • ${app.hours} h/den</span>
-      </div>
-
-      <div class="appliance-costs-grid">
-        <div class="cost-col">
-          <span class="c-lbl">Hodina</span>
-          <span class="c-val">${(costHourCents / 100).toFixed(2).replace('.', ',')} Kč</span>
-        </div>
-        <div class="cost-col">
-          <span class="c-lbl">Den</span>
-          <span class="c-val">${(costDayCents / 100).toFixed(2).replace('.', ',')} Kč</span>
-        </div>
-        <div class="cost-col">
-          <span class="c-lbl">Měsíc</span>
-          <span class="c-val">${Money.toCzkInt(costMonthCents)}</span>
-        </div>
-      </div>
-
-      <div class="appliance-footer">
-        ${warrantyHtml}
-        <button class="btn-delete-appliance" data-id="${app.id}">🗑️ Smazat</button>
-      </div>
-    `;
-
-    card.querySelector('.btn-delete-appliance').onclick = async () => {
-      await dbDelete('energy', app.id);
-      await renderEnergy();
-    };
-
-    container.appendChild(card);
-  });
-}
-
-async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
-  const readings = await dbGetAll('meter_readings');
-  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  const box = document.getElementById('disp-meter-eval-box');
-  const badge = document.getElementById('energy-trend-badge');
-
-  if (!box || !badge) return;
-
-  if (readings.length < 2) {
-    box.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
-    badge.textContent = 'Čekám na data';
-    badge.style.color = 'var(--text-muted)';
-    return;
-  }
-
-  const latest = readings[readings.length - 1];
-  const previous = readings[readings.length - 2];
-
-  const daysDiff = (new Date(latest.date) - new Date(previous.date)) / (1000 * 60 * 60 * 24);
-  const kwhConsumed = Math.max(0, latest.value - previous.value);
-
-  const monthlyNormalizedKwh = daysDiff > 0 ? (kwhConsumed / daysDiff) * 30 : kwhConsumed;
-  const estimatedCostCents = Math.round(monthlyNormalizedKwh * kwhPriceCents);
-  const diffCents = cezDepositCents - estimatedCostCents;
-
-  const isSurplus = diffCents >= 0;
-  const sign = isSurplus ? '+' : '';
-
-  let trendText = 'Běžný trend';
-  let trendColor = 'var(--accent-blue)';
-
-  if (readings.length >= 3) {
-    const older = readings[readings.length - 3];
-    const prevDays = (new Date(previous.date) - new Date(older.date)) / (1000 * 60 * 60 * 24);
-    const prevKwh = Math.max(0, previous.value - older.value);
-    const prevNormalized = prevDays > 0 ? (prevKwh / prevDays) * 30 : prevKwh;
-
-    const delta = monthlyNormalizedKwh - prevNormalized;
-    if (delta > 30) {
-      trendText = `📈 Rostoucí tendence (+${delta.toFixed(0)} kWh oproti minule)`;
-      trendColor = 'var(--accent-red)';
-    } else if (delta < -30) {
-      trendText = `📉 Klesající tendence (${delta.toFixed(0)} kWh oproti minule)`;
-      trendColor = 'var(--accent-green)';
-    } else {
-      trendText = `➡️ Stabilní odběr (rozdíl jen ${delta.toFixed(0)} kWh)`;
-      trendColor = 'var(--accent-blue)';
-    }
-  }
-
-  badge.textContent = isSurplus ? 'Přeplatek očekáván' : 'Nedoplatek!';
-  badge.style.color = isSurplus ? 'var(--accent-green)' : 'var(--accent-red)';
-
-  box.innerHTML = `
-    <div class="eval-grid">
-      <div class="eval-item">
-        <span class="e-lbl">Spotřeba za měsíc</span>
-        <span class="e-val text-blue">${monthlyNormalizedKwh.toFixed(1)} kWh</span>
-      </div>
-      <div class="eval-item">
-        <span class="e-lbl">Reálná cena (6,50 Kč)</span>
-        <span class="e-val">${Money.toCzkInt(estimatedCostCents)}</span>
-      </div>
-      <div class="eval-item">
-        <span class="e-lbl">Výsledek vs. 3 000 Kč</span>
-        <span class="e-val" style="color: ${isSurplus ? 'var(--accent-green)' : 'var(--accent-red)'}">
-          ${sign}${Money.toCzkInt(diffCents)}
-        </span>
-      </div>
-    </div>
-    <div class="eval-status-bar">
-      <span class="eval-trend-text" style="color: ${trendColor}">${trendText}</span>
-      <span style="font-size:0.75rem; color:var(--text-muted);">${previous.date} → ${latest.date} (${Math.round(daysDiff)} dní)</span>
-    </div>
-  `;
-}
-
-function setupEnergySimulator() {
-  const kwhInput = document.getElementById('calc-kwh-input');
-  const kwhRange = document.getElementById('calc-kwh-range');
-  const rateLabel = document.getElementById('calc-unit-rate');
-  const costDisp = document.getElementById('calc-result-cost');
-  const balanceDisp = document.getElementById('calc-result-balance');
-
-  if (!kwhInput || !kwhRange) return;
-
-  async function updateSimulation() {
-    const kwhRecord = await dbGet('settings', 'kwh_price');
-    const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
-    const kwhPriceCzk = kwhPriceCents / 100;
-    
-    rateLabel.textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč`;
-
-    const kwh = parseFloat(kwhInput.value) || 0;
-    const totalCostCents = Math.round(kwh * kwhPriceCents);
-    costDisp.textContent = Money.toCzkInt(totalCostCents);
-
-    const templates = await dbGetAll('templates');
-    const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
-    const cezDepositCents = cez ? cez.amount : 300000;
-
-    const diffCents = cezDepositCents - totalCostCents;
-    if (diffCents >= 0) {
-      balanceDisp.textContent = `+${Money.toCzkInt(diffCents)} (přeplatek)`;
-      balanceDisp.style.color = 'var(--accent-green)';
-    } else {
-      balanceDisp.textContent = `${Money.toCzkInt(diffCents)} (nedoplatek)`;
-      balanceDisp.style.color = 'var(--accent-red)';
-    }
-  }
-
-  kwhInput.oninput = () => {
-    kwhRange.value = kwhInput.value;
-    updateSimulation();
-  };
-
-  kwhRange.oninput = () => {
-    kwhInput.value = kwhRange.value;
-    updateSimulation();
-  };
-
-  updateSimulation();
-}
-
-async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
-  const container = document.getElementById('meter-readings-history');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const readings = await dbGetAll('meter_readings');
-  readings.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  if (readings.length === 0) {
-    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím nejsou zapsány žádné odečty.</span>';
-    return;
-  }
-
-  readings.forEach((r, idx) => {
-    const row = document.createElement('div');
-    row.className = 'meter-history-item';
-
-    let diffInfo = '';
-    if (idx < readings.length - 1) {
-      const prev = readings[idx + 1];
-      const diffKwh = (r.value - prev.value);
-      const days = (new Date(r.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
-      const normMonthlyKwh = days > 0 ? (diffKwh / days) * 30 : diffKwh;
-      const monthCostCents = Math.round(normMonthlyKwh * kwhPriceCents);
-      const balanceCents = cezDepositCents - monthCostCents;
-      const isOk = balanceCents >= 0;
-
-      diffInfo = `
-        <span class="m-diff-tag ${isOk ? 'surplus' : 'deficit'}">
-          ${isOk ? '+' : ''}${Money.toCzkInt(balanceCents)} (${diffKwh.toFixed(1)} kWh)
-        </span>
-      `;
-    }
-
-    row.innerHTML = `
-      <div class="m-left">
-        <span class="m-date">${r.date}</span>
-        <span class="m-note">${r.note || 'Měsíční odečet'}</span>
-      </div>
-      <div class="m-right">
-        ${diffInfo}
-        <span class="m-kwh">${r.value.toLocaleString('cs-CZ')} kWh</span>
-        <button class="btn-del-reading" data-id="${r.id}" title="Smazat">🗑️</button>
-      </div>
-    `;
-
-    row.querySelector('.btn-del-reading').onclick = async () => {
-      await dbDelete('meter_readings', r.id);
-      await renderEnergy();
-    };
-
-    container.appendChild(row);
-  });
-}
-
-async function drawEnergyConsumptionChart() {
-  const canvas = document.getElementById('energy-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = 180 * dpr;
-  ctx.scale(dpr, dpr);
-
-  const width = rect.width;
-  const height = 180;
-  ctx.clearRect(0, 0, width, height);
-
-  const readings = await dbGetAll('meter_readings');
-  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  if (readings.length < 2) {
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Pro zobrazení křivky zadej alespoň 2 odečty elektroměru.', width / 2, height / 2);
-    return;
-  }
-
-  const points = [];
-  let totalDailySum = 0;
-
-  for (let i = 1; i < readings.length; i++) {
-    const prev = readings[i - 1];
-    const curr = readings[i];
-    const days = (new Date(curr.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
-
-    if (days > 0) {
-      const kwhDiff = curr.value - prev.value;
-      const kwhPerDay = Math.max(0, kwhDiff / days);
-      points.push({
-        date: curr.date.slice(5),
-        val: kwhPerDay
-      });
-      totalDailySum += kwhPerDay;
-    }
-  }
-
-  if (points.length === 0) return;
-
-  const avg = totalDailySum / points.length;
-  const avgLabel = document.getElementById('chart-avg-label');
-  if (avgLabel) avgLabel.textContent = `⚪ Průměr: ${avg.toFixed(1)} kWh/den`;
-
-  const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 10;
-  const paddingX = 35;
-  const paddingY = 25;
-  const chartW = width - paddingX * 2;
-  const chartH = height - paddingY * 2;
-
-  const avgY = height - paddingY - (avg / maxVal) * chartH;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(paddingX, avgY);
-  ctx.lineTo(width - paddingX, avgY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.strokeStyle = '#38bdf8';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-
-  const coords = [];
-  points.forEach((pt, idx) => {
-    const x = paddingX + (idx / (points.length - 1 || 1)) * chartW;
-    const y = height - paddingY - (pt.val / maxVal) * chartH;
-    coords.push({ x, y, pt });
-
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
-  ctx.lineTo(coords[0].x, height - paddingY);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  coords.forEach(c => {
-    ctx.fillStyle = '#38bdf8';
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    if (c.pt.val > 0) {
-      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
-    }
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(c.pt.label, c.x, height - 8);
-  });
-}
-
-async function drawWebEarningsTrendChart(allEntries) {
-  const canvas = document.getElementById('web-trend-chart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = 170 * dpr;
-  ctx.scale(dpr, dpr);
-
-  const width = rect.width;
-  const height = 170;
-  ctx.clearRect(0, 0, width, height);
-
-  const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
-  const months = [];
-  const now = new Date(currentDate);
-
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    months.push({ key: mKey, label: monthNames[d.getMonth()] });
-  }
-
-  const points = months.map(m => {
-    const webEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Web & Projekty');
-    const total = webEntries.reduce((acc, e) => acc + e.amount, 0);
-    return {
-      label: m.label,
-      val: total > 0 ? (total / 100) : 0
-    };
-  });
-
-  const sum = points.reduce((acc, p) => acc + p.val, 0);
-  const avg = Math.round(sum / points.length);
-
-  const webLegend = document.getElementById('web-avg-legend');
-  if (webLegend) webLegend.textContent = `⚪ Průměr (${avg.toLocaleString('cs-CZ')} Kč)`;
-
-  const maxVal = Math.max(...points.map(p => p.val), 5000) * 1.25;
-  const paddingX = 35;
-  const paddingY = 25;
-  const chartW = width - paddingX * 2;
-  const chartH = height - paddingY * 2;
-
-  const avgY = height - paddingY - (avg / maxVal) * chartH;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  ctx.moveTo(paddingX, avgY);
-  ctx.lineTo(width - paddingX, avgY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.strokeStyle = '#10b981';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-
-  const coords = [];
-  points.forEach((pt, idx) => {
-    const x = paddingX + (idx / (points.length - 1)) * chartW;
-    const y = height - paddingY - (pt.val / maxVal) * chartH;
-    coords.push({ x, y, pt });
-    if (idx === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
-  ctx.lineTo(coords[0].x, height - paddingY);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  coords.forEach(c => {
-    ctx.fillStyle = '#10b981';
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(c.pt.label, c.x, height - 8);
-  });
-}
-
-function drawDonutChart(canvasId, percent) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = 100 * dpr;
-  canvas.height = 100 * dpr;
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, 100, 100);
-
-  const cx = 50;
   const cy = 50;
   const r = 38;
   const lineWidth = 12;
@@ -3091,25 +2560,64 @@ function setupInvestmentModal() {
   };
 }
 
-// 19. Energie
+// 19. Energie – VÝPOČTY ZÁLOH (2 770 Kč do 09/2026, 3 000 Kč od 10/2026) A OPRAVA GRAFU
+async function getEffectiveCezDeposit(year, monthNum) {
+  // Do září 2026 včetně byla měsíční záloha 2 770 Kč
+  if (year < 2026 || (year === 2026 && monthNum <= 9)) {
+    return 277000;
+  }
+  // Od října 2026 je záloha 3 000 Kč (nebo z nastavení)
+  const cezDep = await dbGet('settings', 'cez_deposit');
+  return cezDep ? cezDep.value : 300000;
+}
+
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
-  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+  const kwhPriceCents = kwhRecord ? kwhRecord.value : 665;
   const kwhPriceCzk = kwhPriceCents / 100;
 
-  document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
+  document.getElementById('disp-kwh-price').textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč / kWh`;
 
-  const templates = await dbGetAll('templates');
-  const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
-  const cezDepositCents = cez ? cez.amount : 300000;
-  document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
+  // Aktuálně zvolený měsíc v hlavičce
+  const targetYear = currentDate.getFullYear();
+  const targetMonthNum = currentDate.getMonth() + 1;
+  const currentMonthDepositCents = await getEffectiveCezDeposit(targetYear, targetMonthNum);
 
-  const maxKwh = ((cezDepositCents / 100) / kwhPriceCzk).toFixed(1);
+  document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(currentMonthDepositCents);
+  const maxKwh = ((currentMonthDepositCents / 100) / kwhPriceCzk).toFixed(1);
   document.getElementById('disp-max-allowed-kwh').textContent = `${maxKwh} kWh / měsíc`;
+  document.getElementById('lbl-max-allowed-kwh').textContent = `Kapacita zálohy ${Money.toCzkInt(currentMonthDepositCents)}:`;
+  document.getElementById('lbl-meter-eval-title').textContent = `Měsíční vyhodnocení odečtu (vs. záloha ${Money.toCzkInt(currentMonthDepositCents)})`;
 
-  await evaluateLastMeterReading(cezDepositCents, kwhPriceCents);
+  await evaluateLastMeterReading(kwhPriceCents);
   await drawEnergyConsumptionChart();
-  await renderMeterReadingsHistory(cezDepositCents, kwhPriceCents);
+  await renderMeterReadingsHistory(kwhPriceCents);
+
+  // Tlačítka pro rychlou editaci na kartě
+  const btnEditKwh = document.getElementById('btn-edit-kwh-price');
+  if (btnEditKwh) {
+    btnEditKwh.onclick = async () => {
+      const val = prompt('Zadej novou cenu elektřiny za kWh (Kč):', kwhPriceCzk.toFixed(2));
+      if (!val) return;
+      const num = parseFloat(val.replace(',', '.'));
+      if (isNaN(num) || num <= 0) return;
+      await dbSet('settings', { key: 'kwh_price', value: Money.toCents(num) });
+      await renderEnergy();
+    };
+  }
+
+  const btnEditCez = document.getElementById('btn-edit-cez-deposit');
+  if (btnEditCez) {
+    btnEditCez.onclick = async () => {
+      const currentVal = Math.round(currentMonthDepositCents / 100);
+      const val = prompt('Zadej výši měsíční zálohy ČEZ (Kč):', currentVal);
+      if (!val) return;
+      const num = parseInt(val, 10);
+      if (isNaN(num) || num <= 0) return;
+      await dbSet('settings', { key: 'cez_deposit', value: Money.toCents(num) });
+      await renderEnergy();
+    };
+  }
 
   const appliances = await dbGetAll('energy');
   const container = document.getElementById('appliances-list');
@@ -3182,7 +2690,7 @@ async function renderEnergy() {
   });
 }
 
-async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
+async function evaluateLastMeterReading(kwhPriceCents) {
   const readings = await dbGetAll('meter_readings');
   readings.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -3206,12 +2714,16 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
 
   const monthlyNormalizedKwh = daysDiff > 0 ? (kwhConsumed / daysDiff) * 30 : kwhConsumed;
   const estimatedCostCents = Math.round(monthlyNormalizedKwh * kwhPriceCents);
-  const diffCents = cezDepositCents - estimatedCostCents;
 
+  // Záloha platná pro období posledního odečtu
+  const latestD = new Date(latest.date);
+  const effectiveDepositCents = await getEffectiveCezDeposit(latestD.getFullYear(), latestD.getMonth() + 1);
+
+  const diffCents = effectiveDepositCents - estimatedCostCents;
   const isSurplus = diffCents >= 0;
   const sign = isSurplus ? '+' : '';
 
-  let trendText = 'Běžný trend';
+  let trendText = 'Stabilní odběr';
   let trendColor = 'var(--accent-blue)';
 
   if (readings.length >= 3) {
@@ -3222,10 +2734,10 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
 
     const delta = monthlyNormalizedKwh - prevNormalized;
     if (delta > 30) {
-      trendText = `📈 Rostoucí tendence (+${delta.toFixed(0)} kWh oproti minule)`;
+      trendText = `📈 Rostoucí tendence (+${delta.toFixed(0)} kWh)`;
       trendColor = 'var(--accent-red)';
     } else if (delta < -30) {
-      trendText = `📉 Klesající tendence (${delta.toFixed(0)} kWh oproti minule)`;
+      trendText = `📉 Klesající tendence (${delta.toFixed(0)} kWh)`;
       trendColor = 'var(--accent-green)';
     } else {
       trendText = `➡️ Stabilní odběr (rozdíl jen ${delta.toFixed(0)} kWh)`;
@@ -3243,11 +2755,11 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
         <span class="e-val text-blue">${monthlyNormalizedKwh.toFixed(1)} kWh</span>
       </div>
       <div class="eval-item">
-        <span class="e-lbl">Reálná cena (6,50 Kč)</span>
+        <span class="e-lbl">Reálná cena (${(kwhPriceCents/100).toFixed(2).replace('.', ',')} Kč)</span>
         <span class="e-val">${Money.toCzkInt(estimatedCostCents)}</span>
       </div>
       <div class="eval-item">
-        <span class="e-lbl">Výsledek vs. 3 000 Kč</span>
+        <span class="e-lbl">Výsledek vs. ${Money.toCzkInt(effectiveDepositCents)}</span>
         <span class="e-val" style="color: ${isSurplus ? 'var(--accent-green)' : 'var(--accent-red)'}">
           ${sign}${Money.toCzkInt(diffCents)}
         </span>
@@ -3266,12 +2778,13 @@ function setupEnergySimulator() {
   const rateLabel = document.getElementById('calc-unit-rate');
   const costDisp = document.getElementById('calc-result-cost');
   const balanceDisp = document.getElementById('calc-result-balance');
+  const lblDiff = document.getElementById('lbl-calc-deposit-diff');
 
   if (!kwhInput || !kwhRange) return;
 
   async function updateSimulation() {
     const kwhRecord = await dbGet('settings', 'kwh_price');
-    const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+    const kwhPriceCents = kwhRecord ? kwhRecord.value : 665;
     const kwhPriceCzk = kwhPriceCents / 100;
     
     rateLabel.textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč`;
@@ -3280,11 +2793,13 @@ function setupEnergySimulator() {
     const totalCostCents = Math.round(kwh * kwhPriceCents);
     costDisp.textContent = Money.toCzkInt(totalCostCents);
 
-    const templates = await dbGetAll('templates');
-    const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
-    const cezDepositCents = cez ? cez.amount : 300000;
+    const targetYear = currentDate.getFullYear();
+    const targetMonthNum = currentDate.getMonth() + 1;
+    const effectiveDepositCents = await getEffectiveCezDeposit(targetYear, targetMonthNum);
 
-    const diffCents = cezDepositCents - totalCostCents;
+    if (lblDiff) lblDiff.textContent = `Rozdíl oproti záloze (${Money.toCzkInt(effectiveDepositCents)})`;
+
+    const diffCents = effectiveDepositCents - totalCostCents;
     if (diffCents >= 0) {
       balanceDisp.textContent = `+${Money.toCzkInt(diffCents)} (přeplatek)`;
       balanceDisp.style.color = 'var(--accent-green)';
@@ -3307,7 +2822,7 @@ function setupEnergySimulator() {
   updateSimulation();
 }
 
-async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
+async function renderMeterReadingsHistory(kwhPriceCents) {
   const container = document.getElementById('meter-readings-history');
   if (!container) return;
   container.innerHTML = '';
@@ -3320,7 +2835,8 @@ async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
     return;
   }
 
-  readings.forEach((r, idx) => {
+  for (let idx = 0; idx < readings.length; idx++) {
+    const r = readings[idx];
     const row = document.createElement('div');
     row.className = 'meter-history-item';
 
@@ -3331,7 +2847,10 @@ async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
       const days = (new Date(r.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
       const normMonthlyKwh = days > 0 ? (diffKwh / days) * 30 : diffKwh;
       const monthCostCents = Math.round(normMonthlyKwh * kwhPriceCents);
-      const balanceCents = cezDepositCents - monthCostCents;
+
+      const rDate = new Date(r.date);
+      const depCents = await getEffectiveCezDeposit(rDate.getFullYear(), rDate.getMonth() + 1);
+      const balanceCents = depCents - monthCostCents;
       const isOk = balanceCents >= 0;
 
       diffInfo = `
@@ -3359,9 +2878,10 @@ async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
     };
 
     container.appendChild(row);
-  });
+  }
 }
 
+// OPRAVA GRAFU SPOTŘEBY: ČITELNÁ DATA NA OSE X A ZAOKROUHLENÍ NA 1 DESETINNÉ MÍSTO
 async function drawEnergyConsumptionChart() {
   const canvas = document.getElementById('energy-chart');
   if (!canvas) return;
@@ -3399,9 +2919,19 @@ async function drawEnergyConsumptionChart() {
     if (days > 0) {
       const kwhDiff = curr.value - prev.value;
       const kwhPerDay = Math.max(0, kwhDiff / days);
+      
+      // Bezpečné formátování data (např. "01.10")
+      let dateLabel = '';
+      if (curr.date && curr.date.length >= 10) {
+        const parts = curr.date.split('-');
+        dateLabel = `${parts[2]}.${parts[1]}`;
+      } else {
+        dateLabel = curr.date || '';
+      }
+
       points.push({
-        date: curr.date.slice(5),
-        val: kwhPerDay
+        date: dateLabel,
+        val: parseFloat(kwhPerDay.toFixed(1))
       });
       totalDailySum += kwhPerDay;
     }
@@ -3413,7 +2943,7 @@ async function drawEnergyConsumptionChart() {
   const avgLabel = document.getElementById('chart-avg-label');
   if (avgLabel) avgLabel.textContent = `⚪ Průměr: ${avg.toFixed(1)} kWh/den`;
 
-  const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 10;
+  const maxVal = Math.max(...points.map(p => p.val)) * 1.3 || 10;
   const paddingX = 35;
   const paddingY = 25;
   const chartW = width - paddingX * 2;
@@ -3452,21 +2982,23 @@ async function drawEnergyConsumptionChart() {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  coords.forEach(c => {
+  coords.forEach((c, i) => {
     ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
     ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
+    // Čitelné číslo spotřeby v kWh/den
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    if (c.pt.val > 0) {
-      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
-    }
+    ctx.fillText(`${c.pt.val}`, c.x, c.y - 8);
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillText(c.pt.label, c.x, height - 8);
+    // Datum na ose X (pokud je bodů hodně, tiskne se ob jeden)
+    if (points.length <= 8 || i % 2 === 0 || i === points.length - 1) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(c.pt.date, c.x, height - 8);
+    }
   });
 }
 
@@ -3556,17 +3088,20 @@ async function renderSettings() {
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
   const kwhRecord = await dbGet('settings', 'kwh_price');
+  const cezDepositRecord = await dbGet('settings', 'cez_deposit');
   const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
 
   const bankCapEl = document.getElementById('set-bank-capital');
   const cashCapEl = document.getElementById('set-cash-capital');
   const paydayEl = document.getElementById('set-payday');
   const kwhEl = document.getElementById('set-kwh-price');
+  const cezDepositEl = document.getElementById('set-cez-deposit');
 
   if (bankCapEl) bankCapEl.value = bankCapRecord ? bankCapRecord.value / 100 : (initCapRecord ? initCapRecord.value / 100 : 46000);
   if (cashCapEl) cashCapEl.value = cashCapRecord ? cashCapRecord.value / 100 : 5000;
   if (paydayEl) paydayEl.value = paydayRecord ? paydayRecord.value : 10;
-  if (kwhEl) kwhEl.value = kwhRecord ? kwhRecord.value / 100 : 6.5;
+  if (kwhEl) kwhEl.value = kwhRecord ? kwhRecord.value / 100 : 6.65;
+  if (cezDepositEl) cezDepositEl.value = cezDepositRecord ? cezDepositRecord.value / 100 : 3000;
 
   if (tokenRecord && tokenRecord.value) {
     const tokenEl = document.getElementById('set-gh-token');
@@ -3622,14 +3157,17 @@ function setupSettingsAndBackup() {
       const cashCap = parseFloat(document.getElementById('set-cash-capital').value);
       const payday = parseInt(document.getElementById('set-payday').value, 10);
       const kwh = parseFloat(document.getElementById('set-kwh-price').value);
+      const cezDep = parseFloat(document.getElementById('set-cez-deposit').value);
 
       if (!isNaN(bankCap)) await dbSet('settings', { key: 'bank_capital', value: Money.toCents(bankCap) });
       if (!isNaN(cashCap)) await dbSet('settings', { key: 'cash_capital', value: Money.toCents(cashCap) });
       if (!isNaN(payday)) await dbSet('settings', { key: 'payday', value: payday });
       if (!isNaN(kwh)) await dbSet('settings', { key: 'kwh_price', value: Money.toCents(kwh) });
+      if (!isNaN(cezDep)) await dbSet('settings', { key: 'cez_deposit', value: Money.toCents(cezDep) });
 
       alert('Parametry uloženy!');
       await loadMonthData();
+      await renderEnergy();
     };
   }
 
@@ -3798,54 +3336,4 @@ async function parseAndImportAirBankCsv(csvText) {
   let importedCount = 0;
 
   const delimiter = lines[0].includes(';') ? ';' : ',';
-  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-
-  const dateIdx = headers.findIndex(h => h.includes('datum'));
-  const amountIdx = headers.findIndex(h => h.includes('částka') || h.includes('castka') || h.includes('objem'));
-  const partyIdx = headers.findIndex(h => h.includes('protistran') || h.includes('název') || h.includes('protiúčet'));
-  const msgIdx = headers.findIndex(h => h.includes('zpráva') || h.includes('popis') || h.includes('poznámka'));
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
-    if (cols.length <= amountIdx) continue;
-
-    const rawAmount = cols[amountIdx].replace(/\s/g, '').replace(',', '.');
-    const amountNum = parseFloat(rawAmount);
-
-    if (isNaN(amountNum) || amountNum === 0) continue;
-
-    const isIncome = amountNum > 0;
-    const absAmountCents = Math.round(Math.abs(amountNum) * 100);
-
-    let title = '';
-    if (partyIdx !== -1 && cols[partyIdx]) title = cols[partyIdx];
-    if (msgIdx !== -1 && cols[msgIdx]) title = title ? `${title} (${cols[msgIdx]})` : cols[msgIdx];
-    if (!title) title = isIncome ? 'Příchozí platba' : 'Platba kartou / Převod';
-
-    let day = 10;
-    if (dateIdx !== -1 && cols[dateIdx]) {
-      const parts = cols[dateIdx].split(/[\.\-\/]/);
-      if (parts.length >= 1) {
-        const parsedDay = parseInt(parts[0], 10);
-        if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) day = parsedDay;
-      }
-    }
-
-    const category = detectCategoryFromAirBank(title, isIncome);
-
-    await dbAdd('entries', {
-      monthYear: monthKey,
-      title: title.slice(0, 50),
-      amount: absAmountCents,
-      category,
-      day,
-      wallet: 'bank',
-      isIncome,
-      paid: true
-    });
-
-    importedCount++;
-  }
-
-  return importedCount;
-}
+  const headers = lines[0].split(delimiter).map(h => h.trim().replace
