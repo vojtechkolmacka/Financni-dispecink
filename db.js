@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 let dbInstance = null;
 
@@ -74,11 +74,10 @@ async function seedInitialData() {
     profit: 344302
   });
 
+  // ŠABLONY: PŮJČKY ZDE NEJSOU, ABY SE NIKDY NEZDVOUJILY S KARTAMI DLUHŮ
   const templates = [
     { title: 'ČEZ (elektřina)', amount: 300000, category: 'Energie', day: 15, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Terapie', amount: 200000, category: 'Zdraví & Lékárna', day: 1, frequency: 'monthly', dueMonths: [], active: true },
-    { title: 'Provident (splátka)', amount: 150000, category: 'Závazky', day: 10, frequency: 'monthly', dueMonths: [], active: true },
-    { title: 'AvaFin / Crediton (splátka)', amount: 110000, category: 'Závazky', day: 10, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Investown (pravidelná investice)', amount: 50000, category: 'Investice', day: 10, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'T-Mobile (internet)', amount: 45000, category: 'Komunikace', day: 20, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Vodafone (telefon)', amount: 26600, category: 'Komunikace', day: 15, frequency: 'monthly', dueMonths: [], active: true },
@@ -104,13 +103,13 @@ async function seedInitialData() {
   ];
   for (const g of goals) await dbAddInternal('goals', g);
 
-  // Přesná data dlužníků a půjček ze screenshotu
+  // DLUHY A POHLEDÁVKY PŘESNĚ DLE SCREENSHOTU
   const debts = [
-    // POHLEDÁVKY (Dlužníci) - Celkem 10 100 Kč
+    // POHLEDÁVKY (Dlužníci) - 10 100 Kč
     {
       type: 'receivable',
       name: 'KOV',
-      total: 665000, // 6 650 Kč
+      total: 665000,
       items: [
         { id: 'kov_1', label: 'Půjčky', amount: 340000 },
         { id: 'kov_2', label: 'Elektřina a drogerie', amount: 275000 },
@@ -120,7 +119,7 @@ async function seedInitialData() {
     {
       type: 'receivable',
       name: 'JIŘÍ',
-      total: 75000, // 750 Kč
+      total: 75000,
       items: [
         { id: 'jiri_1', label: 'Půjčky', amount: 0 },
         { id: 'jiri_2', label: 'Elektřina a drogerie', amount: 25000, note: 'Zaplaceno 1 250 Kč (2026-10-13)' },
@@ -130,7 +129,7 @@ async function seedInitialData() {
     {
       type: 'receivable',
       name: 'MAGDA',
-      total: 270000, // 2 700 Kč
+      total: 270000,
       items: [
         { id: 'magda_1', label: 'Půjčky', amount: 70000 },
         { id: 'magda_2', label: 'Elektřina a drogerie', amount: 150000 },
@@ -138,19 +137,19 @@ async function seedInitialData() {
       ]
     },
 
-    // MOJE PŮJČKY K ÚHRADĚ - Celkem 96 851,33 Kč
+    // MOJE PŮJČKY K ÚHRADĚ - 96 851,33 Kč
     {
       type: 'payable',
       name: 'Provident',
       total: 7732733, // 77 327,33 Kč
-      monthly: 150000, // Měsíční splátka 1 500 Kč
+      monthly: 150000, // 1 500 Kč
       day: 10
     },
     {
       type: 'payable',
       name: 'AvaFin/Crediton',
       total: 1952400, // 19 524 Kč
-      monthly: 110000, // Měsíční splátka 1 100 Kč
+      monthly: 110000, // 1 100 Kč
       day: 10
     }
   ];
