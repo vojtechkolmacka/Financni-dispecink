@@ -1655,6 +1655,7 @@ async function renderDebts() {
           <div>
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="debt-name">${d.name}</span>
+              <button class="btn-del-debtor" data-id="${d.id}" title="Smazat tuto půjčku">🗑️</button>
             </div>
             <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
               Měsíční splátka: ${Money.toCzkInt(d.monthly)} (k ${d.day}. dni)
@@ -1676,12 +1677,22 @@ async function renderDebts() {
           <button class="debt-btn btn-pay btn-confirm-monthly">
             Potvrdit splátku ${Money.toCzkInt(d.monthly)}
           </button>
+          <button class="debt-btn btn-extra btn-open-extra-pay">
+            ⚡ Mimořádná splátka
+          </button>
           <button class="debt-btn btn-secondary btn-edit-principal">
             Upravit jistinu
           </button>
         </div>
       `;
 
+      card.querySelector('.btn-del-debtor').onclick = async () => {
+        if (!confirm(`Opravdu chceš smazat půjčku „${d.name}“?`)) return;
+        await dbDelete('debts', d.id);
+        await renderDebts();
+      };
+
+      // Potvrdit měsíční splátku
       card.querySelector('.btn-confirm-monthly').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
@@ -1704,6 +1715,12 @@ async function renderDebts() {
         await renderDebts();
       };
 
+      // Tlačítko "⚡ Mimořádná splátka"
+      card.querySelector('.btn-open-extra-pay').onclick = () => {
+        openExtraPayModal(d);
+      };
+
+      // Tlačítko "Upravit jistinu"
       card.querySelector('.btn-edit-principal').onclick = async () => {
         const currentCzk = (d.total / 100).toFixed(2);
         const newCzkStr = prompt(`Zadej novou výši zbývající jistiny pro ${d.name} (Kč):`, currentCzk);
@@ -1720,12 +1737,14 @@ async function renderDebts() {
     }
   });
 
+  // Horní souhrnné karty
   const dispPayEl = document.getElementById('disp-total-payables');
   const dispRecEl = document.getElementById('disp-total-receivables');
   if (dispPayEl) dispPayEl.textContent = Money.toCzk(totalPayables);
   if (dispRecEl) dispRecEl.textContent = Money.toCzkInt(totalReceivables);
 }
 
+// Otevření okna pro Půjčit / Přičíst dlužníkovi
 function openLendDetailedModal(debt) {
   const modal = document.getElementById('modal-lend-detailed');
   const form = document.getElementById('form-lend-detailed');
@@ -1749,6 +1768,7 @@ function openLendDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
+// Otevření okna pro Zadat úhradu od dlužníka
 function openRepayDetailedModal(debt) {
   const modal = document.getElementById('modal-repay-detailed');
   const form = document.getElementById('form-repay-detailed');
@@ -1770,6 +1790,18 @@ function openRepayDetailedModal(debt) {
     });
   }
 
+  modal.classList.remove('hidden');
+}
+
+function openExtraPayModal(debt) {
+  const modal = document.getElementById('modal-extra-pay');
+  const form = document.getElementById('form-extra-pay');
+  const title = document.getElementById('modal-extra-pay-title');
+  const idInput = document.getElementById('extra-pay-debt-id');
+
+  form.reset();
+  idInput.value = debt.id;
+  title.textContent = `Mimořádná splátka: ${debt.name}`;
   modal.classList.remove('hidden');
 }
 
@@ -2808,8 +2840,8 @@ async function drawEnergyConsumptionChart() {
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
   const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
   ctx.fillStyle = grad;
   ctx.fill();
 
