@@ -128,7 +128,7 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat bez duplikace půjček
+// 4. Načtení dat a podpora periodických plateb
 async function loadMonthData() {
   const targetYear = currentDate.getFullYear();
   const targetMonthNum = currentDate.getMonth() + 1;
@@ -1575,6 +1575,11 @@ async function renderDebts() {
   let totalPayables = 0;
   let totalReceivables = 0;
 
+  const monthNames = [
+    'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
+    'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'
+  ];
+
   debts.forEach(d => {
     const card = document.createElement('div');
     card.className = 'debt-card';
@@ -1650,6 +1655,17 @@ async function renderDebts() {
     else {
       totalPayables += d.total;
 
+      // Dynamický dopočet zbývajících měsíců a odhadovaného data doplacení
+      let remainingMonths = 0;
+      let endDateStr = 'Splaceno';
+
+      if (d.total > 0 && d.monthly > 0) {
+        remainingMonths = Math.ceil(d.total / d.monthly);
+        const endD = new Date(currentDate);
+        endD.setMonth(endD.getMonth() + remainingMonths);
+        endDateStr = `${monthNames[endD.getMonth()]} ${endD.getFullYear()}`;
+      }
+
       card.innerHTML = `
         <div class="debt-card-header">
           <div>
@@ -1666,10 +1682,22 @@ async function renderDebts() {
           </div>
         </div>
 
-        <div style="margin: 8px 0 10px 0;">
+        <div style="margin: 8px 0 6px 0;">
           <div style="font-size:0.75rem; color:var(--text-muted);">Zbývající jistina:</div>
           <div style="font-size:1.45rem; font-weight:800; color:var(--text-main); margin-top:2px;">
             ${Money.toCzk(d.total)}
+          </div>
+        </div>
+
+        <!-- ODHADOVANÉ DATUM SPLACENÍ -->
+        <div class="debt-payoff-metrics" style="margin-bottom: 10px;">
+          <div class="dpm-col">
+            <span class="dpm-lbl">Zbývá splácet</span>
+            <span class="dpm-val">${remainingMonths} měsíců</span>
+          </div>
+          <div class="dpm-col" style="text-align:right;">
+            <span class="dpm-lbl">Odhadované doplacení</span>
+            <span class="dpm-val">${endDateStr}</span>
           </div>
         </div>
 
@@ -1715,7 +1743,7 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Tlačítko ⚡ Mimořádná splátka
+      // Tlačítko ⚡ Mimořádná splátka (otevře okno s dynamickým dopočtem)
       card.querySelector('.btn-open-extra-pay').onclick = () => {
         openExtraPayModal(d);
       };
@@ -1793,16 +1821,48 @@ function openRepayDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// Otevření okna pro Mimořádnou splátku půjčky
+// Otevření okna pro Mimořádnou splátku půjčky s dynamickou kalkulací
 function openExtraPayModal(debt) {
   const modal = document.getElementById('modal-extra-pay');
   const form = document.getElementById('form-extra-pay');
   const title = document.getElementById('modal-extra-pay-title');
   const idInput = document.getElementById('extra-pay-debt-id');
+  const amountInput = document.getElementById('extra-pay-amount');
+  const impactBox = document.getElementById('extra-pay-impact-box');
+  const savedMonthsEl = document.getElementById('extra-pay-saved-months');
+  const newDateEl = document.getElementById('extra-pay-new-date');
 
   form.reset();
   idInput.value = debt.id;
   title.textContent = `Mimořádná splátka: ${debt.name}`;
+  impactBox.style.display = 'none';
+
+  const monthNames = [
+    'Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen',
+    'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'
+  ];
+
+  // Dynamický náhled vlivu mimořádné splátky při psaní částky
+  amountInput.oninput = () => {
+    const extraVal = parseFloat(amountInput.value);
+    if (!isNaN(extraVal) && extraVal > 0 && debt.monthly > 0) {
+      const currentRemainingMonths = Math.ceil(debt.total / debt.monthly);
+      const remainingAfterExtra = Math.max(0, debt.total - Money.toCents(extraVal));
+      const newRemainingMonths = Math.ceil(remainingAfterExtra / debt.monthly);
+      const saved = currentRemainingMonths - newRemainingMonths;
+
+      const newD = new Date(currentDate);
+      newD.setMonth(newD.getMonth() + newRemainingMonths);
+      const newDateStr = remainingAfterExtra === 0 ? 'Doplaceno ihned!' : `${monthNames[newD.getMonth()]} ${newD.getFullYear()}`;
+
+      savedMonthsEl.textContent = `${saved} měsíců`;
+      newDateEl.textContent = newDateStr;
+      impactBox.style.display = 'grid';
+    } else {
+      impactBox.style.display = 'none';
+    }
+  };
+
   modal.classList.remove('hidden');
 }
 
@@ -1832,6 +1892,7 @@ function setupDebtTxModal() {
 
       await dbSet('debts', debt);
 
+      // Zápis do měsíčního rozpočtu jako výdaj z banky
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       await dbAdd('entries', {
         monthYear: monthKey,
@@ -1845,7 +1906,7 @@ function setupDebtTxModal() {
       });
 
       modalExtra.classList.add('hidden');
-      alert(`Mimořádná splátka ${extraCzk.toLocaleString('cs-CZ')} Kč proběhla.`);
+      alert(`Mimořádná splátka ${extraCzk.toLocaleString('cs-CZ')} Kč proběhla. Jistina i datum doplacení byly okamžitě přepočítány.`);
       await loadMonthData();
       await renderDebts();
     };
@@ -2301,8 +2362,8 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
   const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
-  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
   ctx.fillStyle = grad;
   ctx.fill();
 
@@ -2316,7 +2377,7 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     if (c.pt.val > 0) {
-      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+      ctx.fillText(`${Math.round(c.pt.val / 1000)}k`, c.x, c.y - 8);
     }
 
     ctx.fillStyle = '#94a3b8';
@@ -2860,9 +2921,7 @@ async function drawEnergyConsumptionChart() {
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    if (c.pt.val > 0) {
-      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
-    }
+    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
 
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(c.pt.label, c.x, height - 8);
