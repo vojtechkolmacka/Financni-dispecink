@@ -406,21 +406,27 @@
       <div class="energy-overview-card">
         <div class="energy-row">
           <span>Cena elektřiny:</span>
-          <strong id="disp-kwh-price">6,50 Kč / kWh</strong>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <strong id="disp-kwh-price">6,65 Kč / kWh</strong>
+            <button id="btn-edit-kwh-price" class="btn-edit-item" title="Upravit cenu kWh">✏️</button>
+          </div>
         </div>
         <div class="energy-row">
           <span>Měsíční záloha (ČEZ):</span>
-          <strong id="disp-cez-deposit">3 000 Kč</strong>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <strong id="disp-cez-deposit">3 000 Kč</strong>
+            <button id="btn-edit-cez-deposit" class="btn-edit-item" title="Změnit výši měsíční zálohy">✏️</button>
+          </div>
         </div>
         <div class="energy-row highlight">
-          <span>Kapacita zálohy 3 000 Kč:</span>
-          <strong id="disp-max-allowed-kwh">461,5 kWh / měsíc</strong>
+          <span id="lbl-max-allowed-kwh">Kapacita zálohy:</span>
+          <strong id="disp-max-allowed-kwh">451,1 kWh / měsíc</strong>
         </div>
       </div>
 
       <div class="analytics-card" style="margin-top: 14px;">
         <div class="analytics-header">
-          <h3>Měsíční vyhodnocení odečtu (vs. záloha 3 000 Kč)</h3>
+          <h3 id="lbl-meter-eval-title">Měsíční vyhodnocení odečtu</h3>
           <span class="badge-sub" id="energy-trend-badge">Vyhodnocuji...</span>
         </div>
         <div class="meter-evaluation-box" id="disp-meter-eval-box"></div>
@@ -461,12 +467,12 @@
           </div>
           <div class="calc-results-box">
             <div class="calc-result-item">
-              <span class="res-lbl">Náklad při ceně <strong id="calc-unit-rate">6,50 Kč</strong>/kWh</span>
-              <span class="res-val" id="calc-result-cost">650 Kč</span>
+              <span class="res-lbl">Náklad při ceně <strong id="calc-unit-rate">6,65 Kč</strong>/kWh</span>
+              <span class="res-val" id="calc-result-cost">665 Kč</span>
             </div>
             <div class="calc-result-item">
-              <span class="res-lbl">Rozdíl oproti záloze (3 000 Kč)</span>
-              <span class="res-val" id="calc-result-balance">+2 350 Kč (přeplatek)</span>
+              <span class="res-lbl" id="lbl-calc-deposit-diff">Rozdíl oproti záloze</span>
+              <span class="res-val" id="calc-result-balance">+2 335 Kč (přeplatek)</span>
             </div>
           </div>
         </div>
@@ -507,7 +513,7 @@
       </div>
 
       <div class="settings-card" style="margin-top: 14px;">
-        <h3>Finanční parametry (Počáteční stavy peněženek)</h3>
+        <h3>Finanční parametry & Energie</h3>
         <div class="form-group" style="margin-top: 10px;">
           <label for="set-bank-capital">Výchozí zůstatek na účtu (Air Bank v Kč)</label>
           <input type="number" id="set-bank-capital" step="1">
@@ -523,6 +529,10 @@
         <div class="form-group">
           <label for="set-kwh-price">Cena elektřiny (Kč za kWh)</label>
           <input type="number" id="set-kwh-price" step="0.01">
+        </div>
+        <div class="form-group">
+          <label for="set-cez-deposit">Aktuální měsíční záloha ČEZ (Kč)</label>
+          <input type="number" id="set-cez-deposit" step="1" value="3000">
         </div>
         <button id="btn-save-settings" class="action-btn-main" style="margin-top: 8px;">Uložit parametry</button>
       </div>
