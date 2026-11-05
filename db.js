@@ -1,6 +1,6 @@
-// Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
+// Správa lokálního úložiště IndexedDB, zálohování a ochrana dat
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 8;
+const DB_VERSION = 10;
 
 let dbInstance = null;
 
@@ -43,13 +43,16 @@ function initDB() {
 
     request.onsuccess = async (event) => {
       dbInstance = event.target.result;
-      try {
+      
+      // Kontrola, zda je databáze zcela prázdná
+      const existingSettings = await dbGet('settings', 'initial_capital');
+      if (!existingSettings) {
+        // Zkusíme stáhnout data z Gistu, pokud existuje spojení
         const restored = await autoRestoreFromCloud();
         if (!restored) {
+          // Jen pokud je databáze úplně čistá a bez cloudu, naplníme základ
           await seedInitialData();
         }
-      } catch (e) {
-        console.warn('Init error:', e);
       }
       resolve(dbInstance);
     };
@@ -74,7 +77,6 @@ async function seedInitialData() {
     profit: 344302
   });
 
-  // ŠABLONY: PŮJČKY ZDE NEJSOU, ABY SE NIKDY NEZDVOUJILY S KARTAMI DLUHŮ
   const templates = [
     { title: 'ČEZ (elektřina)', amount: 300000, category: 'Energie', day: 15, frequency: 'monthly', dueMonths: [], active: true },
     { title: 'Terapie', amount: 200000, category: 'Zdraví & Lékárna', day: 1, frequency: 'monthly', dueMonths: [], active: true },
@@ -103,9 +105,7 @@ async function seedInitialData() {
   ];
   for (const g of goals) await dbAddInternal('goals', g);
 
-  // DLUHY A POHLEDÁVKY PŘESNĚ DLE SCREENSHOTU
   const debts = [
-    // POHLEDÁVKY (Dlužníci) - 10 100 Kč
     {
       type: 'receivable',
       name: 'KOV',
@@ -136,20 +136,18 @@ async function seedInitialData() {
         { id: 'magda_3', label: 'Fólie na bazén', amount: 50000 }
       ]
     },
-
-    // MOJE PŮJČKY K ÚHRADĚ - 96 851,33 Kč
     {
       type: 'payable',
       name: 'Provident',
-      total: 7732733, // 77 327,33 Kč
-      monthly: 150000, // 1 500 Kč
+      total: 7732733,
+      monthly: 150000,
       day: 10
     },
     {
       type: 'payable',
       name: 'AvaFin/Crediton',
-      total: 1952400, // 19 524 Kč
-      monthly: 110000, // 1 100 Kč
+      total: 1952400,
+      monthly: 110000,
       day: 10
     }
   ];
@@ -312,10 +310,47 @@ async function autoRestoreFromCloud() {
     if (raw) {
       const backupData = JSON.parse(raw);
       await restoreFromBackup(backupData);
-      await dbSetInternal('settings', { key: CLOUD_CONFIG.tokenKey, value: localToken });
-      await dbSetInternal('settings', { key: CLOUD_CONFIG.gistKey, value: localGistId });
       return true;
     }
   } catch (err) {}
   return false;
+}
+
+async function createFullBackup() {
+  return {
+    version: DB_VERSION,
+    date: new Date().toISOString(),
+    settings: await dbGetAll('settings'),
+    templates: await dbGetAll('templates'),
+    entries: await dbGetAll('entries'),
+    goals: await dbGetAll('goals'),
+    debts: await dbGetAll('debts'),
+    energy: await dbGetAll('energy'),
+    meter_readings: await dbGetAll('meter_readings'),
+    investments: await dbGetAll('investments'),
+    gold_bars: await dbGetAll('gold_bars')
+  };
+}
+
+async function restoreFromBackup(data) {
+  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments', 'gold_bars'];
+  for (const store of stores) {
+    if (data[store] && Array.isArray(data[store])) {
+      await new Promise((resolve) => {
+        try {
+          const tx = dbInstance.transaction(store, 'readwrite');
+          const os = tx.objectStore(store);
+          os.clear().onsuccess = () => {
+            for (const item of data[store]) {
+              os.put(item);
+            }
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => resolve();
+          };
+        } catch (e) {
+          resolve();
+        }
+      });
+    }
+  }
 }
