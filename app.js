@@ -128,7 +128,7 @@ function setupTimeframeButtons() {
   });
 }
 
-// 4. Načtení dat a podpora periodických plateb
+// 4. Načtení dat bez duplikace půjček
 async function loadMonthData() {
   const targetYear = currentDate.getFullYear();
   const targetMonthNum = currentDate.getMonth() + 1;
@@ -1692,7 +1692,7 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Potvrdit měsíční splátku
+      // Potvrdit běžnou měsíční splátku
       card.querySelector('.btn-confirm-monthly').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
@@ -1715,12 +1715,12 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Tlačítko "⚡ Mimořádná splátka"
+      // Tlačítko ⚡ Mimořádná splátka
       card.querySelector('.btn-open-extra-pay').onclick = () => {
         openExtraPayModal(d);
       };
 
-      // Tlačítko "Upravit jistinu"
+      // Tlačítko Upravit jistinu
       card.querySelector('.btn-edit-principal').onclick = async () => {
         const currentCzk = (d.total / 100).toFixed(2);
         const newCzkStr = prompt(`Zadej novou výši zbývající jistiny pro ${d.name} (Kč):`, currentCzk);
@@ -1793,6 +1793,7 @@ function openRepayDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
+// Otevření okna pro Mimořádnou splátku půjčky
 function openExtraPayModal(debt) {
   const modal = document.getElementById('modal-extra-pay');
   const form = document.getElementById('form-extra-pay');
@@ -2314,7 +2315,12 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
     ctx.fillStyle = '#94a3b8';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(c.p.label, c.x, height - 8);
+    if (c.pt.val > 0) {
+      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+    }
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(c.pt.label, c.x, height - 8);
   });
 }
 
@@ -2854,7 +2860,9 @@ async function drawEnergyConsumptionChart() {
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+    if (c.pt.val > 0) {
+      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+    }
 
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(c.pt.label, c.x, height - 8);
