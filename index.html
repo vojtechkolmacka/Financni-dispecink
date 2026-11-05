@@ -249,9 +249,8 @@
       <div id="goals-list" class="goals-container"></div>
     </section>
 
-    <!-- 4. Dluhy & Pohledávky (Podrobná správa) -->
+    <!-- 4. Dluhy & Pohledávky -->
     <section id="tab-debts" class="tab-panel">
-      <!-- SOUHRNNÉ KARTY NAHOŘE -->
       <div class="debts-top-summary-grid">
         <div class="debts-sum-card red">
           <span class="dsc-lbl">MOJE DLUHY</span>
@@ -602,23 +601,86 @@
       </div>
     </div>
 
-    <!-- Modální okno: Přidat položku dluhu k existující osobě -->
-    <div id="modal-add-sub-item" class="modal hidden">
+    <!-- Modální okno: PŘIČÍST DLUŽNÍKOVI ČÁSTKU (S DATEM A ZA CO) -->
+    <div id="modal-lend-detailed" class="modal hidden">
       <div class="modal-content">
-        <h2 id="modal-add-sub-item-title">Nová položka dluhu</h2>
-        <form id="form-add-sub-item">
-          <input type="hidden" id="sub-item-debt-id">
+        <h2 id="modal-lend-detailed-title">+ Půjčit / Přičíst dlužníkovi</h2>
+        <form id="form-lend-detailed">
+          <input type="hidden" id="lend-debtor-id">
+
           <div class="form-group">
-            <label for="sub-item-label-input">Název položky</label>
-            <input type="text" id="sub-item-label-input" required placeholder="např. Benzín, Oběd, Půjčka">
+            <label>Způsob přičtení</label>
+            <div class="radio-row">
+              <label><input type="radio" name="lendMode" value="new" checked> Založit novou položku</label>
+              <label><input type="radio" name="lendMode" value="existing"> Přičíst k existující</label>
+            </div>
           </div>
+
+          <div class="form-group" id="wrap-lend-existing-item" style="display: none;">
+            <label for="lend-existing-item-select">Vyber položku k navýšení</label>
+            <select id="lend-existing-item-select"></select>
+          </div>
+
+          <div class="form-group" id="wrap-lend-new-item">
+            <label for="lend-new-item-title">Za co to bylo (Název položky)</label>
+            <input type="text" id="lend-new-item-title" placeholder="např. Benzín, Nákup, Oběd, Fólie na bazén">
+          </div>
+
           <div class="form-group">
-            <label for="sub-item-amount-input">Částka (Kč)</label>
-            <input type="number" id="sub-item-amount-input" step="1" required placeholder="např. 500">
+            <label for="lend-amount-input">Částka (Kč)</label>
+            <input type="number" id="lend-amount-input" step="1" required placeholder="např. 500">
           </div>
+
+          <div class="form-group">
+            <label for="lend-date-input">Datum půjčky / výdaje</label>
+            <input type="date" id="lend-date-input" required>
+          </div>
+
+          <div class="form-group">
+            <label for="lend-note-input">Podrobnější poznámka (volitelná)</label>
+            <input type="text" id="lend-note-input" placeholder="např. Cesta do Brna, půlka účtenky">
+          </div>
+
           <div class="modal-actions">
-            <button type="button" id="btn-cancel-add-sub-item" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Přidat položku</button>
+            <button type="button" id="btn-cancel-lend-detailed" class="btn-secondary">Zrušit</button>
+            <button type="submit" class="btn-primary">Přičíst k dluhu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modální okno: ODEČÍST ČÁSTKU DLUŽNÍKOVI (VÝBĚR POLOŽKY A HISTORIE) -->
+    <div id="modal-repay-detailed" class="modal hidden">
+      <div class="modal-content">
+        <h2 id="modal-repay-detailed-title">Zadat úhradu od dlužníka (+ účet)</h2>
+        <form id="form-repay-detailed">
+          <input type="hidden" id="repay-debtor-id">
+
+          <div class="form-group">
+            <label for="repay-target-item-select">Z jaké položky se má úhrada odečíst?</label>
+            <select id="repay-target-item-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="repay-amount-input">Uhrazená částka (Kč)</label>
+            <input type="number" id="repay-amount-input" step="1" required placeholder="např. 1250">
+          </div>
+
+          <div class="form-group">
+            <label for="repay-date-input">Datum úhrady</label>
+            <input type="date" id="repay-date-input" required>
+          </div>
+
+          <div class="form-group">
+            <label for="repay-note-input">Poznámka k platbě (zobrazí se zeleně u položky)</label>
+            <input type="text" id="repay-note-input" placeholder="např. Na účet, V hotovosti">
+          </div>
+
+          <p class="settings-desc">Tato částka poníží vybranou položku dlužníka a automaticky se připíše jako příjem na bankovní účet.</p>
+
+          <div class="modal-actions">
+            <button type="button" id="btn-cancel-repay-detailed" class="btn-secondary">Zrušit</button>
+            <button type="submit" class="btn-primary">Potvrdit úhradu</button>
           </div>
         </form>
       </div>
@@ -759,32 +821,6 @@
           <div class="modal-actions">
             <button type="button" id="btn-cancel-goal" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit cíl</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Úprava pohledávky (Půjčit / Repay) -->
-    <div id="modal-debt-tx" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modal-debt-tx-title">Upravit pohledávku</h2>
-        <form id="form-debt-tx">
-          <input type="hidden" id="debt-tx-id">
-          <input type="hidden" id="debt-tx-action">
-
-          <div class="form-group">
-            <label for="debt-tx-amount">Částka (Kč)</label>
-            <input type="number" id="debt-tx-amount" step="1" required placeholder="0">
-          </div>
-
-          <div class="form-group">
-            <label for="debt-tx-note">Důvod / Poznámka</label>
-            <input type="text" id="debt-tx-note" placeholder="např. Část úhrady">
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-debt-tx" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Potvrdit</button>
           </div>
         </form>
       </div>
