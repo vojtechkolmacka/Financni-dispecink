@@ -1443,34 +1443,121 @@ function setupDebtsManagement() {
     };
   }
 
-  // C. Přidat položku k existující osobě
-  const modalSubItem = document.getElementById('modal-add-sub-item');
-  const formSubItem = document.getElementById('form-add-sub-item');
-  const btnCancelSubItem = document.getElementById('btn-cancel-add-sub-item');
+  // C. Půjčit / Přičíst dlužníkovi (s datem a za co)
+  const modalLend = document.getElementById('modal-lend-detailed');
+  const formLend = document.getElementById('form-lend-detailed');
+  const btnCancelLend = document.getElementById('btn-cancel-lend-detailed');
+  const lendRadios = formLend ? formLend.querySelectorAll('input[name="lendMode"]') : [];
+  const wrapLendExisting = document.getElementById('wrap-lend-existing-item');
+  const wrapLendNew = document.getElementById('wrap-lend-new-item');
 
-  if (btnCancelSubItem) {
-    btnCancelSubItem.onclick = () => modalSubItem.classList.add('hidden');
+  if (btnCancelLend) {
+    btnCancelLend.onclick = () => modalLend.classList.add('hidden');
   }
 
-  if (formSubItem) {
-    formSubItem.onsubmit = async (e) => {
+  lendRadios.forEach(radio => {
+    radio.onchange = () => {
+      if (radio.value === 'new') {
+        wrapLendNew.style.display = 'block';
+        wrapLendExisting.style.display = 'none';
+      } else {
+        wrapLendNew.style.display = 'none';
+        wrapLendExisting.style.display = 'block';
+      }
+    };
+  });
+
+  if (formLend) {
+    formLend.onsubmit = async (e) => {
       e.preventDefault();
-      const debtId = parseInt(document.getElementById('sub-item-debt-id').value, 10);
-      const label = document.getElementById('sub-item-label-input').value.trim();
-      const amountCzk = parseFloat(document.getElementById('sub-item-amount-input').value);
+      const debtorId = parseInt(document.getElementById('lend-debtor-id').value, 10);
+      const mode = formLend.querySelector('input[name="lendMode"]:checked').value;
+      const amountCzk = parseFloat(document.getElementById('lend-amount-input').value);
+      const dateVal = document.getElementById('lend-date-input').value;
+      const noteVal = document.getElementById('lend-note-input').value.trim();
 
-      if (!label || isNaN(amountCzk) || amountCzk <= 0) return;
+      if (isNaN(amountCzk) || amountCzk <= 0 || !dateVal) return;
 
-      const debt = await dbGet('debts', debtId);
+      const debt = await dbGet('debts', debtorId);
       if (!debt) return;
 
       const amountCents = Money.toCents(amountCzk);
       if (!debt.items) debt.items = [];
-      debt.items.push({ id: 'sub_' + Date.now(), label, amount: amountCents });
-      debt.total = debt.items.reduce((acc, it) => acc + it.amount, 0);
 
+      if (mode === 'new') {
+        const itemTitle = document.getElementById('lend-new-item-title').value.trim() || 'Půjčka';
+        debt.items.push({
+          id: 'sub_' + Date.now(),
+          label: itemTitle,
+          amount: amountCents,
+          note: `Přičteno ${amountCzk} Kč (${dateVal}${noteVal ? ' - ' + noteVal : ''})`
+        });
+      } else {
+        const existingIdx = parseInt(document.getElementById('lend-existing-item-select').value, 10);
+        if (debt.items[existingIdx]) {
+          debt.items[existingIdx].amount += amountCents;
+          debt.items[existingIdx].note = `Navýšeno o +${amountCzk} Kč (${dateVal}${noteVal ? ' - ' + noteVal : ''})`;
+        }
+      }
+
+      debt.total = debt.items.reduce((acc, it) => acc + it.amount, 0);
       await dbSet('debts', debt);
-      modalSubItem.classList.add('hidden');
+
+      modalLend.classList.add('hidden');
+      alert(`Částka ${amountCzk} Kč byla přičtena k dluhu osoby ${debt.name}.`);
+      await renderDebts();
+    };
+  }
+
+  // D. Odečíst dlužníkovi (Zadat úhradu s výběrem položky)
+  const modalRepay = document.getElementById('modal-repay-detailed');
+  const formRepay = document.getElementById('form-repay-detailed');
+  const btnCancelRepay = document.getElementById('btn-cancel-repay-detailed');
+
+  if (btnCancelRepay) {
+    btnCancelRepay.onclick = () => modalRepay.classList.add('hidden');
+  }
+
+  if (formRepay) {
+    formRepay.onsubmit = async (e) => {
+      e.preventDefault();
+      const debtorId = parseInt(document.getElementById('repay-debtor-id').value, 10);
+      const itemIdx = parseInt(document.getElementById('repay-target-item-select').value, 10);
+      const amountCzk = parseFloat(document.getElementById('repay-amount-input').value);
+      const dateVal = document.getElementById('repay-date-input').value;
+      const noteVal = document.getElementById('repay-note-input').value.trim();
+
+      if (isNaN(amountCzk) || amountCzk <= 0 || !dateVal) return;
+
+      const debt = await dbGet('debts', debtorId);
+      if (!debt || !debt.items || !debt.items[itemIdx]) return;
+
+      const targetItem = debt.items[itemIdx];
+      const amountCents = Money.toCents(amountCzk);
+      const actualDeduct = Math.min(targetItem.amount, amountCents);
+
+      targetItem.amount -= actualDeduct;
+      targetItem.note = `Zaplaceno ${Money.toCzkInt(actualDeduct)} (${dateVal}${noteVal ? ' - ' + noteVal : ''})`;
+
+      debt.total = debt.items.reduce((acc, it) => acc + it.amount, 0);
+      await dbSet('debts', debt);
+
+      // Připsání úhrady na bankovní účet jako příjem
+      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      await dbAdd('entries', {
+        monthYear: monthKey,
+        title: `Úhrada dluhu: ${debt.name} (${targetItem.label})`,
+        amount: actualDeduct,
+        category: 'Příjmy',
+        day: new Date().getDate(),
+        wallet: 'bank',
+        isIncome: true,
+        paid: true
+      });
+
+      modalRepay.classList.add('hidden');
+      alert(`Úhrada ${Money.toCzkInt(actualDeduct)} byla odečtena z položky „${targetItem.label}“ a připsána na bankovní účet.`);
+      await loadMonthData();
       await renderDebts();
     };
   }
@@ -1533,28 +1620,27 @@ async function renderDebts() {
         ${itemsHtml}
 
         <div class="debt-actions-row">
-          <button class="debt-btn btn-lend btn-open-add-subitem" data-id="${d.id}">+ Přidat položku dluhu</button>
-          <button class="debt-btn btn-pay" data-id="${d.id}" data-action="repay">− Zadat úhradu (+ účet)</button>
+          <button class="debt-btn btn-lend btn-open-lend-modal" data-id="${d.id}">+ Půjčit / Přičíst</button>
+          <button class="debt-btn btn-pay btn-open-repay-modal" data-id="${d.id}">− Zadat úhradu (+ účet)</button>
         </div>
       `;
 
-      // Smazání celého dlužníka
       card.querySelector('.btn-del-debtor').onclick = async () => {
         if (!confirm(`Opravdu chceš smazat dlužníka „${d.name}“ a všechny jeho položky?`)) return;
         await dbDelete('debts', d.id);
         await renderDebts();
       };
 
-      // Přidání další položky k dlužníkovi
-      card.querySelector('.btn-open-add-subitem').onclick = () => {
-        const modal = document.getElementById('modal-add-sub-item');
-        document.getElementById('form-add-sub-item').reset();
-        document.getElementById('sub-item-debt-id').value = d.id;
-        document.getElementById('modal-add-sub-item-title').textContent = `Nová položka dluhu: ${d.name}`;
-        modal.classList.remove('hidden');
+      // Tlačítko + Půjčit / Přičíst (s datem a za co)
+      card.querySelector('.btn-open-lend-modal').onclick = () => {
+        openLendDetailedModal(d);
       };
 
-      // Úprava konkrétní položky tužkou
+      // Tlačítko - Zadat úhradu (s výběrem položky a datem)
+      card.querySelector('.btn-open-repay-modal').onclick = () => {
+        openRepayDetailedModal(d);
+      };
+
       card.querySelectorAll('.btn-edit-item').forEach(btn => {
         btn.onclick = () => {
           const debtId = parseInt(btn.dataset.debtId, 10);
@@ -1562,11 +1648,6 @@ async function renderDebts() {
           openEditSubItemModal(debtId, itemIdx);
         };
       });
-
-      // Zadat úhradu
-      card.querySelector('.btn-pay').onclick = () => {
-        openDebtTxModal(d, 'repay');
-      };
 
       recContainer.appendChild(card);
     } 
@@ -1687,88 +1768,64 @@ async function renderDebts() {
   if (dispRecEl) dispRecEl.textContent = Money.toCzkInt(totalReceivables);
 }
 
-function openDebtTxModal(debt, action) {
-  const modal = document.getElementById('modal-debt-tx');
-  const title = document.getElementById('modal-debt-tx-title');
-  const idInput = document.getElementById('debt-tx-id');
-  const actionInput = document.getElementById('debt-tx-action');
-  const form = document.getElementById('form-debt-tx');
-
+// Otevření okna pro Půjčit / Přičíst dlužníkovi
+function openLendDetailedModal(debt) {
+  const modal = document.getElementById('modal-lend-detailed');
+  const form = document.getElementById('form-lend-detailed');
   form.reset();
-  idInput.value = debt.id;
-  actionInput.value = action;
 
-  title.textContent = (action === 'repay') 
-    ? `Úhrada od: ${debt.name} (přičte se na účet)`
-    : `Půjčit / přičíst pro: ${debt.name}`;
+  document.getElementById('lend-debtor-id').value = debt.id;
+  document.getElementById('modal-lend-detailed-title').textContent = `+ Přičíst dlužníkovi: ${debt.name}`;
+  document.getElementById('lend-date-input').value = new Date().toISOString().slice(0, 10);
+
+  const selectExisting = document.getElementById('lend-existing-item-select');
+  selectExisting.innerHTML = '';
+  if (debt.items && debt.items.length > 0) {
+    debt.items.forEach((item, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `${item.label} (${Money.toCzkInt(item.amount)})`;
+      selectExisting.appendChild(opt);
+    });
+  }
 
   modal.classList.remove('hidden');
 }
 
-function setupDebtTxModal() {
-  const modal = document.getElementById('modal-debt-tx');
-  const btnCancel = document.getElementById('btn-cancel-debt-tx');
-  const form = document.getElementById('form-debt-tx');
+// Otevření okna pro Zadat úhradu od dlužníka
+function openRepayDetailedModal(debt) {
+  const modal = document.getElementById('modal-repay-detailed');
+  const form = document.getElementById('form-repay-detailed');
+  form.reset();
 
-  if (btnCancel) {
-    btnCancel.onclick = () => modal.classList.add('hidden');
+  document.getElementById('repay-debtor-id').value = debt.id;
+  document.getElementById('modal-repay-detailed-title').textContent = `Zadat úhradu od: ${debt.name}`;
+  document.getElementById('repay-date-input').value = new Date().toISOString().slice(0, 10);
+
+  const selectTarget = document.getElementById('repay-target-item-select');
+  selectTarget.innerHTML = '';
+
+  if (debt.items && debt.items.length > 0) {
+    debt.items.forEach((item, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = `${item.label} (Aktuální dluh: ${Money.toCzkInt(item.amount)})`;
+      selectTarget.appendChild(opt);
+    });
   }
 
-  form.onsubmit = async (e) => {
-    e.preventDefault();
+  modal.classList.remove('hidden');
+}
 
-    const id = parseInt(document.getElementById('debt-tx-id').value, 10);
-    const action = document.getElementById('debt-tx-action').value;
-    const amountCzk = parseFloat(document.getElementById('debt-tx-amount').value);
-    const note = document.getElementById('debt-tx-note').value.trim();
+function openDebtTxModal(debt, action) {
+  if (action === 'lend') {
+    openLendDetailedModal(debt);
+  } else {
+    openRepayDetailedModal(debt);
+  }
+}
 
-    if (isNaN(amountCzk) || amountCzk <= 0) return;
-
-    const amountCents = Money.toCents(amountCzk);
-    const debt = await dbGet('debts', id);
-
-    if (!debt) return;
-
-    const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-
-    if (action === 'repay') {
-      debt.total = Math.max(0, debt.total - amountCents);
-      
-      // Proporcionální snížení jednotlivých položek u dlužníka
-      if (debt.items && debt.items.length > 0) {
-        let leftToDeduct = amountCents;
-        for (const item of debt.items) {
-          if (leftToDeduct <= 0) break;
-          const deduct = Math.min(item.amount, leftToDeduct);
-          item.amount -= deduct;
-          leftToDeduct -= deduct;
-        }
-      }
-
-      await dbSet('debts', debt);
-
-      await dbAdd('entries', {
-        monthYear: monthKey,
-        title: `Úhrada dluhu: ${debt.name}${note ? ' (' + note + ')' : ''}`,
-        amount: amountCents,
-        category: 'Příjmy',
-        day: new Date().getDate(),
-        wallet: 'bank',
-        isIncome: true,
-        paid: true
-      });
-    } else {
-      debt.total += amountCents;
-      if (!debt.items) debt.items = [];
-      debt.items.push({ id: 'sub_' + Date.now(), label: note || 'Další půjčka', amount: amountCents });
-      await dbSet('debts', debt);
-    }
-
-    modal.classList.add('hidden');
-    await loadMonthData();
-    await renderDebts();
-  };
-
+function setupDebtTxModal() {
   const modalExtra = document.getElementById('modal-extra-pay');
   const formExtra = document.getElementById('form-extra-pay');
   const btnCancelExtra = document.getElementById('btn-cancel-extra-pay');
