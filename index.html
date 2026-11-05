@@ -545,9 +545,9 @@
       </div>
     </section>
 
-    <!-- MODÁLNÍ OKNA: UMÍSTĚNA GLOBÁLNĚ -->
+    <!-- MODÁLNÍ OKNA -->
 
-    <!-- Modální okno: Přidat nového dlužníka / osobu -->
+    <!-- Modální okno: Přidat nového dlužníka -->
     <div id="modal-new-debtor" class="modal hidden">
       <div class="modal-content">
         <h2>Přidat novou osobu (Dlužníka)</h2>
@@ -572,7 +572,7 @@
       </div>
     </div>
 
-    <!-- Modální okno: Přidat novou půjčku (Závazek) -->
+    <!-- Modální okno: Přidat novou půjčku -->
     <div id="modal-new-loan" class="modal hidden">
       <div class="modal-content">
         <h2>Přidat nový úvěr / závazek</h2>
@@ -601,7 +601,7 @@
       </div>
     </div>
 
-    <!-- Modální okno: PŘIČÍST DLUŽNÍKOVI ČÁSTKU (S DATEM A ZA CO) -->
+    <!-- Modální okno: Přičíst dlužníkovi -->
     <div id="modal-lend-detailed" class="modal hidden">
       <div class="modal-content">
         <h2 id="modal-lend-detailed-title">+ Půjčit / Přičíst dlužníkovi</h2>
@@ -649,7 +649,7 @@
       </div>
     </div>
 
-    <!-- Modální okno: ODEČÍST ČÁSTKU DLUŽNÍKOVI (VÝBĚR POLOŽKY A HISTORIE) -->
+    <!-- Modální okno: Odečíst od dlužníka -->
     <div id="modal-repay-detailed" class="modal hidden">
       <div class="modal-content">
         <h2 id="modal-repay-detailed-title">Zadat úhradu od dlužníka (+ účet)</h2>
@@ -672,11 +672,9 @@
           </div>
 
           <div class="form-group">
-            <label for="repay-note-input">Poznámka k platbě (zobrazí se zeleně u položky)</label>
+            <label for="repay-note-input">Poznámka k platbě</label>
             <input type="text" id="repay-note-input" placeholder="např. Na účet, V hotovosti">
           </div>
-
-          <p class="settings-desc">Tato částka poníží vybranou položku dlužníka a automaticky se připíše jako příjem na bankovní účet.</p>
 
           <div class="modal-actions">
             <button type="button" id="btn-cancel-repay-detailed" class="btn-secondary">Zrušit</button>
@@ -698,7 +696,18 @@
             <input type="number" id="extra-pay-amount" step="1" required placeholder="např. 5000">
           </div>
 
-          <p class="settings-desc">Tato částka okamžitě poníží celkový dluh a odečte se z bankovního účtu v aktuálním měsíci.</p>
+          <div id="extra-pay-impact-box" class="debt-payoff-metrics" style="margin: 10px 0; display:none;">
+            <div class="dpm-col">
+              <span class="dpm-lbl">Ušetříš přibližně</span>
+              <span class="dpm-val" id="extra-pay-saved-months">0 měsíců</span>
+            </div>
+            <div class="dpm-col" style="text-align:right;">
+              <span class="dpm-lbl">Nové datum doplacení</span>
+              <span class="dpm-val" id="extra-pay-new-date">--</span>
+            </div>
+          </div>
+
+          <p class="settings-desc">Tato částka okamžitě poníží jistinu půjčky, odečte se z bankovního účtu v tomto měsíci a přiblíží konečné doplacení.</p>
 
           <div class="modal-actions">
             <button type="button" id="btn-cancel-extra-pay" class="btn-secondary">Zrušit</button>
@@ -708,7 +717,7 @@
       </div>
     </div>
 
-    <!-- Modální okno: Přidat příjem / výdaj -->
+    <!-- Modální okno: Položka -->
     <div id="modal-entry" class="modal hidden">
       <div class="modal-content">
         <h2 id="modal-entry-title">Nová položka</h2>
@@ -857,7 +866,7 @@
             <label for="itown-deposit-amount-input">Částka vkladu (Kč)</label>
             <input type="number" id="itown-deposit-amount-input" step="1" required placeholder="např. 500 nebo 2500" value="500">
           </div>
-          <p class="settings-desc">Tato částka navýší tvou vloženou jistinu na Investownu a odečte se z bankovního účtu.</p>
+          <p class="settings-desc">Tato částka navýší jistinu na Investownu a odečte se z bankovního účtu.</p>
           <div class="modal-actions">
             <button type="button" id="btn-cancel-itown-deposit-custom" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Vložit</button>
@@ -875,7 +884,6 @@
             <label for="itown-direct-profit-input">Aktuální celkový zisk z mobilu (Kč)</label>
             <input type="number" id="itown-direct-profit-input" step="0.01" required placeholder="např. 3443.02">
           </div>
-          <p class="settings-desc">Zadej číslo „Celkový zisk“ z obrazovky Investownu. Celková hodnota portfolia, graf zhodnocení i procentuální výnos se samy okamžitě přepočítají.</p>
           <div class="modal-actions">
             <button type="button" id="btn-cancel-itown-profit-direct" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit a přepočítat</button>
@@ -893,7 +901,6 @@
             <label for="itown-sell-amount">Částka k prodeji / výběru (Kč)</label>
             <input type="number" id="itown-sell-amount" step="1" required placeholder="např. 2500">
           </div>
-          <p class="settings-desc">Tato částka poníží tvou zainvestovanou jistinu na Investownu a vrátí peníze zpět jako příjem na bankovní účet.</p>
           <div class="modal-actions">
             <button type="button" id="btn-cancel-itown-sell" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary" style="background:var(--accent-yellow); color:#0b0f19;">Prodat / Vybrat</button>
@@ -911,22 +918,18 @@
             <label for="gold-name">Název / Rafinér</label>
             <input type="text" id="gold-name" required placeholder="Argor-Heraeus 5g">
           </div>
-
           <div class="form-group">
             <label for="gold-weight">Hmotnost v gramech (g)</label>
             <input type="number" id="gold-weight" step="0.1" required placeholder="5">
           </div>
-
           <div class="form-group">
             <label for="gold-bought">Nákupní cena (Kč)</label>
             <input type="number" id="gold-bought" step="1" required placeholder="10500">
           </div>
-
           <div class="form-group">
             <label for="gold-current">Aktuální hodnota (Kč)</label>
             <input type="number" id="gold-current" step="1" required placeholder="11200">
           </div>
-
           <div class="modal-actions">
             <button type="button" id="btn-cancel-gold" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit slitek</button>
@@ -944,22 +947,18 @@
             <label for="inv-name">Název platformy / fondu</label>
             <input type="text" id="inv-name" required placeholder="např. Portu, Rentier.cz">
           </div>
-
           <div class="form-group">
             <label for="inv-invested">Vložená částka (Kč)</label>
             <input type="number" id="inv-invested" step="1" required placeholder="5000">
           </div>
-
           <div class="form-group">
             <label for="inv-current">Aktuální hodnota (Kč)</label>
             <input type="number" id="inv-current" step="1" required placeholder="5250">
           </div>
-
           <div class="form-group">
             <label for="inv-note">Poznámka / Strategie</label>
             <input type="text" id="inv-note" placeholder="např. Konzervativní portfolio">
           </div>
-
           <div class="modal-actions">
             <button type="button" id="btn-cancel-investment" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit</button>
@@ -977,17 +976,14 @@
             <label for="meter-date">Datum odečtu</label>
             <input type="date" id="meter-date" required>
           </div>
-
           <div class="form-group">
             <label for="meter-value">Stav na elektroměru (kWh)</label>
             <input type="number" id="meter-value" step="0.1" required placeholder="např. 13250.0">
           </div>
-
           <div class="form-group">
             <label for="meter-note">Poznámka</label>
             <input type="text" id="meter-note" placeholder="volitelná poznámka">
           </div>
-
           <div class="modal-actions">
             <button type="button" id="btn-cancel-meter" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit a vyhodnotit</button>
@@ -1005,27 +1001,22 @@
             <label for="appliance-name">Název spotřebiče</label>
             <input type="text" id="appliance-name" required placeholder="např. Bojler, Přímotop">
           </div>
-
           <div class="form-group">
             <label for="appliance-power">Příkon ve Wattech (W)</label>
             <input type="number" id="appliance-power" required placeholder="např. 2000">
           </div>
-
           <div class="form-group">
             <label for="appliance-hours">Denní provoz v hodinách (h)</label>
             <input type="number" id="appliance-hours" step="0.1" value="2" required placeholder="např. 2.5">
           </div>
-
           <div class="form-group">
             <label for="appliance-warranty-date">Datum nákupu</label>
             <input type="date" id="appliance-warranty-date">
           </div>
-
           <div class="form-group">
             <label for="appliance-warranty-months">Záruka (měsíce)</label>
             <input type="number" id="appliance-warranty-months" value="24">
           </div>
-
           <div class="modal-actions">
             <button type="button" id="btn-cancel-appliance" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit</button>
