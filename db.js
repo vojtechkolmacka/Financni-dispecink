@@ -1,6 +1,6 @@
 // Správa lokálního úložiště IndexedDB, tichého zrcadlení a výchozí data
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 7;
+const DB_VERSION = 6;
 
 let dbInstance = null;
 
@@ -64,6 +64,7 @@ function initDB() {
 async function seedInitialData() {
   const settings = await dbGet('settings', 'initial_capital');
   if (settings) {
+    await ensureUpdatedLoanData();
     return;
   }
 
@@ -116,6 +117,10 @@ async function seedInitialData() {
       total: 7732733,
       monthly: 150000,
       day: 10,
+      contractNumber: 'PRV-2024-88',
+      principalLeft: 5800000,
+      feeLeft: 1932733,
+      paidSoFar: 2250000,
       items: [
         { label: 'Půjčka / Jistina k doplacení', amount: 5800000 },
         { label: 'Poplatky a úrok', amount: 1932733 }
@@ -127,6 +132,10 @@ async function seedInitialData() {
       total: 1952400,
       monthly: 110000,
       day: 10,
+      contractNumber: 'CRD-55019',
+      principalLeft: 1500000,
+      feeLeft: 452400,
+      paidSoFar: 880000,
       items: [
         { label: 'Půjčka / Jistina k doplacení', amount: 1500000 },
         { label: 'Poplatky za správu a úrok', amount: 452400 }
@@ -137,9 +146,9 @@ async function seedInitialData() {
       name: 'KOV',
       total: 665000,
       items: [
-        { id: 'kov_1', label: 'Půjčky', amount: 340000, history: [{ date: '2026-10-01', amount: 340000, note: 'Výchozí stav půjčky', type: 'add' }] },
-        { id: 'kov_2', label: 'Elektřina a drogerie', amount: 275000, history: [{ date: '2026-10-01', amount: 275000, note: 'Výchozí stav energie', type: 'add' }] },
-        { id: 'kov_3', label: 'Fólie na bazén', amount: 50000, history: [{ date: '2026-10-01', amount: 50000, note: 'Příspěvek na fólii', type: 'add' }] }
+        { id: 'kov_1', label: 'Půjčky', amount: 340000 },
+        { id: 'kov_2', label: 'Elektřina a drogerie', amount: 275000 },
+        { id: 'kov_3', label: 'Fólie na bazén', amount: 50000 }
       ]
     },
     {
@@ -147,9 +156,9 @@ async function seedInitialData() {
       name: 'JIŘÍ',
       total: 75000,
       items: [
-        { id: 'jiri_1', label: 'Půjčky', amount: 0, history: [] },
-        { id: 'jiri_2', label: 'Elektřina a drogerie', amount: 25000, note: 'Zaplaceno 1 250 Kč (2026-10-13)', history: [{ date: '2026-10-13', amount: 125000, note: 'Platba na účet', type: 'repay' }] },
-        { id: 'jiri_3', label: 'Fólie na bazén', amount: 50000, history: [{ date: '2026-10-01', amount: 50000, note: 'Fólie', type: 'add' }] }
+        { id: 'jiri_1', label: 'Půjčky', amount: 0 },
+        { id: 'jiri_2', label: 'Elektřina a drogerie', amount: 25000, note: 'Zaplaceno 1 250 Kč (2026-10-13)' },
+        { id: 'jiri_3', label: 'Fólie na bazén', amount: 50000 }
       ]
     },
     {
@@ -157,9 +166,9 @@ async function seedInitialData() {
       name: 'MAGDA',
       total: 270000,
       items: [
-        { id: 'magda_1', label: 'Půjčky', amount: 70000, history: [{ date: '2026-10-01', amount: 70000, note: 'Výchozí půjčka', type: 'add' }] },
-        { id: 'magda_2', label: 'Elektřina a drogerie', amount: 150000, history: [{ date: '2026-10-01', amount: 150000, note: 'Energie', type: 'add' }] },
-        { id: 'magda_3', label: 'Fólie na bazén', amount: 50000, history: [{ date: '2026-10-01', amount: 50000, note: 'Fólie', type: 'add' }] }
+        { id: 'magda_1', label: 'Půjčky', amount: 70000 },
+        { id: 'magda_2', label: 'Elektřina a drogerie', amount: 150000 },
+        { id: 'magda_3', label: 'Fólie na bazén', amount: 50000 }
       ]
     }
   ];
@@ -171,6 +180,36 @@ async function seedInitialData() {
     { date: '2026-10-31', value: 12940.0, note: 'Topná sezóna začala' }
   ];
   for (const m of meterReadings) await dbAddInternal('meter_readings', m);
+}
+
+async function ensureUpdatedLoanData() {
+  const debts = await dbGetAll('debts');
+  let changed = false;
+
+  for (const d of debts) {
+    if (d.type === 'payable' && (!d.items || d.items.length === 0)) {
+      if (d.name.includes('Provident')) {
+        d.principalLeft = Math.round(d.total * 0.75);
+        d.feeLeft = d.total - d.principalLeft;
+        d.items = [
+          { label: 'Půjčka / Jistina k doplacení', amount: d.principalLeft },
+          { label: 'Poplatky a úrok', amount: d.feeLeft }
+        ];
+        changed = true;
+      } else if (d.name.includes('AvaFin') || d.name.includes('Crediton')) {
+        d.principalLeft = Math.round(d.total * 0.77);
+        d.feeLeft = d.total - d.principalLeft;
+        d.items = [
+          { label: 'Půjčka / Jistina k doplacení', amount: d.principalLeft },
+          { label: 'Poplatky za správu a úrok', amount: d.feeLeft }
+        ];
+        changed = true;
+      }
+      await dbSetInternal('debts', d);
+    }
+  }
+
+  if (changed) triggerAutoCloudSync();
 }
 
 function dbGet(storeName, key) {
