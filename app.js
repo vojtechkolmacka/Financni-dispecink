@@ -1443,7 +1443,7 @@ function setupDebtsManagement() {
     };
   }
 
-  // C. Půjčit / Přičíst dlužníkovi (s datem a za co)
+  // C. Půjčit / Přičíst dlužníkovi
   const modalLend = document.getElementById('modal-lend-detailed');
   const formLend = document.getElementById('form-lend-detailed');
   const btnCancelLend = document.getElementById('btn-cancel-lend-detailed');
@@ -1509,7 +1509,7 @@ function setupDebtsManagement() {
     };
   }
 
-  // D. Odečíst dlužníkovi (Zadat úhradu s výběrem položky)
+  // D. Odečíst dlužníkovi (Úhrada)
   const modalRepay = document.getElementById('modal-repay-detailed');
   const formRepay = document.getElementById('form-repay-detailed');
   const btnCancelRepay = document.getElementById('btn-cancel-repay-detailed');
@@ -1542,7 +1542,6 @@ function setupDebtsManagement() {
       debt.total = debt.items.reduce((acc, it) => acc + it.amount, 0);
       await dbSet('debts', debt);
 
-      // Připsání úhrady na bankovní účet jako příjem
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       await dbAdd('entries', {
         monthYear: monthKey,
@@ -1655,7 +1654,7 @@ async function renderDebts() {
     else {
       totalPayables += d.total;
 
-      // Dynamický dopočet zbývajících měsíců a odhadovaného data doplacení
+      // Dynamický dopočet počtu měsíců a data doplacení
       let remainingMonths = 0;
       let endDateStr = 'Splaceno';
 
@@ -1689,8 +1688,8 @@ async function renderDebts() {
           </div>
         </div>
 
-        <!-- ODHADOVANÉ DATUM SPLACENÍ -->
-        <div class="debt-payoff-metrics" style="margin-bottom: 10px;">
+        <!-- ODHADOVANÉ DATUM SPLACENÍ A POČET MĚSÍCŮ -->
+        <div class="debt-payoff-metrics" style="margin: 8px 0 10px 0;">
           <div class="dpm-col">
             <span class="dpm-lbl">Zbývá splácet</span>
             <span class="dpm-val">${remainingMonths} měsíců</span>
@@ -1743,7 +1742,7 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Tlačítko ⚡ Mimořádná splátka (otevře okno s dynamickým dopočtem)
+      // Tlačítko ⚡ Mimořádná splátka
       card.querySelector('.btn-open-extra-pay').onclick = () => {
         openExtraPayModal(d);
       };
@@ -1765,14 +1764,12 @@ async function renderDebts() {
     }
   });
 
-  // Horní souhrnné karty
   const dispPayEl = document.getElementById('disp-total-payables');
   const dispRecEl = document.getElementById('disp-total-receivables');
   if (dispPayEl) dispPayEl.textContent = Money.toCzk(totalPayables);
   if (dispRecEl) dispRecEl.textContent = Money.toCzkInt(totalReceivables);
 }
 
-// Otevření okna pro Půjčit / Přičíst dlužníkovi
 function openLendDetailedModal(debt) {
   const modal = document.getElementById('modal-lend-detailed');
   const form = document.getElementById('form-lend-detailed');
@@ -1796,7 +1793,6 @@ function openLendDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// Otevření okna pro Zadat úhradu od dlužníka
 function openRepayDetailedModal(debt) {
   const modal = document.getElementById('modal-repay-detailed');
   const form = document.getElementById('form-repay-detailed');
@@ -1821,7 +1817,7 @@ function openRepayDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// Otevření okna pro Mimořádnou splátku půjčky s dynamickou kalkulací
+// Otevření okna mimořádné splátky s dynamickým výpočtem úspory měsíců
 function openExtraPayModal(debt) {
   const modal = document.getElementById('modal-extra-pay');
   const form = document.getElementById('form-extra-pay');
@@ -1842,7 +1838,6 @@ function openExtraPayModal(debt) {
     'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'
   ];
 
-  // Dynamický náhled vlivu mimořádné splátky při psaní částky
   amountInput.oninput = () => {
     const extraVal = parseFloat(amountInput.value);
     if (!isNaN(extraVal) && extraVal > 0 && debt.monthly > 0) {
@@ -1892,7 +1887,7 @@ function setupDebtTxModal() {
 
       await dbSet('debts', debt);
 
-      // Zápis do měsíčního rozpočtu jako výdaj z banky
+      // Zápis do měsíčních plateb jako výdaj
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       await dbAdd('entries', {
         monthYear: monthKey,
@@ -2362,8 +2357,8 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
   const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
   ctx.fillStyle = grad;
   ctx.fill();
 
@@ -2377,7 +2372,552 @@ async function drawInvestmentTrendChart(investedCents, currentCents) {
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     if (c.pt.val > 0) {
-      ctx.fillText(`${Math.round(c.pt.val / 1000)}k`, c.x, c.y - 8);
+      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+    }
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(c.pt.label, c.x, height - 8);
+  });
+}
+
+async function drawWebEarningsTrendChart(allEntries) {
+  const canvas = document.getElementById('web-trend-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 170 * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = 170;
+  ctx.clearRect(0, 0, width, height);
+
+  const monthNames = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'];
+  const months = [];
+  const now = new Date(currentDate);
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push({ key: mKey, label: monthNames[d.getMonth()] });
+  }
+
+  const points = months.map(m => {
+    const webEntries = allEntries.filter(e => e.monthYear === m.key && e.isIncome && e.category === 'Web & Projekty');
+    const total = webEntries.reduce((acc, e) => acc + e.amount, 0);
+    return {
+      label: m.label,
+      val: total > 0 ? (total / 100) : 0
+    };
+  });
+
+  const sum = points.reduce((acc, p) => acc + p.val, 0);
+  const avg = Math.round(sum / points.length);
+
+  const webLegend = document.getElementById('web-avg-legend');
+  if (webLegend) webLegend.textContent = `⚪ Průměr (${avg.toLocaleString('cs-CZ')} Kč)`;
+
+  const maxVal = Math.max(...points.map(p => p.val), 5000) * 1.25;
+  const paddingX = 35;
+  const paddingY = 25;
+  const chartW = width - paddingX * 2;
+  const chartH = height - paddingY * 2;
+
+  const avgY = height - paddingY - (avg / maxVal) * chartH;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(paddingX, avgY);
+  ctx.lineTo(width - paddingX, avgY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  const coords = [];
+  points.forEach((pt, idx) => {
+    const x = paddingX + (idx / (points.length - 1)) * chartW;
+    const y = height - paddingY - (pt.val / maxVal) * chartH;
+    coords.push({ x, y, pt });
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
+  ctx.lineTo(coords[0].x, height - paddingY);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  coords.forEach(c => {
+    ctx.fillStyle = '#10b981';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(c.pt.label, c.x, height - 8);
+  });
+}
+
+function drawDonutChart(canvasId, percent) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 100 * dpr;
+  canvas.height = 100 * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, 100, 100);
+
+  const cx = 50;
+  cy = 50;
+  const r = 38;
+  const lineWidth = 12;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
+
+  if (percent > 0) {
+    const end = (percent / 100) * (Math.PI * 2) - (Math.PI / 2);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, end);
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+}
+
+function setupInvestmentModal() {
+  const modal = document.getElementById('modal-investment');
+  const btnOpen = document.getElementById('btn-add-investment');
+  const btnCancel = document.getElementById('btn-cancel-investment');
+  const form = document.getElementById('form-investment');
+
+  if (btnOpen) {
+    btnOpen.onclick = () => {
+      form.reset();
+      modal.classList.remove('hidden');
+    };
+  }
+
+  if (btnCancel) {
+    btnCancel.onclick = () => modal.classList.add('hidden');
+  }
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('inv-name').value.trim();
+    const investedCzk = parseFloat(document.getElementById('inv-invested').value);
+    const currentCzk = parseFloat(document.getElementById('inv-current').value);
+    const note = document.getElementById('inv-note').value.trim();
+
+    if (!name || isNaN(investedCzk) || isNaN(currentCzk)) return;
+
+    await dbAdd('investments', {
+      name,
+      invested: Money.toCents(investedCzk),
+      current: Money.toCents(currentCzk),
+      note
+    });
+
+    modal.classList.add('hidden');
+    await renderInvestments();
+  };
+}
+
+// 19. Energie
+async function renderEnergy() {
+  const kwhRecord = await dbGet('settings', 'kwh_price');
+  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+  const kwhPriceCzk = kwhPriceCents / 100;
+
+  document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
+
+  const templates = await dbGetAll('templates');
+  const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
+  const cezDepositCents = cez ? cez.amount : 300000;
+  document.getElementById('disp-cez-deposit').textContent = Money.toCzkInt(cezDepositCents);
+
+  const maxKwh = ((cezDepositCents / 100) / kwhPriceCzk).toFixed(1);
+  document.getElementById('disp-max-allowed-kwh').textContent = `${maxKwh} kWh / měsíc`;
+
+  await evaluateLastMeterReading(cezDepositCents, kwhPriceCents);
+  await drawEnergyConsumptionChart();
+  await renderMeterReadingsHistory(cezDepositCents, kwhPriceCents);
+
+  const appliances = await dbGetAll('energy');
+  const container = document.getElementById('appliances-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  appliances.forEach(app => {
+    const kwhPerHour = app.power / 1000;
+    const kwhPerDay = kwhPerHour * app.hours;
+    const kwhPerMonth = kwhPerDay * 30;
+
+    const costHourCents = Math.round(kwhPerHour * kwhPriceCents);
+    const costDayCents = Math.round(kwhPerDay * kwhPriceCents);
+    const costMonthCents = Math.round(kwhPerMonth * kwhPriceCents);
+
+    let warrantyHtml = '';
+    if (app.purchaseDate && app.warrantyMonths) {
+      const pDate = new Date(app.purchaseDate);
+      const expiryDate = new Date(pDate.setMonth(pDate.getMonth() + parseInt(app.warrantyMonths, 10)));
+      const now = new Date();
+      const diffTime = expiryDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        warrantyHtml = `<span class="warranty-badge expired">⚠️ Záruka vypršela</span>`;
+      } else if (diffDays <= 60) {
+        warrantyHtml = `<span class="warranty-badge warning">⏳ Záruka končí za ${diffDays} dní</span>`;
+      } else {
+        warrantyHtml = `<span class="warranty-badge ok">🛡️ Záruka OK (${diffDays} dní)</span>`;
+      }
+    } else {
+      warrantyHtml = `<span class="warranty-badge">Bez evidence záruky</span>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'appliance-card';
+    card.innerHTML = `
+      <div class="appliance-header">
+        <span class="appliance-name">${app.name}</span>
+        <span class="appliance-specs">${app.power} W • ${app.hours} h/den</span>
+      </div>
+
+      <div class="appliance-costs-grid">
+        <div class="cost-col">
+          <span class="c-lbl">Hodina</span>
+          <span class="c-val">${(costHourCents / 100).toFixed(2).replace('.', ',')} Kč</span>
+        </div>
+        <div class="cost-col">
+          <span class="c-lbl">Den</span>
+          <span class="c-val">${(costDayCents / 100).toFixed(2).replace('.', ',')} Kč</span>
+        </div>
+        <div class="cost-col">
+          <span class="c-lbl">Měsíc</span>
+          <span class="c-val">${Money.toCzkInt(costMonthCents)}</span>
+        </div>
+      </div>
+
+      <div class="appliance-footer">
+        ${warrantyHtml}
+        <button class="btn-delete-appliance" data-id="${app.id}">🗑️ Smazat</button>
+      </div>
+    `;
+
+    card.querySelector('.btn-delete-appliance').onclick = async () => {
+      await dbDelete('energy', app.id);
+      await renderEnergy();
+    };
+
+    container.appendChild(card);
+  });
+}
+
+async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
+  const readings = await dbGetAll('meter_readings');
+  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const box = document.getElementById('disp-meter-eval-box');
+  const badge = document.getElementById('energy-trend-badge');
+
+  if (!box || !badge) return;
+
+  if (readings.length < 2) {
+    box.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>';
+    badge.textContent = 'Čekám na data';
+    badge.style.color = 'var(--text-muted)';
+    return;
+  }
+
+  const latest = readings[readings.length - 1];
+  const previous = readings[readings.length - 2];
+
+  const daysDiff = (new Date(latest.date) - new Date(previous.date)) / (1000 * 60 * 60 * 24);
+  const kwhConsumed = Math.max(0, latest.value - previous.value);
+
+  const monthlyNormalizedKwh = daysDiff > 0 ? (kwhConsumed / daysDiff) * 30 : kwhConsumed;
+  const estimatedCostCents = Math.round(monthlyNormalizedKwh * kwhPriceCents);
+  const diffCents = cezDepositCents - estimatedCostCents;
+
+  const isSurplus = diffCents >= 0;
+  const sign = isSurplus ? '+' : '';
+
+  let trendText = 'Běžný trend';
+  let trendColor = 'var(--accent-blue)';
+
+  if (readings.length >= 3) {
+    const older = readings[readings.length - 3];
+    const prevDays = (new Date(previous.date) - new Date(older.date)) / (1000 * 60 * 60 * 24);
+    const prevKwh = Math.max(0, previous.value - older.value);
+    const prevNormalized = prevDays > 0 ? (prevKwh / prevDays) * 30 : prevKwh;
+
+    const delta = monthlyNormalizedKwh - prevNormalized;
+    if (delta > 30) {
+      trendText = `📈 Rostoucí tendence (+${delta.toFixed(0)} kWh oproti minule)`;
+      trendColor = 'var(--accent-red)';
+    } else if (delta < -30) {
+      trendText = `📉 Klesající tendence (${delta.toFixed(0)} kWh oproti minule)`;
+      trendColor = 'var(--accent-green)';
+    } else {
+      trendText = `➡️ Stabilní odběr (rozdíl jen ${delta.toFixed(0)} kWh)`;
+      trendColor = 'var(--accent-blue)';
+    }
+  }
+
+  badge.textContent = isSurplus ? 'Přeplatek očekáván' : 'Nedoplatek!';
+  badge.style.color = isSurplus ? 'var(--accent-green)' : 'var(--accent-red)';
+
+  box.innerHTML = `
+    <div class="eval-grid">
+      <div class="eval-item">
+        <span class="e-lbl">Spotřeba za měsíc</span>
+        <span class="e-val text-blue">${monthlyNormalizedKwh.toFixed(1)} kWh</span>
+      </div>
+      <div class="eval-item">
+        <span class="e-lbl">Reálná cena (6,50 Kč)</span>
+        <span class="e-val">${Money.toCzkInt(estimatedCostCents)}</span>
+      </div>
+      <div class="eval-item">
+        <span class="e-lbl">Výsledek vs. 3 000 Kč</span>
+        <span class="e-val" style="color: ${isSurplus ? 'var(--accent-green)' : 'var(--accent-red)'}">
+          ${sign}${Money.toCzkInt(diffCents)}
+        </span>
+      </div>
+    </div>
+    <div class="eval-status-bar">
+      <span class="eval-trend-text" style="color: ${trendColor}">${trendText}</span>
+      <span style="font-size:0.75rem; color:var(--text-muted);">${previous.date} → ${latest.date} (${Math.round(daysDiff)} dní)</span>
+    </div>
+  `;
+}
+
+function setupEnergySimulator() {
+  const kwhInput = document.getElementById('calc-kwh-input');
+  const kwhRange = document.getElementById('calc-kwh-range');
+  const rateLabel = document.getElementById('calc-unit-rate');
+  const costDisp = document.getElementById('calc-result-cost');
+  const balanceDisp = document.getElementById('calc-result-balance');
+
+  if (!kwhInput || !kwhRange) return;
+
+  async function updateSimulation() {
+    const kwhRecord = await dbGet('settings', 'kwh_price');
+    const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+    const kwhPriceCzk = kwhPriceCents / 100;
+    
+    rateLabel.textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč`;
+
+    const kwh = parseFloat(kwhInput.value) || 0;
+    const totalCostCents = Math.round(kwh * kwhPriceCents);
+    costDisp.textContent = Money.toCzkInt(totalCostCents);
+
+    const templates = await dbGetAll('templates');
+    const cez = templates.find(t => t.title && (t.title.toLowerCase().includes('čez') || t.title.toLowerCase().includes('cez')));
+    const cezDepositCents = cez ? cez.amount : 300000;
+
+    const diffCents = cezDepositCents - totalCostCents;
+    if (diffCents >= 0) {
+      balanceDisp.textContent = `+${Money.toCzkInt(diffCents)} (přeplatek)`;
+      balanceDisp.style.color = 'var(--accent-green)';
+    } else {
+      balanceDisp.textContent = `${Money.toCzkInt(diffCents)} (nedoplatek)`;
+      balanceDisp.style.color = 'var(--accent-red)';
+    }
+  }
+
+  kwhInput.oninput = () => {
+    kwhRange.value = kwhInput.value;
+    updateSimulation();
+  };
+
+  kwhRange.oninput = () => {
+    kwhInput.value = kwhRange.value;
+    updateSimulation();
+  };
+
+  updateSimulation();
+}
+
+async function renderMeterReadingsHistory(cezDepositCents, kwhPriceCents) {
+  const container = document.getElementById('meter-readings-history');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const readings = await dbGetAll('meter_readings');
+  readings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (readings.length === 0) {
+    container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-muted);">Zatím nejsou zapsány žádné odečty.</span>';
+    return;
+  }
+
+  readings.forEach((r, idx) => {
+    const row = document.createElement('div');
+    row.className = 'meter-history-item';
+
+    let diffInfo = '';
+    if (idx < readings.length - 1) {
+      const prev = readings[idx + 1];
+      const diffKwh = (r.value - prev.value);
+      const days = (new Date(r.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
+      const normMonthlyKwh = days > 0 ? (diffKwh / days) * 30 : diffKwh;
+      const monthCostCents = Math.round(normMonthlyKwh * kwhPriceCents);
+      const balanceCents = cezDepositCents - monthCostCents;
+      const isOk = balanceCents >= 0;
+
+      diffInfo = `
+        <span class="m-diff-tag ${isOk ? 'surplus' : 'deficit'}">
+          ${isOk ? '+' : ''}${Money.toCzkInt(balanceCents)} (${diffKwh.toFixed(1)} kWh)
+        </span>
+      `;
+    }
+
+    row.innerHTML = `
+      <div class="m-left">
+        <span class="m-date">${r.date}</span>
+        <span class="m-note">${r.note || 'Měsíční odečet'}</span>
+      </div>
+      <div class="m-right">
+        ${diffInfo}
+        <span class="m-kwh">${r.value.toLocaleString('cs-CZ')} kWh</span>
+        <button class="btn-del-reading" data-id="${r.id}" title="Smazat">🗑️</button>
+      </div>
+    `;
+
+    row.querySelector('.btn-del-reading').onclick = async () => {
+      await dbDelete('meter_readings', r.id);
+      await renderEnergy();
+    };
+
+    container.appendChild(row);
+  });
+}
+
+async function drawEnergyConsumptionChart() {
+  const canvas = document.getElementById('energy-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 180 * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = 180;
+  ctx.clearRect(0, 0, width, height);
+
+  const readings = await dbGetAll('meter_readings');
+  readings.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (readings.length < 2) {
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Pro zobrazení křivky zadej alespoň 2 odečty elektroměru.', width / 2, height / 2);
+    return;
+  }
+
+  const points = [];
+  let totalDailySum = 0;
+
+  for (let i = 1; i < readings.length; i++) {
+    const prev = readings[i - 1];
+    const curr = readings[i];
+    const days = (new Date(curr.date) - new Date(prev.date)) / (1000 * 60 * 60 * 24);
+
+    if (days > 0) {
+      const kwhDiff = curr.value - prev.value;
+      const kwhPerDay = Math.max(0, kwhDiff / days);
+      points.push({
+        date: curr.date.slice(5),
+        val: kwhPerDay
+      });
+      totalDailySum += kwhPerDay;
+    }
+  }
+
+  if (points.length === 0) return;
+
+  const avg = totalDailySum / points.length;
+  const avgLabel = document.getElementById('chart-avg-label');
+  if (avgLabel) avgLabel.textContent = `⚪ Průměr: ${avg.toFixed(1)} kWh/den`;
+
+  const maxVal = Math.max(...points.map(p => p.val)) * 1.25 || 10;
+  const paddingX = 35;
+  const paddingY = 25;
+  const chartW = width - paddingX * 2;
+  const chartH = height - paddingY * 2;
+
+  const avgY = height - paddingY - (avg / maxVal) * chartH;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(paddingX, avgY);
+  ctx.lineTo(width - paddingX, avgY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+
+  const coords = [];
+  points.forEach((pt, idx) => {
+    const x = paddingX + (idx / (points.length - 1 || 1)) * chartW;
+    const y = height - paddingY - (pt.val / maxVal) * chartH;
+    coords.push({ x, y, pt });
+
+    if (idx === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  ctx.lineTo(coords[coords.length - 1].x, height - paddingY);
+  ctx.lineTo(coords[0].x, height - paddingY);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  coords.forEach(c => {
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    if (c.pt.val > 0) {
+      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
     }
 
     ctx.fillStyle = '#94a3b8';
@@ -2921,7 +3461,9 @@ async function drawEnergyConsumptionChart() {
     ctx.fillStyle = '#ffffff';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    if (c.pt.val > 0) ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+    if (c.pt.val > 0) {
+      ctx.fillText(`${c.pt.val} Kč`, c.x, c.y - 8);
+    }
 
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(c.pt.label, c.x, height - 8);
