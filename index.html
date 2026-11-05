@@ -686,6 +686,28 @@
       </div>
     </div>
 
+    <!-- Modální okno: MIMOŘÁDNÁ SPLÁTKA PŮJČKY (PROVIDENT / AVAFIN) -->
+    <div id="modal-extra-pay" class="modal hidden">
+      <div class="modal-content">
+        <h2 id="modal-extra-pay-title">Mimořádná splátka půjčky</h2>
+        <form id="form-extra-pay">
+          <input type="hidden" id="extra-pay-debt-id">
+
+          <div class="form-group">
+            <label for="extra-pay-amount">Částka mimořádné splátky (Kč)</label>
+            <input type="number" id="extra-pay-amount" step="1" required placeholder="např. 5000">
+          </div>
+
+          <p class="settings-desc">Tato částka okamžitě poníží celkový dluh a odečte se z bankovního účtu v aktuálním měsíci.</p>
+
+          <div class="modal-actions">
+            <button type="button" id="btn-cancel-extra-pay" class="btn-secondary">Zrušit</button>
+            <button type="submit" class="btn-primary">Uhradit mimořádně</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Modální okno: Přidat příjem / výdaj -->
     <div id="modal-entry" class="modal hidden">
       <div class="modal-content">
@@ -821,28 +843,6 @@
           <div class="modal-actions">
             <button type="button" id="btn-cancel-goal" class="btn-secondary">Zrušit</button>
             <button type="submit" class="btn-primary">Uložit cíl</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Mimořádná splátka půjčky -->
-    <div id="modal-extra-pay" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modal-extra-pay-title">Mimořádná splátka půjčky</h2>
-        <form id="form-extra-pay">
-          <input type="hidden" id="extra-pay-debt-id">
-
-          <div class="form-group">
-            <label for="extra-pay-amount">Částka mimořádné splátky (Kč)</label>
-            <input type="number" id="extra-pay-amount" step="1" required placeholder="např. 5000">
-          </div>
-
-          <p class="settings-desc">Tato částka okamžitě poníží celkový dluh, odečte se z bankovního účtu a ihned zkrátí celkovou dobu splácení.</p>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-extra-pay" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uhradit mimořádně</button>
           </div>
         </form>
       </div>
