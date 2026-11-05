@@ -1,7 +1,10 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('PWA Service Worker zaregistrován:', reg.scope))
+      .then(reg => {
+        reg.update();
+        console.log('PWA Service Worker zaregistrován:', reg.scope);
+      })
       .catch(err => console.log('Registrace Service Workeru selhala:', err));
   });
 }
@@ -1432,10 +1435,7 @@ function setupDebtsManagement() {
         name,
         total: totalCents,
         monthly: monthlyCents,
-        day,
-        items: [
-          { label: 'Jistina / Dluh k doplacení', amount: totalCents }
-        ]
+        day
       });
 
       modalLoan.classList.add('hidden');
@@ -1542,6 +1542,7 @@ function setupDebtsManagement() {
       debt.total = debt.items.reduce((acc, it) => acc + it.amount, 0);
       await dbSet('debts', debt);
 
+      // Připsání úhrady na bankovní účet jako příjem
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       await dbAdd('entries', {
         monthYear: monthKey,
@@ -1560,6 +1561,169 @@ function setupDebtsManagement() {
       await renderDebts();
     };
   }
+}
+
+async function renderDebts() {
+  const debts = await dbGetAll('debts');
+  const recContainer = document.getElementById('receivables-list');
+  const payContainer = document.getElementById('payables-list');
+
+  if (!recContainer || !payContainer) return;
+  recContainer.innerHTML = '';
+  payContainer.innerHTML = '';
+
+  let totalPayables = 0;
+  let totalReceivables = 0;
+
+  debts.forEach(d => {
+    const card = document.createElement('div');
+    card.className = 'debt-card';
+
+    // A. KDO MI DLUŽÍ (POHLEDÁVKY)
+    if (d.type === 'receivable') {
+      totalReceivables += d.total;
+
+      let itemsHtml = '';
+      if (d.items && d.items.length > 0) {
+        itemsHtml = `<div class="debt-sub-items-list">` + d.items.map((item, idx) => `
+          <div>
+            <div class="debt-sub-item-row">
+              <span class="ds-lbl">${item.label}</span>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="ds-val">${Money.toCzkInt(item.amount)}</span>
+                <button class="btn-edit-item" data-debt-id="${d.id}" data-item-idx="${idx}" title="Upravit položku">✏️</button>
+              </div>
+            </div>
+            ${item.note ? `<div class="debt-sub-item-note">✓ ${item.note}</div>` : ''}
+          </div>
+        `).join('') + `</div>`;
+      }
+
+      card.innerHTML = `
+        <div class="debt-card-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="debt-name">${d.name}</span>
+              <button class="btn-del-debtor" data-id="${d.id}" title="Smazat celou osobu">🗑️</button>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">${d.items ? d.items.length : 0} položky dluhu</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="debt-total receivable">${Money.toCzkInt(d.total)}</span>
+            <div style="font-size:0.7rem; color:var(--text-muted);">Celkem dluží</div>
+          </div>
+        </div>
+
+        ${itemsHtml}
+
+        <div class="debt-actions-row">
+          <button class="debt-btn btn-lend btn-open-lend-modal" data-id="${d.id}">+ Půjčit / Přičíst</button>
+          <button class="debt-btn btn-pay btn-open-repay-modal" data-id="${d.id}">− Zadat úhradu (+ účet)</button>
+        </div>
+      `;
+
+      card.querySelector('.btn-del-debtor').onclick = async () => {
+        if (!confirm(`Opravdu chceš smazat dlužníka „${d.name}“?`)) return;
+        await dbDelete('debts', d.id);
+        await renderDebts();
+      };
+
+      card.querySelector('.btn-open-lend-modal').onclick = () => {
+        openLendDetailedModal(d);
+      };
+
+      card.querySelector('.btn-open-repay-modal').onclick = () => {
+        openRepayDetailedModal(d);
+      };
+
+      card.querySelectorAll('.btn-edit-item').forEach(btn => {
+        btn.onclick = () => {
+          const debtId = parseInt(btn.dataset.debtId, 10);
+          const itemIdx = parseInt(btn.dataset.itemIdx, 10);
+          openEditSubItemModal(debtId, itemIdx);
+        };
+      });
+
+      recContainer.appendChild(card);
+    } 
+    // B. MOJE PŮJČKY K ÚHRADĚ (Provident, AvaFin/Crediton)
+    else {
+      totalPayables += d.total;
+
+      card.innerHTML = `
+        <div class="debt-card-header">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="debt-name">${d.name}</span>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+              Měsíční splátka: ${Money.toCzkInt(d.monthly)} (k ${d.day}. dni)
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size:0.75rem; color:var(--accent-yellow); font-weight:600;">⏳ Čeká na potvrzení</span>
+          </div>
+        </div>
+
+        <div style="margin: 8px 0 10px 0;">
+          <div style="font-size:0.75rem; color:var(--text-muted);">Zbývající jistina:</div>
+          <div style="font-size:1.45rem; font-weight:800; color:var(--text-main); margin-top:2px;">
+            ${Money.toCzk(d.total)}
+          </div>
+        </div>
+
+        <div class="debt-actions-row">
+          <button class="debt-btn btn-pay btn-confirm-monthly">
+            Potvrdit splátku ${Money.toCzkInt(d.monthly)}
+          </button>
+          <button class="debt-btn btn-secondary btn-edit-principal">
+            Upravit jistinu
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.btn-confirm-monthly').onclick = async () => {
+        if (d.total <= 0) return;
+        const payAmount = Math.min(d.total, d.monthly);
+        d.total -= payAmount;
+        await dbSet('debts', d);
+
+        const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+        await dbAdd('entries', {
+          monthYear: monthKey,
+          title: `Splátka dluhu: ${d.name}`,
+          amount: payAmount,
+          category: 'Závazky',
+          day: new Date().getDate(),
+          wallet: 'bank',
+          isIncome: false,
+          paid: true
+        });
+
+        await loadMonthData();
+        await renderDebts();
+      };
+
+      card.querySelector('.btn-edit-principal').onclick = async () => {
+        const currentCzk = (d.total / 100).toFixed(2);
+        const newCzkStr = prompt(`Zadej novou výši zbývající jistiny pro ${d.name} (Kč):`, currentCzk);
+        if (newCzkStr === null) return;
+        const newCzk = parseFloat(newCzkStr.replace(',', '.'));
+        if (isNaN(newCzk) || newCzk < 0) return;
+
+        d.total = Money.toCents(newCzk);
+        await dbSet('debts', d);
+        await renderDebts();
+      };
+
+      payContainer.appendChild(card);
+    }
+  });
+
+  const dispPayEl = document.getElementById('disp-total-payables');
+  const dispRecEl = document.getElementById('disp-total-receivables');
+  if (dispPayEl) dispPayEl.textContent = Money.toCzk(totalPayables);
+  if (dispRecEl) dispRecEl.textContent = Money.toCzkInt(totalReceivables);
 }
 
 function openLendDetailedModal(debt) {
@@ -1609,14 +1773,6 @@ function openRepayDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
-function openDebtTxModal(debt, action) {
-  if (action === 'lend') {
-    openLendDetailedModal(debt);
-  } else {
-    openRepayDetailedModal(debt);
-  }
-}
-
 function setupDebtTxModal() {
   const modalExtra = document.getElementById('modal-extra-pay');
   const formExtra = document.getElementById('form-extra-pay');
@@ -1641,11 +1797,6 @@ function setupDebtTxModal() {
       const actualPay = Math.min(debt.total, extraCents);
       debt.total -= actualPay;
 
-      if (debt.items && debt.items.length > 0) {
-        const ratio = (debt.total) / (debt.total + actualPay || 1);
-        debt.items.forEach(it => it.amount = Math.round(it.amount * ratio));
-      }
-
       await dbSet('debts', debt);
 
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -1666,18 +1817,6 @@ function setupDebtTxModal() {
       await renderDebts();
     };
   }
-}
-
-function openExtraPayModal(debt) {
-  const modal = document.getElementById('modal-extra-pay');
-  const form = document.getElementById('form-extra-pay');
-  const title = document.getElementById('modal-extra-pay-title');
-  const idInput = document.getElementById('extra-pay-debt-id');
-
-  form.reset();
-  idInput.value = debt.id;
-  title.textContent = `Mimořádná splátka: ${debt.name}`;
-  modal.classList.remove('hidden');
 }
 
 async function openEditSubItemModal(debtId, itemIdx) {
@@ -2669,8 +2808,8 @@ async function drawEnergyConsumptionChart() {
   ctx.lineTo(coords[0].x, height - paddingY);
   ctx.closePath();
   const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
-  grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
-  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
   ctx.fillStyle = grad;
   ctx.fill();
 
