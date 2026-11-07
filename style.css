@@ -848,7 +848,7 @@ main {
 .debt-btn.btn-pay { background: var(--accent-green); color: #0b0f19; }
 .debt-btn.btn-extra { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(245, 158, 11, 0.3); }
 
-/* Investice & Slitky */
+/* Investice & Slitky (OPRAVENÝ DONUT GRAF) */
 .assets-ring-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -865,6 +865,12 @@ main {
   width: 100px;
   height: 100px;
   flex-shrink: 0;
+}
+
+.ring-left canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }
 
 .ring-center-text {
