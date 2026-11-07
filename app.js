@@ -353,7 +353,6 @@ function drawAnalogGauge(canvasId, val, maxVal, width, height, lineWidth) {
   ctx.fill();
 }
 
-// 6. Tendence příjmů a výdajů
 async function drawIncomeExpenseTrendChart(allEntries) {
   const canvas = document.getElementById('income-expense-trend-chart');
   if (!canvas) return;
@@ -451,7 +450,6 @@ async function drawIncomeExpenseTrendChart(allEntries) {
   });
 }
 
-// 7. Křivka a monitoring čisté výplaty
 async function drawSalaryTrendChart(allEntries) {
   const canvas = document.getElementById('salary-trend-chart');
   if (!canvas) return;
@@ -555,7 +553,6 @@ async function drawSalaryTrendChart(allEntries) {
   });
 }
 
-// 8. Cashflow bar chart
 async function drawCashflowForecastBarChart(allEntries) {
   const canvas = document.getElementById('cashflow-bar-chart');
   if (!canvas) return;
@@ -640,7 +637,6 @@ async function drawCashflowForecastBarChart(allEntries) {
   });
 }
 
-// 9. Tabulka statistik Cash Flow
 function renderCashflowStatsTable(entries) {
   let countInc = 0;
   let countExp = 0;
@@ -683,7 +679,6 @@ function renderCashflowStatsTable(entries) {
   }
 }
 
-// 10. Rozpad variabilní spotřeby
 function renderVariableExpensesBreakdown(entries) {
   const container = document.getElementById('variable-breakdown-list');
   const badgeTotal = document.getElementById('badge-var-total');
@@ -741,7 +736,6 @@ function renderVariableExpensesBreakdown(entries) {
   });
 }
 
-// 11. Celková struktura výdajů
 function renderCategoryBreakdown(entries) {
   const container = document.getElementById('category-breakdown-list');
   if (!container) return;
@@ -796,7 +790,6 @@ function renderCategoryBreakdown(entries) {
   });
 }
 
-// 12. Seznam plateb v měsíci s možností položku smazat
 function renderPaymentsList(entries) {
   const list = document.getElementById('payments-list');
   if (!list) return;
@@ -874,7 +867,6 @@ function renderPaymentsList(entries) {
   }
 }
 
-// 13. Správa trvalých šablon a přepínač zobrazení v Platbách
 async function renderTemplatesList() {
   const container = document.getElementById('templates-list');
   if (!container) return;
@@ -965,7 +957,6 @@ function setupPaymentsViewToggle() {
   }
 }
 
-// 14. Rychlá tlačítka na ploše & Zadání výplaty
 function setupQuickEntryButtons() {
   const modal = document.getElementById('modal-entry');
   const form = document.getElementById('form-entry');
@@ -1004,7 +995,6 @@ function setupQuickEntryButtons() {
   if (fabBtn) fabBtn.onclick = () => openEntryWithType('expense');
 }
 
-// 15. Uložení položky (Příjem / Výdaj)
 function setupPaymentsModal() {
   const modal = document.getElementById('modal-entry');
   const btnOpen = document.getElementById('btn-add-entry');
@@ -1203,7 +1193,6 @@ function setupTransferModal() {
   };
 }
 
-// 16. Cíle
 async function renderGoals() {
   const balance = await getCalculatedBalance();
   const goalsAvailEl = document.getElementById('goals-available-disp');
@@ -1357,9 +1346,7 @@ function setupGoalsModal() {
   };
 }
 
-// 17. SPRÁVA DLUHŮ, POHLEDÁVEK, DLUŽNÍKŮ A PŮJČEK
 function setupDebtsManagement() {
-  // A. Přidat nového dlužníka (Osobu)
   const modalDebtor = document.getElementById('modal-new-debtor');
   const btnAddDebtor = document.getElementById('btn-add-debtor');
   const btnCancelDebtor = document.getElementById('btn-cancel-new-debtor');
@@ -1400,7 +1387,6 @@ function setupDebtsManagement() {
     };
   }
 
-  // B. Přidat novou půjčku (Závazek)
   const modalLoan = document.getElementById('modal-new-loan');
   const btnAddLoan = document.getElementById('btn-add-loan');
   const btnCancelLoan = document.getElementById('btn-cancel-new-loan');
@@ -1443,7 +1429,6 @@ function setupDebtsManagement() {
     };
   }
 
-  // C. Půjčit / Přičíst dlužníkovi
   const modalLend = document.getElementById('modal-lend-detailed');
   const formLend = document.getElementById('form-lend-detailed');
   const btnCancelLend = document.getElementById('btn-cancel-lend-detailed');
@@ -1509,7 +1494,6 @@ function setupDebtsManagement() {
     };
   }
 
-  // D. Odečíst dlužníkovi (Úhrada)
   const modalRepay = document.getElementById('modal-repay-detailed');
   const formRepay = document.getElementById('form-repay-detailed');
   const btnCancelRepay = document.getElementById('btn-cancel-repay-detailed');
@@ -1583,7 +1567,6 @@ async function renderDebts() {
     const card = document.createElement('div');
     card.className = 'debt-card';
 
-    // A. KDO MI DLUŽÍ (POHLEDÁVKY)
     if (d.type === 'receivable') {
       totalReceivables += d.total;
 
@@ -1650,11 +1633,9 @@ async function renderDebts() {
 
       recContainer.appendChild(card);
     } 
-    // B. MOJE PŮJČKY K ÚHRADĚ (Provident, AvaFin/Crediton)
     else {
       totalPayables += d.total;
 
-      // Dynamický dopočet počtu měsíců a odhadovaného data doplacení
       let remainingMonths = 0;
       let endDateStr = 'Splaceno';
 
@@ -1688,7 +1669,6 @@ async function renderDebts() {
           </div>
         </div>
 
-        <!-- ODHADOVANÉ DATUM SPLACENÍ A POČET MĚSÍCŮ PŘÍMO V KARTĚ -->
         <div class="debt-payoff-metrics" style="margin: 8px 0 10px 0;">
           <div class="dpm-col">
             <span class="dpm-lbl">Zbývá splácet</span>
@@ -1719,7 +1699,6 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Potvrdit běžnou měsíční splátku
       card.querySelector('.btn-confirm-monthly').onclick = async () => {
         if (d.total <= 0) return;
         const payAmount = Math.min(d.total, d.monthly);
@@ -1742,12 +1721,10 @@ async function renderDebts() {
         await renderDebts();
       };
 
-      // Tlačítko ⚡ Mimořádná splátka
       card.querySelector('.btn-open-extra-pay').onclick = () => {
         openExtraPayModal(d);
       };
 
-      // Tlačítko Upravit jistinu
       card.querySelector('.btn-edit-principal').onclick = async () => {
         const currentCzk = (d.total / 100).toFixed(2);
         const newCzkStr = prompt(`Zadej novou výši zbývající jistiny pro ${d.name} (Kč):`, currentCzk);
@@ -1764,14 +1741,12 @@ async function renderDebts() {
     }
   });
 
-  // Horní souhrnné karty
   const dispPayEl = document.getElementById('disp-total-payables');
   const dispRecEl = document.getElementById('disp-total-receivables');
   if (dispPayEl) dispPayEl.textContent = Money.toCzk(totalPayables);
   if (dispRecEl) dispRecEl.textContent = Money.toCzkInt(totalReceivables);
 }
 
-// Otevření okna pro Půjčit / Přičíst dlužníkovi
 function openLendDetailedModal(debt) {
   const modal = document.getElementById('modal-lend-detailed');
   const form = document.getElementById('form-lend-detailed');
@@ -1795,7 +1770,6 @@ function openLendDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// Otevření okna pro Zadat úhradu od dlužníka
 function openRepayDetailedModal(debt) {
   const modal = document.getElementById('modal-repay-detailed');
   const form = document.getElementById('form-repay-detailed');
@@ -1820,7 +1794,6 @@ function openRepayDetailedModal(debt) {
   modal.classList.remove('hidden');
 }
 
-// Otevření okna pro Mimořádnou splátku půjčky s dynamickou kalkulací
 function openExtraPayModal(debt) {
   const modal = document.getElementById('modal-extra-pay');
   const form = document.getElementById('form-extra-pay');
@@ -1890,7 +1863,6 @@ function setupDebtTxModal() {
 
       await dbSet('debts', debt);
 
-      // Zápis do měsíčního rozpočtu jako výdaj z banky
       const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       await dbAdd('entries', {
         monthYear: monthKey,
@@ -1930,7 +1902,6 @@ async function openEditSubItemModal(debtId, itemIdx) {
   await renderDebts();
 }
 
-// 18. Investice: Investown, Slitky & Ostatní
 async function renderInvestments() {
   const investments = await dbGetAll('investments');
   const goldBars = await dbGetAll('gold_bars') || [];
@@ -2059,7 +2030,6 @@ async function renderInvestments() {
   }
 }
 
-// LOGIKA INVESTOWNU: VKLAD, PRODEJ, ZISK
 function setupInvestownSpecifics() {
   const btnDepCustom = document.getElementById('btn-itown-deposit-custom');
   const btnSell = document.getElementById('btn-itown-sell');
@@ -2544,10 +2514,9 @@ function setupInvestmentModal() {
   };
 }
 
-// 19. Energie
 async function renderEnergy() {
   const kwhRecord = await dbGet('settings', 'kwh_price');
-  const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+  const kwhPriceCents = kwhRecord ? kwhRecord.value : 820;
   const kwhPriceCzk = kwhPriceCents / 100;
 
   document.getElementById('disp-kwh-price').textContent = `${(kwhPriceCzk).toFixed(2).replace('.', ',')} Kč / kWh`;
@@ -2635,7 +2604,6 @@ async function renderEnergy() {
   });
 }
 
-// Opravené měsíční vyhodnocení odečtu s dynamickou sazbou elektřiny[span_0](start_span)[span_0](end_span)
 async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   const readings = await dbGetAll('meter_readings');
   readings.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -2715,7 +2683,6 @@ async function evaluateLastMeterReading(cezDepositCents, kwhPriceCents) {
   `;
 }
 
-// Opravený graf spotřeby domu bez překrývání a bez chybného undefined[span_1](start_span)[span_1](end_span)
 async function drawEnergyConsumptionChart() {
   const canvas = document.getElementById('energy-chart');
   if (!canvas) return;
@@ -2742,7 +2709,6 @@ async function drawEnergyConsumptionChart() {
     return;
   }
 
-  // Zobrazíme maximálně posledních 7 intervalů pro čistý mobilní náhled
   const recentReadings = readings.slice(-8);
   const points = [];
   let totalDailySum = 0;
@@ -2843,7 +2809,7 @@ function setupEnergySimulator() {
 
   async function updateSimulation() {
     const kwhRecord = await dbGet('settings', 'kwh_price');
-    const kwhPriceCents = kwhRecord ? kwhRecord.value : 650;
+    const kwhPriceCents = kwhRecord ? kwhRecord.value : 820;
     const kwhPriceCzk = kwhPriceCents / 100;
     
     rateLabel.textContent = `${kwhPriceCzk.toFixed(2).replace('.', ',')} Kč`;
@@ -3013,14 +2979,12 @@ function setupApplianceModal() {
   };
 }
 
-// 20. Nastavení & Air Bank CSV Parser
 async function renderSettings() {
   const bankCapRecord = await dbGet('settings', 'bank_capital');
   const cashCapRecord = await dbGet('settings', 'cash_capital');
   const initCapRecord = await dbGet('settings', 'initial_capital');
   const paydayRecord = await dbGet('settings', 'payday');
   const kwhRecord = await dbGet('settings', 'kwh_price');
-  const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
 
   const bankCapEl = document.getElementById('set-bank-capital');
   const cashCapEl = document.getElementById('set-cash-capital');
@@ -3030,22 +2994,10 @@ async function renderSettings() {
   if (bankCapEl) bankCapEl.value = bankCapRecord ? bankCapRecord.value / 100 : (initCapRecord ? initCapRecord.value / 100 : 46000);
   if (cashCapEl) cashCapEl.value = cashCapRecord ? cashCapRecord.value / 100 : 5000;
   if (paydayEl) paydayEl.value = paydayRecord ? paydayRecord.value : 10;
-  if (kwhEl) kwhEl.value = kwhRecord ? kwhRecord.value / 100 : 6.5;
-
-  if (tokenRecord && tokenRecord.value) {
-    const tokenEl = document.getElementById('set-gh-token');
-    const syncStatusEl = document.getElementById('cloud-sync-status');
-    if (tokenEl) tokenEl.value = tokenRecord.value;
-    if (syncStatusEl) {
-      syncStatusEl.textContent = '✅ Automatická ochrana dat je aktivní.';
-      syncStatusEl.style.color = 'var(--accent-green)';
-    }
-  }
+  if (kwhEl) kwhEl.value = kwhRecord ? kwhRecord.value / 100 : 8.2;
 }
 
 function setupSettingsAndBackup() {
-  const btnSaveSync = document.getElementById('btn-save-cloud-sync');
-  const btnForceSync = document.getElementById('btn-force-cloud-sync');
   const btnSaveSet = document.getElementById('btn-save-settings');
   const btnExport = document.getElementById('btn-export-json');
   const btnCopy = document.getElementById('btn-copy-json');
@@ -3054,31 +3006,6 @@ function setupSettingsAndBackup() {
   const btnTriggerCsv = document.getElementById('btn-trigger-csv');
   const csvFileInput = document.getElementById('csv-file-input');
   const btnInstall = document.getElementById('btn-install-pwa');
-
-  if (btnSaveSync) {
-    btnSaveSync.onclick = async () => {
-      const token = document.getElementById('set-gh-token').value.trim();
-      if (!token) return alert('Zadej prosím platný token.');
-
-      await dbSet('settings', { key: CLOUD_CONFIG.tokenKey, value: token });
-      localStorage.setItem(CLOUD_CONFIG.tokenKey, token);
-
-      const status = document.getElementById('cloud-sync-status');
-      status.textContent = 'Ověřuji zrcadlo na GitHubu...';
-      status.style.color = 'var(--accent-yellow)';
-
-      await autoSyncToCloud();
-      status.textContent = '✅ Ochrana aktivována! Data se automaticky zrcadlí.';
-      status.style.color = 'var(--accent-green)';
-    };
-  }
-
-  if (btnForceSync) {
-    btnForceSync.onclick = async () => {
-      await autoSyncToCloud();
-      alert('Zrcadlení do cloudu dokončeno!');
-    };
-  }
 
   if (btnSaveSet) {
     btnSaveSet.onclick = async () => {
@@ -3173,36 +3100,6 @@ function setupSettingsAndBackup() {
         alert('V nabídce prohlížeče klepni na „Přidat na plochu“.');
       }
     };
-  }
-}
-
-async function createFullBackup() {
-  return {
-    version: DB_VERSION,
-    date: new Date().toISOString(),
-    settings: await dbGetAll('settings'),
-    templates: await dbGetAll('templates'),
-    entries: await dbGetAll('entries'),
-    goals: await dbGetAll('goals'),
-    debts: await dbGetAll('debts'),
-    energy: await dbGetAll('energy'),
-    meter_readings: await dbGetAll('meter_readings'),
-    investments: await dbGetAll('investments'),
-    gold_bars: await dbGetAll('gold_bars')
-  };
-}
-
-async function restoreFromBackup(data) {
-  const stores = ['settings', 'templates', 'entries', 'goals', 'debts', 'energy', 'meter_readings', 'investments', 'gold_bars'];
-  for (const store of stores) {
-    if (data[store]) {
-      const tx = dbInstance.transaction(store, 'readwrite');
-      const os = tx.objectStore(store);
-      os.clear();
-      for (const item of data[store]) {
-        os.put(item);
-      }
-    }
   }
 }
 
