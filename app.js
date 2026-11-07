@@ -1116,14 +1116,15 @@ function setupPaymentsModal() {
 function setupTransferModal() {
   const modal = document.getElementById('modal-transfer');
   const btnOpen = document.getElementById('btn-quick-transfer');
+  const btnOpen2 = document.getElementById('btn-quick-transfer-2');
   const btnCancel = document.getElementById('btn-cancel-transfer');
   const form = document.getElementById('form-transfer');
 
   if (btnOpen) {
-    btnOpen.onclick = () => {
-      form.reset();
-      modal.classList.remove('hidden');
-    };
+    btnOpen.onclick = () => { form.reset(); modal.classList.remove('hidden'); };
+  }
+  if (btnOpen2) {
+    btnOpen2.onclick = () => { form.reset(); modal.classList.remove('hidden'); };
   }
 
   if (btnCancel) {
@@ -2448,6 +2449,7 @@ function drawDonutChart(canvasId, percent) {
   const ctx = canvas.getContext('2d');
 
   const dpr = window.devicePixelRatio || 1;
+  // FIX: Pevná velikost přímo pro 100x100 pixelů odpovídající kontejneru
   canvas.width = 100 * dpr;
   canvas.height = 100 * dpr;
   ctx.scale(dpr, dpr);
@@ -2456,7 +2458,7 @@ function drawDonutChart(canvasId, percent) {
   const cx = 50;
   const cy = 50;
   const r = 38;
-  const lineWidth = 12;
+  const lineWidth = 10;
 
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
