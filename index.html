@@ -4,62 +4,80 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Koloběžníkův finanční dispečink</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0f172a">
-  <link rel="stylesheet" href="style.css">
+  
+  <!-- PWA Manifest & Theme -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="./icon.png">
+
+  <!-- Styly s vynuceným promazáním mezipaměti -->
+  <link rel="stylesheet" href="style.css?v=99">
 </head>
 <body>
+
+  <!-- Hlavička aplikace -->
   <header class="app-header">
     <div class="header-left">
-      <span class="logo-badge">⚡ KD</span>
-      <h1 id="app-title">Dispečink</h1>
+      <span class="logo-badge">KD</span>
+      <h1 id="app-title">Přehled</h1>
     </div>
-    <div class="header-right" id="month-selector-wrap">
-      <button id="prev-month" class="nav-btn">◀</button>
+    <div class="header-right">
+      <button class="nav-btn" id="prev-month" title="Předchozí měsíc">◀</button>
       <span id="current-month-display">Listopad 2026</span>
-      <button id="next-month" class="nav-btn">▶</button>
+      <button class="nav-btn" id="next-month" title="Následující měsíc">▶</button>
     </div>
   </header>
 
-  <main id="app-content">
-    <!-- 1. Přehled & Zůstatky -->
+  <!-- Hlavní obsah -->
+  <main>
+
+    <!-- 1. ZÁLOŽKA: PŘEHLED -->
     <section id="tab-overview" class="tab-panel active">
+      
+      <!-- Banner bezpečné útraty -->
+      <div id="disp-safe-daily" style="font-size:0.85rem; font-weight:700; text-align:center; margin-bottom:12px; color:var(--accent-blue);">
+        Načítám bezpečnou útratu...
+      </div>
+
+      <!-- Karta zůstatků (Bankovky / Hotovost) -->
       <div class="balances-split-card">
         <div class="split-top-total">
-          <span class="card-label">Celková dostupná likvidita</span>
+          <span class="card-label">Celková likvidita (Aktiva)</span>
           <div class="balance-amount" id="disp-total-liquidity">0 Kč</div>
-          <div class="balance-sub" id="disp-safe-daily">Kapesné na den: počítám...</div>
+          <span class="balance-sub" id="btn-quick-transfer" style="cursor:pointer; text-decoration:underline;">⇄ Převod mezi účtem a hotovostí</span>
         </div>
 
         <div class="split-accounts-grid">
           <div class="account-pill-box">
             <div class="acc-pill-header">
-              <span>🏦 Bankovní účet</span>
+              <span>Bankovní účet</span>
               <span class="acc-tag">Air Bank</span>
             </div>
-            <strong class="acc-pill-val text-blue" id="disp-bank-balance">0 Kč</strong>
+            <div class="acc-pill-val text-blue" id="disp-bank-balance">0 Kč</div>
           </div>
           <div class="account-pill-box">
             <div class="acc-pill-header">
-              <span>💵 Hotovost</span>
+              <span>Hotovost</span>
               <span class="acc-tag">Peněženka</span>
             </div>
-            <strong class="acc-pill-val text-green" id="disp-cash-balance">0 Kč</strong>
+            <div class="acc-pill-val text-green" id="disp-cash-balance">0 Kč</div>
           </div>
         </div>
 
         <div class="quick-entry-row">
-          <button id="btn-quick-add-income" class="btn-quick-action green">+ Příjem</button>
-          <button id="btn-quick-add-expense" class="btn-quick-action red">− Výdaj</button>
-          <button id="btn-quick-transfer" class="btn-quick-action blue">🔄 Převod</button>
+          <button class="btn-quick-action green" id="btn-quick-add-income">+ Příjem</button>
+          <button class="btn-quick-action red" id="btn-quick-add-expense">- Výdaj</button>
+          <button class="btn-quick-action blue" id="btn-quick-transfer-2">Převod</button>
         </div>
 
-        <button id="btn-quick-salary" class="btn-quick-salary-banner">
+        <button class="btn-quick-salary-banner" id="btn-quick-salary">
           💰 Zadat výplatu za tento měsíc
         </button>
       </div>
 
-      <!-- TACHOMETRY -->
+      <!-- Tachometry (Gauges) -->
       <div class="gauges-card">
         <div class="gauge-subhead">Výkonnost za posledních 30 dní a výhled na příštích 7 dní</div>
         
@@ -67,12 +85,12 @@
           <div class="gauge-box">
             <canvas id="gauge-balance" width="130" height="90"></canvas>
             <span class="g-lbl">ZŮSTATEK</span>
-            <strong class="g-val" id="g-val-balance">0 Kč</strong>
+            <span class="g-val" id="g-val-balance">0 Kč</span>
           </div>
           <div class="gauge-box">
             <canvas id="gauge-cashflow" width="130" height="90"></canvas>
             <span class="g-lbl">CASH FLOW</span>
-            <strong class="g-val" id="g-val-cashflow">0 Kč</strong>
+            <span class="g-val" id="g-val-cashflow">+0 Kč</span>
           </div>
         </div>
 
@@ -95,58 +113,61 @@
         </div>
       </div>
 
+      <!-- Časové okno pro grafy -->
       <div class="timeframe-bar">
         <button class="tf-btn" data-tf="7d">7D</button>
         <button class="tf-btn active" data-tf="30d">30D</button>
-        <button class="tf-btn" data-tf="12w">12T</button>
+        <button class="tf-btn" data-tf="12t">12T</button>
         <button class="tf-btn" data-tf="6m">6M</button>
-        <button class="tf-btn" data-tf="1y">1R</button>
+        <button class="tf-btn" data-tf="1r">1R</button>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
+      <!-- Graf: Tendence příjmů a výdajů -->
+      <div class="analytics-card" style="margin-bottom:14px;">
         <div class="analytics-header">
           <h3>Tendence příjmů a výdajů</h3>
-          <span class="badge-sub" id="income-expense-trend-badge">Vyhodnocení...</span>
+          <span class="badge-sub" id="income-expense-trend-badge">Načítám...</span>
         </div>
         <div class="canvas-wrapper">
-          <canvas id="income-expense-trend-chart" width="400" height="170"></canvas>
-        </div>
-        <div class="chart-legend">
-          <span>🟢 Křivka příjmů</span>
-          <span>🔴 Křivka výdajů</span>
-        </div>
-      </div>
-
-      <div class="analytics-card" style="margin-top: 14px;">
-        <div class="analytics-header">
-          <h3>Historie výplat & Měsíční průměr</h3>
-          <span class="badge-sub" id="income-trend-badge">Průměr: 0 Kč</span>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="salary-trend-chart" width="400" height="170"></canvas>
-        </div>
-        <div class="chart-legend">
-          <span>🟢 Skutečná čistá mzda</span>
-          <span id="salary-avg-legend">⚪ Průměr ze zadaných výplat</span>
-        </div>
-      </div>
-
-      <div class="analytics-card" style="margin-top: 14px;">
-        <div class="analytics-header">
-          <h3>Vývoj Cash Flow (Trend)</h3>
-          <span class="badge-sub" id="cf-trend-net">Bilance: 0 Kč</span>
-        </div>
-        <div class="canvas-wrapper">
-          <canvas id="cashflow-bar-chart" width="400" height="170"></canvas>
+          <canvas id="income-expense-trend-chart"></canvas>
         </div>
         <div class="chart-legend">
           <span>🟢 Příjmy</span>
           <span>🔴 Výdaje</span>
-          <span>⚪ Peněžní tok</span>
         </div>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
+      <!-- Graf: Vývoj výplat -->
+      <div class="analytics-card" style="margin-bottom:14px;">
+        <div class="analytics-header">
+          <h3>Vývoj výplat v čase</h3>
+          <span class="badge-sub" id="income-trend-badge">Čekám na data</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="salary-trend-chart"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span id="salary-avg-legend">⚪ Průměrná mzda</span>
+        </div>
+      </div>
+
+      <!-- Graf: Prognóza cash flow -->
+      <div class="analytics-card" style="margin-bottom:14px;">
+        <div class="analytics-header">
+          <h3>Prognóza cash flow</h3>
+          <span class="badge-sub">Očekávaný tok</span>
+        </div>
+        <div class="canvas-wrapper">
+          <canvas id="cashflow-bar-chart"></canvas>
+        </div>
+        <div class="chart-legend">
+          <span>🟢 Příjmy</span>
+          <span>🔴 Výdaje</span>
+        </div>
+      </div>
+
+      <!-- Tabulka Cash Flow -->
+      <div class="analytics-card" style="margin-bottom:14px;">
         <div class="analytics-header">
           <h3>Tabulka Cash Flow</h3>
           <span class="badge-sub">Statistiky</span>
@@ -159,55 +180,62 @@
           </div>
           <div class="cf-tbl-row">
             <span>Počet transakcí</span>
-            <strong id="cf-count-inc">0</strong>
-            <strong id="cf-count-exp">0</strong>
+            <span id="cf-count-inc">0</span>
+            <span id="cf-count-exp">0</span>
           </div>
           <div class="cf-tbl-row">
             <span>Průměr / den</span>
-            <strong id="cf-avg-day-inc" class="text-green">0 Kč</strong>
-            <strong id="cf-avg-day-exp" class="text-red">0 Kč</strong>
+            <span id="cf-avg-day-inc" class="text-green">0 Kč</span>
+            <span id="cf-avg-day-exp" class="text-red">0 Kč</span>
           </div>
-          <div class="cf-tbl-row">
+          <div class="cf-tbl-row footer">
             <span>Celkem</span>
             <strong id="cf-total-inc" class="text-green">0 Kč</strong>
             <strong id="cf-total-exp" class="text-red">0 Kč</strong>
           </div>
-          <div class="cf-tbl-row footer">
-            <span>Čistý peněžní tok:</span>
-            <strong id="cf-net-total" class="text-blue" style="grid-column: span 2; text-align: right;">0 Kč</strong>
-          </div>
+        </div>
+        <div style="margin-top:10px; font-size:0.8rem; display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Čistý peněžní tok:</span>
+          <strong id="cf-net-total" style="font-size:0.9rem;">+0 Kč</strong>
         </div>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
+      <!-- Variabilní útrata -->
+      <div class="analytics-card" style="margin-bottom:14px;">
         <div class="analytics-header">
           <h3>Variabilní útrata (bez stálých plateb)</h3>
-          <span class="badge-sub" id="badge-var-total">0 Kč</span>
+          <span class="badge-sub" id="badge-var-total">0 Kč celkem</span>
         </div>
-        <div id="variable-breakdown-list" class="category-bars-wrap"></div>
+        <div class="category-bars-wrap" id="variable-breakdown-list">
+          <span style="font-size:0.8rem;color:var(--text-muted);">Zatím žádné variabilní nákupy.</span>
+        </div>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
+      <!-- Celková struktura výdajů -->
+      <div class="analytics-card">
         <div class="analytics-header">
           <h3>Celková struktura výdajů</h3>
-          <span class="badge-sub">Všechny platby</span>
+          <span class="badge-sub" id="link-to-payments-tab" style="cursor:pointer;">Všechny platby</span>
         </div>
-        <div id="category-breakdown-list" class="category-bars-wrap"></div>
+        <div class="category-bars-wrap" id="category-breakdown-list">
+          <span style="font-size:0.8rem;color:var(--text-muted);">Zatím žádné výdaje.</span>
+        </div>
       </div>
+
     </section>
 
-    <!-- 2. Platby -->
+    <!-- 2. ZÁLOŽKA: PLATBY -->
     <section id="tab-payments" class="tab-panel">
       <div class="payments-view-toggle">
-        <button id="btn-toggle-month-entries" class="view-toggle-btn active">📅 Položky měsíce</button>
-        <button id="btn-toggle-templates" class="view-toggle-btn">📋 Trvalé šablony plateb</button>
+        <button class="view-toggle-btn active" id="btn-toggle-month-entries">Položky měsíce</button>
+        <button class="view-toggle-btn" id="btn-toggle-templates">Trvalé šablony plateb</button>
+      </div>
+
+      <div class="action-bar">
+        <button class="action-btn-main" id="btn-add-entry">+ Přidat položku ručně</button>
       </div>
 
       <div id="view-month-entries">
-        <div class="action-bar">
-          <button id="btn-add-entry" class="action-btn-main">+ Přidat položku ručně</button>
-        </div>
-
         <div class="payments-summary-card">
           <div class="summary-line">
             <span>Celkové výdaje měsíce:</span>
@@ -217,67 +245,58 @@
             <div id="payments-progress-fill" style="width: 0%;"></div>
           </div>
         </div>
-
-        <div id="payments-list" class="entries-list"></div>
+        <div class="entries-list" id="payments-list"></div>
       </div>
 
-      <div id="view-templates" style="display: none;">
-        <div class="action-bar">
-          <button id="btn-add-template" class="action-btn-main" style="background-color: var(--accent-green); color:#0b0f19;">+ Vytvořit novou stálou platbu</button>
+      <div id="view-templates" style="display:none;">
+        <div class="action-bar" style="margin-bottom:10px;">
+          <button class="action-btn-main" id="btn-add-template" style="background:var(--bg-card-sub); color:var(--text-main); border:1px solid var(--border-color);">+ Vytvořit novou trvalou šablonu</button>
         </div>
-
-        <div class="section-title-wrap">
-          <h2>Seznam trvalých měsíčních výdajů</h2>
-        </div>
-        <div id="templates-list" class="templates-container"></div>
+        <div class="templates-container" id="templates-list"></div>
       </div>
     </section>
 
-    <!-- 3. Cíle -->
+    <!-- 3. ZÁLOŽKA: CÍLE -->
     <section id="tab-goals" class="tab-panel">
-      <div class="action-bar">
-        <button id="btn-add-goal" class="action-btn-main">+ Přidat nový cíl</button>
-      </div>
-
       <div class="goals-summary-card">
-        <div class="summary-line">
-          <span>K dispozici pro cíle:</span>
-          <strong id="goals-available-disp" class="text-blue">0 Kč</strong>
-        </div>
+        <span class="card-label">K dispozici pro cíle</span>
+        <div class="balance-amount" id="goals-available-disp" style="font-size:1.5rem; margin-top:2px;">0 Kč</div>
       </div>
-
-      <div id="goals-list" class="goals-container"></div>
+      <div class="action-bar">
+        <button class="action-btn-main" id="btn-add-goal">+ Přidat nový cíl</button>
+      </div>
+      <div class="goals-container" id="goals-list"></div>
     </section>
 
-    <!-- 4. Dluhy & Pohledávky -->
+    <!-- 4. ZÁLOŽKA: DLUHY -->
     <section id="tab-debts" class="tab-panel">
       <div class="debts-top-summary-grid">
         <div class="debts-sum-card red">
           <span class="dsc-lbl">MOJE DLUHY</span>
-          <strong class="dsc-val" id="disp-total-payables">0 Kč</strong>
+          <span class="dsc-val" id="disp-total-payables">0 Kč</span>
           <span class="dsc-sub">Pravidlo 10. dne</span>
         </div>
         <div class="debts-sum-card green">
           <span class="dsc-lbl">DLUŽÍ MNĚ</span>
-          <strong class="dsc-val" id="disp-total-receivables">0 Kč</strong>
+          <span class="dsc-val" id="disp-total-receivables">0 Kč</span>
           <span class="dsc-sub">Při úhradě se přičte na účet</span>
         </div>
       </div>
 
-      <div class="section-title-row" style="margin-top: 16px;">
+      <div class="section-title-row">
         <h2>Kdo mi dluží (Pohledávky)</h2>
-        <button id="btn-add-debtor" class="btn-small-primary">+ Nová osoba</button>
+        <button class="btn-small-primary" id="btn-add-debtor">+ Nová osoba</button>
       </div>
-      <div id="receivables-list" class="debts-container"></div>
+      <div class="debts-container" id="receivables-list" style="margin-bottom:20px;"></div>
 
-      <div class="section-title-row" style="margin-top: 24px;">
-        <h2>Moje půjčky k úhradě</h2>
-        <button id="btn-add-loan" class="btn-small-secondary">+ Nová půjčka</button>
+      <div class="section-title-row">
+        <h2>Moje závazky a půjčky</h2>
+        <button class="btn-small-secondary" id="btn-add-loan">+ Přidat půjčku</button>
       </div>
-      <div id="payables-list" class="debts-container"></div>
+      <div class="debts-container" id="payables-list"></div>
     </section>
 
-    <!-- 5. Investice, Investown & Zlaté slitky -->
+    <!-- 5. ZÁLOŽKA: INVESTICE -->
     <section id="tab-invest" class="tab-panel">
       <div class="assets-ring-card">
         <div class="ring-left">
@@ -286,758 +305,261 @@
         </div>
         <div class="ring-right">
           <span class="ar-lbl">Celková finanční aktiva</span>
-          <strong class="ar-val" id="disp-total-networth">0 Kč</strong>
-          <span class="ar-lbl" style="margin-top: 6px;">Z toho v investicích & zlatu</span>
-          <strong class="ar-subval text-green" id="disp-total-current">0 Kč</strong>
+          <div class="ar-val" id="disp-total-networth">0 Kč</div>
+          <span class="ar-lbl" style="margin-top:6px;">Z toho v investicích & zlatu</span>
+          <div class="ar-subval text-green" id="disp-total-current">0 Kč</div>
         </div>
       </div>
 
+      <!-- Investown Hub -->
       <div class="investown-hub-card">
         <div class="inv-hub-top">
           <div class="inv-hub-brand">
-            <span class="diamond-icon">💎</span>
-            <strong>INVESTOWN</strong>
+            <span>💎 INVESTOWN</span>
           </div>
-          <span class="inv-rate-pill" id="itown-disp-roi">0 % zisk</span>
+          <span class="inv-rate-pill" id="itown-disp-roi">0% zisk</span>
         </div>
-
         <div class="inv-hub-main-amount">
           <span class="ih-lbl">Celková hodnota portfolia (Jistina + Zisk)</span>
           <div class="ih-val" id="itown-disp-total">0 Kč</div>
         </div>
-
         <div class="inv-hub-metrics-grid">
           <div class="ih-metric">
             <span class="ih-m-lbl">Vložená jistina (vklady)</span>
-            <strong class="ih-m-val text-blue" id="itown-disp-invested">0 Kč</strong>
+            <span class="ih-m-val" id="itown-disp-invested">0 Kč</span>
           </div>
           <div class="ih-metric">
             <span class="ih-m-lbl">Celkový zisk (z aplikace)</span>
-            <strong class="ih-m-val text-green" id="itown-disp-profit">+ 0 Kč</strong>
+            <span class="ih-m-val text-green" id="itown-disp-profit">+0 Kč</span>
           </div>
         </div>
-
         <div class="itown-actions-row">
-          <button id="btn-itown-deposit-custom" class="btn-itown-action green">+ Vložit peníze</button>
-          <button id="btn-itown-sell" class="btn-itown-action orange">− Prodej / Výběr</button>
-          <button id="btn-itown-quick-sync-profit" class="btn-itown-action blue">📈 Zadat zisk z mobilu</button>
+          <button class="btn-itown-action green" id="btn-itown-deposit-custom">+ Vložit peníze</button>
+          <button class="btn-itown-action orange" id="btn-itown-sell">- Prodej / Výběr</button>
+          <button class="btn-itown-action blue" id="btn-itown-quick-sync-profit">✏️ Zadat zisk z mobilu</button>
         </div>
       </div>
 
-      <div class="gold-hub-card" style="margin-top: 14px;">
+      <!-- Fyzické zlato Hub -->
+      <div class="gold-hub-card" style="margin-bottom:14px;">
         <div class="gold-hub-top">
           <div class="gold-hub-brand">
-            <span class="gold-bar-icon">🪙</span>
-            <strong>Fyzické zlato (Slitky)</strong>
+            <span>🟡 Fyzické zlato (Slitky)</span>
           </div>
-          <button id="btn-add-gold" class="btn-small-primary" style="background:#eab308; color:#0b0f19;">+ Zapsat slitek</button>
+          <button class="btn-small-primary" id="btn-add-gold">+ Zapsat slitek</button>
         </div>
-
-        <div class="gold-metrics-grid">
+        <div class="gold-metrics-grid" style="margin-bottom:10px;">
           <div class="gm-col">
-            <span class="gm-lbl">Celkem slitků</span>
-            <strong class="gm-val" id="disp-gold-grams">0 g</strong>
+            <span class="gm-lbl">Celkem gramů</span>
+            <span class="gm-val" id="disp-gold-grams">0.0 g</span>
           </div>
           <div class="gm-col">
             <span class="gm-lbl">Nákupní cena</span>
-            <strong class="gm-val" id="disp-gold-bought">0 Kč</strong>
+            <span class="gm-val" id="disp-gold-bought">0 Kč</span>
           </div>
           <div class="gm-col">
             <span class="gm-lbl">Aktuální hodnota</span>
-            <strong class="gm-val text-yellow" id="disp-gold-current">0 Kč</strong>
+            <span class="gm-val text-yellow" id="disp-gold-current">0 Kč</span>
           </div>
         </div>
-
-        <div id="gold-bars-list" class="gold-bars-container" style="margin-top: 10px;"></div>
+        <div id="gold-bars-list" style="display:flex; flex-direction:column; gap:6px;"></div>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
+      <!-- Ostatní investice -->
+      <div class="section-title-row">
+        <h2>Ostatní investice & portfolia</h2>
+        <button class="btn-small-secondary" id="btn-add-investment">+ Přidat</button>
+      </div>
+      <div class="investments-container" id="investments-list" style="margin-bottom:14px;"></div>
+
+      <!-- Graf vývoje investic -->
+      <div class="analytics-card" style="margin-bottom:14px;">
         <div class="analytics-header">
-          <h3>Křivka růstu portfolia (Investice + Zlato)</h3>
-          <span class="badge-sub" id="invest-growth-badge">+0 Kč zisk</span>
+          <h3>Vývoj hodnoty portfolia</h3>
+          <span class="badge-sub" id="invest-growth-badge">+0 Kč (0%)</span>
         </div>
         <div class="canvas-wrapper">
-          <canvas id="invest-trend-chart" width="400" height="170"></canvas>
+          <canvas id="invest-trend-chart"></canvas>
         </div>
         <div class="chart-legend">
-          <span>🔵 Aktuální hodnota (včetně výnosů)</span>
-          <span>⚪ Pouze vložený kapitál (přírůstky)</span>
+          <span>🔵 Aktuální hodnota</span>
+          <span>⚪ Vložená jistina</span>
         </div>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
+      <!-- Webové výdělky Hub -->
+      <div class="analytics-card">
         <div class="analytics-header">
-          <h3>Křivka výdělků z webu & projektů</h3>
-          <span class="badge-sub" id="web-trend-badge">Měsíční trend</span>
+          <h3>Příjmy z webů a projektů</h3>
+          <span class="badge-sub" id="disp-month-web-earnings">0 Kč za měsíc</span>
         </div>
-        <div class="canvas-wrapper">
-          <canvas id="web-trend-chart" width="400" height="170"></canvas>
+        <div class="web-earnings-summary" style="margin-bottom:10px;">
+          <span>Zaevidované projekty tento měsíc</span>
+          <span class="text-green">Aktivní</span>
+        </div>
+        <div id="web-earnings-items" style="display:flex; flex-direction:column; gap:4px; margin-bottom:12px;"></div>
+        <div class="canvas-wrapper" style="height:140px;">
+          <canvas id="web-trend-chart"></canvas>
         </div>
         <div class="chart-legend">
-          <span>🟢 Měsíční příjem z webu</span>
-          <span id="web-avg-legend">⚪ Průměr</span>
+          <span id="web-avg-legend">⚪ Průměr (0 Kč)</span>
         </div>
-      </div>
-
-      <div class="action-bar" style="margin-top: 16px;">
-        <button id="btn-add-investment" class="action-btn-main">+ Přidat další platformu (Portu, ETF...)</button>
-      </div>
-
-      <div class="section-title-wrap" style="margin-top: 16px;">
-        <h2>Ostatní finanční aktiva</h2>
-      </div>
-      <div id="investments-list" class="investments-container"></div>
-
-      <div class="analytics-card" style="margin-top: 20px;">
-        <div class="analytics-header">
-          <h3>Rozpis výdělků z webu v tomto měsíci</h3>
-          <span class="badge-sub">Koloběžník & Projekty</span>
-        </div>
-        <div class="web-earnings-summary">
-          <span>Celkový příjem z webu:</span>
-          <strong id="disp-month-web-earnings" class="text-green">0 Kč</strong>
-        </div>
-        <div id="web-earnings-items" class="web-earnings-list" style="margin-top: 10px;"></div>
       </div>
     </section>
 
-    <!-- 6. Energie -->
+    <!-- 6. ZÁLOŽKA: ENERGIE -->
     <section id="tab-energy" class="tab-panel">
-      <div class="energy-overview-card">
-        <div class="energy-row">
-          <span>Cena elektřiny:</span>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <strong id="disp-kwh-price">6,65 Kč / kWh</strong>
-            <button id="btn-edit-kwh-price" class="btn-edit-item" title="Upravit cenu kWh">✏️</button>
-          </div>
-        </div>
+      <!-- Karta přehledu energie -->
+      <div class="energy-overview-card" style="margin-bottom:14px;">
         <div class="energy-row">
           <span>Měsíční záloha (ČEZ):</span>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <strong id="disp-cez-deposit">3 000 Kč</strong>
-            <button id="btn-edit-cez-deposit" class="btn-edit-item" title="Změnit výši měsíční zálohy">✏️</button>
-          </div>
+          <strong id="disp-cez-deposit">3 000 Kč</strong>
+        </div>
+        <div class="energy-row">
+          <span>Cena elektřiny:</span>
+          <strong id="disp-kwh-price" class="text-blue">8,20 Kč / kWh</strong>
         </div>
         <div class="energy-row highlight">
-          <span id="lbl-max-allowed-kwh">Kapacita zálohy:</span>
-          <strong id="disp-max-allowed-kwh">451,1 kWh / měsíc</strong>
+          <span>Kapacita zálohy (měsíční limit):</span>
+          <strong id="disp-max-allowed-kwh">365.9 kWh / měsíc</strong>
         </div>
       </div>
 
-      <div class="analytics-card" style="margin-top: 14px;">
-        <div class="analytics-header">
-          <h3 id="lbl-meter-eval-title">Měsíční vyhodnocení odečtu</h3>
-          <span class="badge-sub" id="energy-trend-badge">Vyhodnocuji...</span>
+      <!-- Měsíční vyhodnocení odečtu -->
+      <div class="meter-evaluation-box" style="margin-bottom:14px;">
+        <div class="analytics-header" style="margin-bottom:8px;">
+          <h3>Měsíční vyhodnocení odečtu</h3>
+          <span class="badge-sub" id="energy-trend-badge">Čekám na data</span>
         </div>
-        <div class="meter-evaluation-box" id="disp-meter-eval-box"></div>
+        <div id="disp-meter-eval-box">
+          <span style="font-size:0.8rem;color:var(--text-muted);">Pro měsíční vyhodnocení zadej alespoň 2 odečty elektroměru.</span>
+        </div>
       </div>
 
-      <div class="chart-card" style="margin-top: 14px;">
+      <!-- Graf spotřeby -->
+      <div class="chart-card" style="margin-bottom:14px;">
         <div class="chart-header">
           <h3>Křivka a tendence spotřeby domu (kWh/den)</h3>
-          <button id="btn-add-meter-reading" class="btn-small-primary">+ Zadat měsíční odečet</button>
+          <button class="btn-small-primary" id="btn-add-meter-reading">+ Zadat měsíční odečet</button>
         </div>
         <div class="canvas-wrapper">
-          <canvas id="energy-chart" width="400" height="180"></canvas>
+          <canvas id="energy-chart"></canvas>
         </div>
         <div class="chart-legend">
-          <span>🔵 Křivka denního odběru</span>
           <span id="chart-avg-label">⚪ Průměr: 0 kWh/den</span>
         </div>
       </div>
 
-      <div class="section-title-wrap" style="margin-top: 16px;">
-        <h2>Historie měsíčních odečtů & Přeplatky/Nedoplatky</h2>
-      </div>
-      <div id="meter-readings-history" class="meter-history-container"></div>
-
-      <div class="analytics-card" style="margin-top: 20px;">
-        <div class="analytics-header">
-          <h3>Kalkulačka libovolné spotřeby</h3>
-          <span class="badge-sub">Kč vs. kWh</span>
-        </div>
-        <div class="energy-calc-wrap">
-          <div class="form-group">
-            <label for="calc-kwh-input">Zadej spotřebu (kWh):</label>
+      <!-- Kalkulačka spotřeby -->
+      <div class="analytics-card" style="margin-bottom:14px;">
+        <h3>Kalkulačka aktuální spotřeby</h3>
+        <div class="energy-calc-wrap" style="margin-top:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Zadej spotřebované kWh:</label>
             <div class="calc-input-row">
-              <input type="number" id="calc-kwh-input" value="100" step="1" min="0">
+              <input type="number" id="calc-kwh-input" value="250" style="flex:1;">
               <span class="unit-tag">kWh</span>
             </div>
-            <input type="range" id="calc-kwh-range" min="0" max="1000" step="5" value="100" class="kwh-slider">
           </div>
+          <input type="range" id="calc-kwh-range" min="0" max="600" value="250" class="kwh-slider">
           <div class="calc-results-box">
             <div class="calc-result-item">
-              <span class="res-lbl">Náklad při ceně <strong id="calc-unit-rate">6,65 Kč</strong>/kWh</span>
-              <span class="res-val" id="calc-result-cost">665 Kč</span>
+              <span class="res-lbl">Cena dle sazby (<span id="calc-unit-rate">8,20 Kč</span>):</span>
+              <span class="res-val text-red" id="calc-result-cost">2 050 Kč</span>
             </div>
             <div class="calc-result-item">
-              <span class="res-lbl" id="lbl-calc-deposit-diff">Rozdíl oproti záloze</span>
-              <span class="res-val" id="calc-result-balance">+2 335 Kč (přeplatek)</span>
+              <span class="res-lbl">Výsledek vůči záloze (3 000 Kč):</span>
+              <span class="res-val" id="calc-result-balance">+950 Kč (přeplatek)</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="action-bar" style="margin-top: 20px;">
-        <button id="btn-add-appliance" class="action-btn-main">+ Přidat spotřebič / zařízení</button>
+      <!-- Historie odečtů -->
+      <div class="section-title-row" style="margin-top:10px;">
+        <h2>Historie měsíčních odečtů & Přeplatky/Nedoplatky</h2>
       </div>
+      <div class="templates-container" id="meter-readings-history" style="margin-bottom:20px;"></div>
 
-      <div class="section-title-wrap" style="margin-top: 16px;">
-        <h2>Evidence spotřebičů & Náklady na provoz</h2>
+      <!-- Spotřebiče -->
+      <div class="section-title-row">
+        <h2>Domácí spotřebiče a záruky</h2>
+        <button class="btn-small-primary" id="btn-add-appliance">+ Přidat spotřebič</button>
       </div>
-      <div id="appliances-list" class="appliances-container"></div>
+      <div class="appliances-container" id="appliances-list"></div>
     </section>
 
-    <!-- 7. Nastavení & Ochrana dat -->
+    <!-- 7. ZÁLOŽKA: NASTAVENÍ -->
     <section id="tab-settings" class="tab-panel">
-      <div class="settings-card" style="border-color: rgba(56, 189, 248, 0.4);">
+      
+      <!-- Cloud zrcadlení -->
+      <div class="settings-card" style="margin-bottom:14px;">
         <h3>🛡️ Nezávislé cloud zrcadlení (Ochrana proti smazání)</h3>
-        <p class="settings-desc">Zadej svůj privátní GitHub Token (s právem <code>gist</code>). Aplikace bude při každé změně tiše zrcadlit data do tvého soukromého Gistu.</p>
-        <div class="form-group" style="margin-top: 10px;">
-          <label for="set-gh-token">GitHub Token (Classic, oprávnění: gist)</label>
-          <input type="password" id="set-gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-        </div>
-        <div class="settings-btns-grid">
-          <button id="btn-save-cloud-sync" class="btn-primary">Aktivovat ochranu</button>
-          <button id="btn-force-cloud-sync" class="btn-secondary">Zrcadlit ihned ⚡</button>
-        </div>
-        <div id="cloud-sync-status" class="import-status"></div>
+        <p class="settings-desc" style="margin-bottom:10px;">
+          Data se automaticky zálohují na tvůj soukromý GitHub Gist při každé změně.
+        </p>
+        <button class="action-btn-main" id="btn-install-pwa" style="display:none; margin-bottom:10px; background:var(--accent-green); color:#0b0f19;">
+          📱 Nainstalovat aplikaci do telefonu
+        </button>
       </div>
 
-      <div class="settings-card" style="margin-top: 14px;">
+      <!-- Propojení s Air Bank -->
+      <div class="settings-card" style="margin-bottom:14px;">
         <h3>Propojení s Air Bank (Inteligentní CSV Import)</h3>
-        <p class="settings-desc">Nahraj výpis z Air Bank. Aplikace automaticky roztřídí transakce do kategorií (všechny se automaticky připíší k bankovnímu účtu).</p>
-        <input type="file" id="csv-file-input" accept=".csv,.txt" style="display: none;">
-        <button id="btn-trigger-csv" class="action-btn-main" style="background-color: var(--accent-green); margin-top: 10px;">📥 Importovat CSV výpis z Air Bank</button>
-        <div id="csv-import-status" class="import-status"></div>
+        <p class="settings-desc" style="margin-bottom:10px;">
+          Nahraj výpis z Air Bank. Aplikace automaticky roztřídí transakce do kategorií.
+        </p>
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none;">
+        <button class="action-btn-main" id="btn-trigger-csv" style="background:var(--accent-green); color:#0b0f19;">
+          📥 Importovat CSV výpis z Air Bank
+        </button>
+        <div class="import-status" id="csv-import-status"></div>
       </div>
 
-      <div class="settings-card" style="margin-top: 14px;">
+      <!-- Finanční parametry -->
+      <div class="settings-card" style="margin-bottom:14px;">
         <h3>Finanční parametry & Energie</h3>
-        <div class="form-group" style="margin-top: 10px;">
-          <label for="set-bank-capital">Výchozí zůstatek na účtu (Air Bank v Kč)</label>
-          <input type="number" id="set-bank-capital" step="1">
+        <div class="form-group" style="margin-top:10px;">
+          <label>Výchozí zůstatek na účtu (Air Bank v Kč):</label>
+          <input type="number" id="set-bank-capital">
         </div>
         <div class="form-group">
-          <label for="set-cash-capital">Výchozí hotovost (Peněženka v Kč)</label>
-          <input type="number" id="set-cash-capital" step="1">
+          <label>Výchozí hotovost (Peněženka v Kč):</label>
+          <input type="number" id="set-cash-capital">
         </div>
         <div class="form-group">
-          <label for="set-payday">Den výplaty v měsíci (1–31)</label>
-          <input type="number" id="set-payday" min="1" max="31">
+          <label>Den výplaty v měsíci (1–31):</label>
+          <input type="number" id="set-payday">
         </div>
         <div class="form-group">
-          <label for="set-kwh-price">Cena elektřiny (Kč za kWh)</label>
-          <input type="number" id="set-kwh-price" step="0.01">
+          <label>Cena elektřiny (Kč za kWh):</label>
+          <input type="number" step="0.1" id="set-kwh-price">
         </div>
-        <div class="form-group">
-          <label for="set-cez-deposit">Aktuální měsíční záloha ČEZ (Kč)</label>
-          <input type="number" id="set-cez-deposit" step="1" value="3000">
-        </div>
-        <button id="btn-save-settings" class="action-btn-main" style="margin-top: 8px;">Uložit parametry</button>
+        <button class="btn-primary" id="btn-save-settings" style="width:100%; margin-top:6px;">Uložit parametry</button>
       </div>
 
-      <div class="settings-card" style="margin-top: 14px;">
+      <!-- Ruční záloha a obnova -->
+      <div class="settings-card">
         <h3>Ruční záloha a obnova databáze</h3>
-        <p class="settings-desc">Jednorázová záloha všech tabulek do souboru JSON.</p>
-        <div class="settings-btns-grid" style="margin-top: 10px;">
-          <button id="btn-export-json" class="btn-secondary">📤 Stáhnout JSON</button>
-          <button id="btn-copy-json" class="btn-secondary">📋 Kopírovat JSON</button>
+        <p class="settings-desc" style="margin-bottom:10px;">
+          Můžeš si kdykoliv stáhnout kompletní zálohu dat nebo ji nahrát zpět.
+        </p>
+        <div class="settings-btns-grid">
+          <button class="btn-secondary" id="btn-export-json">💾 Stáhnout JSON</button>
+          <button class="btn-secondary" id="btn-copy-json">📋 Kopírovat JSON</button>
         </div>
-        <input type="file" id="restore-file-input" accept=".json" style="display: none;">
-        <button id="btn-trigger-restore" class="btn-secondary" style="margin-top: 8px; width: 100%;">📥 Obnovit ze souboru JSON</button>
+        <input type="file" id="restore-file-input" accept=".json" style="display:none;">
+        <button class="btn-primary" id="btn-trigger-restore" style="width:100%; margin-top:10px;">📂 Obnovit ze souboru</button>
       </div>
 
-      <div class="settings-card" style="margin-top: 14px; text-align: center;">
-        <h3>Mobilní aplikace (PWA)</h3>
-        <p class="settings-desc">Spouštěj aplikaci offline přímo z plochy telefonu.</p>
-        <button id="btn-install-pwa" class="btn-secondary" style="margin-top: 10px; width: 100%;">📲 Přidat na plochu mobilu</button>
-      </div>
     </section>
 
-    <!-- MODÁLNÍ OKNA -->
-
-    <!-- Modální okno: Přidat nového dlužníka -->
-    <div id="modal-new-debtor" class="modal hidden">
-      <div class="modal-content">
-        <h2>Přidat novou osobu (Dlužníka)</h2>
-        <form id="form-new-debtor">
-          <div class="form-group">
-            <label for="debtor-name-input">Jméno osoby / Přezdívka</label>
-            <input type="text" id="debtor-name-input" required placeholder="např. TOMÁŠ, PETR">
-          </div>
-          <div class="form-group">
-            <label for="debtor-item-label-input">Název první položky dluhu</label>
-            <input type="text" id="debtor-item-label-input" required placeholder="např. Půjčka, Nákup">
-          </div>
-          <div class="form-group">
-            <label for="debtor-item-amount-input">Částka (Kč)</label>
-            <input type="number" id="debtor-item-amount-input" step="1" required placeholder="např. 1500">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-new-debtor" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Přidat dlužníka</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Přidat novou půjčku -->
-    <div id="modal-new-loan" class="modal hidden">
-      <div class="modal-content">
-        <h2>Přidat nový úvěr / závazek</h2>
-        <form id="form-new-loan">
-          <div class="form-group">
-            <label for="loan-name-input">Název společnosti / věřitele</label>
-            <input type="text" id="loan-name-input" required placeholder="např. Zonky, Banka">
-          </div>
-          <div class="form-group">
-            <label for="loan-total-input">Celkový dluh k doplacení (Kč)</label>
-            <input type="number" id="loan-total-input" step="1" required placeholder="např. 50000">
-          </div>
-          <div class="form-group">
-            <label for="loan-monthly-input">Měsíční splátka (Kč)</label>
-            <input type="number" id="loan-monthly-input" step="1" required placeholder="např. 1500">
-          </div>
-          <div class="form-group">
-            <label for="loan-day-input">Den splatnosti v měsíci (1–31)</label>
-            <input type="number" id="loan-day-input" min="1" max="31" value="10">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-new-loan" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit závazek</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Přičíst dlužníkovi -->
-    <div id="modal-lend-detailed" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modal-lend-detailed-title">+ Půjčit / Přičíst dlužníkovi</h2>
-        <form id="form-lend-detailed">
-          <input type="hidden" id="lend-debtor-id">
-
-          <div class="form-group">
-            <label>Způsob přičtení</label>
-            <div class="radio-row">
-              <label><input type="radio" name="lendMode" value="new" checked> Založit novou položku</label>
-              <label><input type="radio" name="lendMode" value="existing"> Přičíst k existující</label>
-            </div>
-          </div>
-
-          <div class="form-group" id="wrap-lend-existing-item" style="display: none;">
-            <label for="lend-existing-item-select">Vyber položku k navýšení</label>
-            <select id="lend-existing-item-select"></select>
-          </div>
-
-          <div class="form-group" id="wrap-lend-new-item">
-            <label for="lend-new-item-title">Za co to bylo (Název položky)</label>
-            <input type="text" id="lend-new-item-title" placeholder="např. Benzín, Nákup, Oběd, Fólie na bazén">
-          </div>
-
-          <div class="form-group">
-            <label for="lend-amount-input">Částka (Kč)</label>
-            <input type="number" id="lend-amount-input" step="1" required placeholder="např. 500">
-          </div>
-
-          <div class="form-group">
-            <label for="lend-date-input">Datum půjčky / výdaje</label>
-            <input type="date" id="lend-date-input" required>
-          </div>
-
-          <div class="form-group">
-            <label for="lend-note-input">Podrobnější poznámka (volitelná)</label>
-            <input type="text" id="lend-note-input" placeholder="např. Cesta do Brna, půlka účtenky">
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-lend-detailed" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Přičíst k dluhu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Odečíst od dlužníka -->
-    <div id="modal-repay-detailed" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modal-repay-detailed-title">Zadat úhradu od dlužníka (+ účet)</h2>
-        <form id="form-repay-detailed">
-          <input type="hidden" id="repay-debtor-id">
-
-          <div class="form-group">
-            <label for="repay-target-item-select">Z jaké položky se má úhrada odečíst?</label>
-            <select id="repay-target-item-select" required></select>
-          </div>
-
-          <div class="form-group">
-            <label for="repay-amount-input">Uhrazená částka (Kč)</label>
-            <input type="number" id="repay-amount-input" step="1" required placeholder="např. 1250">
-          </div>
-
-          <div class="form-group">
-            <label for="repay-date-input">Datum úhrady</label>
-            <input type="date" id="repay-date-input" required>
-          </div>
-
-          <div class="form-group">
-            <label for="repay-note-input">Poznámka k platbě</label>
-            <input type="text" id="repay-note-input" placeholder="např. Na účet, V hotovosti">
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-repay-detailed" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Potvrdit úhradu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: MIMOŘÁDNÁ SPLÁTKA PŮJČKY (PROVIDENT / AVAFIN) -->
-    <div id="modal-extra-pay" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modal-extra-pay-title">Mimořádná splátka půjčky</h2>
-        <form id="form-extra-pay">
-          <input type="hidden" id="extra-pay-debt-id">
-
-          <div class="form-group">
-            <label for="extra-pay-amount">Částka mimořádné splátky (Kč)</label>
-            <input type="number" id="extra-pay-amount" step="1" required placeholder="např. 5000">
-          </div>
-
-          <div id="extra-pay-impact-box" class="debt-payoff-metrics" style="margin: 10px 0; display:none;">
-            <div class="dpm-col">
-              <span class="dpm-lbl">Ušetříš přibližně</span>
-              <span class="dpm-val" id="extra-pay-saved-months">0 měsíců</span>
-            </div>
-            <div class="dpm-col" style="text-align:right;">
-              <span class="dpm-lbl">Nové datum doplacení</span>
-              <span class="dpm-val" id="extra-pay-new-date">--</span>
-            </div>
-          </div>
-
-          <p class="settings-desc">Tato částka okamžitě poníží jistinu půjčky, odečte se z bankovního účtu v tomto měsíci a přiblíží konečné doplacení.</p>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-extra-pay" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uhradit mimořádně</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Položka -->
-    <div id="modal-entry" class="modal hidden">
-      <div class="modal-content">
-        <h2 id="modal-entry-title">Nová položka</h2>
-        <form id="form-entry">
-          <div class="form-group">
-            <label>Typ položky</label>
-            <div class="radio-row">
-              <label><input type="radio" name="entryType" value="expense" checked> Výdaj</label>
-              <label><input type="radio" name="entryType" value="income"> Příjem</label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Zdroj financí</label>
-            <div class="wallet-select-row">
-              <label class="wallet-radio-box">
-                <input type="radio" name="entryWallet" value="bank" checked>
-                <span>🏦 Bankovní účet</span>
-              </label>
-              <label class="wallet-radio-box">
-                <input type="radio" name="entryWallet" value="cash">
-                <span>💵 Hotovost</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="entry-title">Název / Popis</label>
-            <input type="text" id="entry-title" required placeholder="např. Nákup Lidl, Oběd, Výplata">
-          </div>
-
-          <div class="form-group">
-            <label for="entry-amount">Částka (Kč)</label>
-            <input type="number" id="entry-amount" step="0.01" required placeholder="0.00">
-          </div>
-
-          <div class="form-group">
-            <label for="entry-category">Kategorie</label>
-            <select id="entry-category">
-              <option value="Výplata">Výplata & Hlavní příjem</option>
-              <option value="Web & Projekty">Web & Vedlejší výdělky</option>
-              <option value="Jídlo & Potraviny">Jídlo & Potraviny</option>
-              <option value="Drogerie & Domácnost">Drogerie & Domácnost</option>
-              <option value="Doprava & Benzín">Doprava & Benzín</option>
-              <option value="Restaurace & Občerstvení">Restaurace & Občerstvení</option>
-              <option value="Elektro & Nářadí">Elektro & Nářadí</option>
-              <option value="Zvířata">Zvířata & Chov</option>
-              <option value="Zdraví & Lékárna">Zdraví & Lékárna</option>
-              <option value="Energie">Energie</option>
-              <option value="Bydlení">Bydlení</option>
-              <option value="Komunikace">Komunikace</option>
-              <option value="Služby">Služby & Předplatné</option>
-              <option value="Závazky">Závazky & Splátky</option>
-              <option value="Investice">Investice & Slitky</option>
-              <option value="Ostatní">Ostatní útrata</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="entry-day">Den v měsíci (1–31)</label>
-            <input type="number" id="entry-day" min="1" max="31" value="10">
-          </div>
-
-          <div class="form-group checkbox-row" id="wrap-entry-recurring">
-            <label><input type="checkbox" id="entry-recurring"> Uložit jako trvalou platbu do šablon</label>
-          </div>
-
-          <div id="wrap-recurring-frequency" class="recurring-freq-box hidden">
-            <div class="form-group">
-              <label for="entry-frequency">Periodicita platby</label>
-              <select id="entry-frequency">
-                <option value="monthly">Každý měsíc</option>
-                <option value="semi-annual">Pololetně (2× za rok)</option>
-                <option value="annual">Ročně (1× za rok)</option>
-              </select>
-            </div>
-            <div class="form-group" id="wrap-due-months" style="display: none;">
-              <label for="entry-due-months">Měsíce splatnosti (čísla oddělená čárkou, např. 5, 11 nebo 7)</label>
-              <input type="text" id="entry-due-months" placeholder="např. 1 pro leden, 7 pro červenec, 5, 11 pro květen a listopad">
-            </div>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-entry" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit položku</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Převod -->
-    <div id="modal-transfer" class="modal hidden">
-      <div class="modal-content">
-        <h2>Převod / Výběr z bankomatu</h2>
-        <form id="form-transfer">
-          <div class="form-group">
-            <label>Směr převodu</label>
-            <select id="transfer-direction">
-              <option value="atm">Výběr z bankomatu (Účet ➡️ Hotovost)</option>
-              <option value="deposit">Vklad na účet (Hotovost ➡️ Účet)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="transfer-amount">Částka (Kč)</label>
-            <input type="number" id="transfer-amount" step="1" required placeholder="např. 2000">
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-transfer" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Provést přesun</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Cíl -->
-    <div id="modal-goal" class="modal hidden">
-      <div class="modal-content">
-        <h2>Nový cíl</h2>
-        <form id="form-goal">
-          <div class="form-group">
-            <label for="goal-title">Název cíle</label>
-            <input type="text" id="goal-title" required placeholder="např. Zlatý slitek 5g, Brikety">
-          </div>
-
-          <div class="form-group">
-            <label for="goal-target">Cílová částka (Kč)</label>
-            <input type="number" id="goal-target" step="1" required placeholder="10000">
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-goal" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit cíl</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Vložit peníze na Investown -->
-    <div id="modal-itown-deposit-custom" class="modal hidden">
-      <div class="modal-content">
-        <h2>Vložit peníze na Investown</h2>
-        <form id="form-itown-deposit-custom">
-          <div class="form-group">
-            <label for="itown-deposit-amount-input">Částka vkladu (Kč)</label>
-            <input type="number" id="itown-deposit-amount-input" step="1" required placeholder="např. 500 nebo 2500" value="500">
-          </div>
-          <p class="settings-desc">Tato částka navýší jistinu na Investownu a odečte se z bankovního účtu.</p>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-itown-deposit-custom" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Vložit</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Zadat celkový zisk Investownu -->
-    <div id="modal-itown-profit-direct" class="modal hidden">
-      <div class="modal-content">
-        <h2>Aktualizovat Celkový zisk Investownu</h2>
-        <form id="form-itown-profit-direct">
-          <div class="form-group">
-            <label for="itown-direct-profit-input">Aktuální celkový zisk z mobilu (Kč)</label>
-            <input type="number" id="itown-direct-profit-input" step="0.01" required placeholder="např. 3443.02">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-itown-profit-direct" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit a přepočítat</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Prodej / Výběr Investown -->
-    <div id="modal-itown-sell" class="modal hidden">
-      <div class="modal-content">
-        <h2>Prodej / Výběr z Investownu</h2>
-        <form id="form-itown-sell">
-          <div class="form-group">
-            <label for="itown-sell-amount">Částka k prodeji / výběru (Kč)</label>
-            <input type="number" id="itown-sell-amount" step="1" required placeholder="např. 2500">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-itown-sell" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary" style="background:var(--accent-yellow); color:#0b0f19;">Prodat / Vybrat</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Zlatý slitek -->
-    <div id="modal-gold" class="modal hidden">
-      <div class="modal-content">
-        <h2>Nový zlatý slitek</h2>
-        <form id="form-gold">
-          <div class="form-group">
-            <label for="gold-name">Název / Rafinér</label>
-            <input type="text" id="gold-name" required placeholder="Argor-Heraeus 5g">
-          </div>
-          <div class="form-group">
-            <label for="gold-weight">Hmotnost v gramech (g)</label>
-            <input type="number" id="gold-weight" step="0.1" required placeholder="5">
-          </div>
-          <div class="form-group">
-            <label for="gold-bought">Nákupní cena (Kč)</label>
-            <input type="number" id="gold-bought" step="1" required placeholder="10500">
-          </div>
-          <div class="form-group">
-            <label for="gold-current">Aktuální hodnota (Kč)</label>
-            <input type="number" id="gold-current" step="1" required placeholder="11200">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-gold" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit slitek</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Investice -->
-    <div id="modal-investment" class="modal hidden">
-      <div class="modal-content">
-        <h2>Nová investiční platforma</h2>
-        <form id="form-investment">
-          <div class="form-group">
-            <label for="inv-name">Název platformy / fondu</label>
-            <input type="text" id="inv-name" required placeholder="např. Portu, Rentier.cz">
-          </div>
-          <div class="form-group">
-            <label for="inv-invested">Vložená částka (Kč)</label>
-            <input type="number" id="inv-invested" step="1" required placeholder="5000">
-          </div>
-          <div class="form-group">
-            <label for="inv-current">Aktuální hodnota (Kč)</label>
-            <input type="number" id="inv-current" step="1" required placeholder="5250">
-          </div>
-          <div class="form-group">
-            <label for="inv-note">Poznámka / Strategie</label>
-            <input type="text" id="inv-note" placeholder="např. Konzervativní portfolio">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-investment" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Odečet elektroměru -->
-    <div id="modal-meter" class="modal hidden">
-      <div class="modal-content">
-        <h2>Nový měsíční odečet elektroměru</h2>
-        <form id="form-meter">
-          <div class="form-group">
-            <label for="meter-date">Datum odečtu</label>
-            <input type="date" id="meter-date" required>
-          </div>
-          <div class="form-group">
-            <label for="meter-value">Stav na elektroměru (kWh)</label>
-            <input type="number" id="meter-value" step="0.1" required placeholder="např. 13250.0">
-          </div>
-          <div class="form-group">
-            <label for="meter-note">Poznámka</label>
-            <input type="text" id="meter-note" placeholder="volitelná poznámka">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-meter" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit a vyhodnotit</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Modální okno: Spotřebič -->
-    <div id="modal-appliance" class="modal hidden">
-      <div class="modal-content">
-        <h2>Nový spotřebič</h2>
-        <form id="form-appliance">
-          <div class="form-group">
-            <label for="appliance-name">Název spotřebiče</label>
-            <input type="text" id="appliance-name" required placeholder="např. Bojler, Přímotop">
-          </div>
-          <div class="form-group">
-            <label for="appliance-power">Příkon ve Wattech (W)</label>
-            <input type="number" id="appliance-power" required placeholder="např. 2000">
-          </div>
-          <div class="form-group">
-            <label for="appliance-hours">Denní provoz v hodinách (h)</label>
-            <input type="number" id="appliance-hours" step="0.1" value="2" required placeholder="např. 2.5">
-          </div>
-          <div class="form-group">
-            <label for="appliance-warranty-date">Datum nákupu</label>
-            <input type="date" id="appliance-warranty-date">
-          </div>
-          <div class="form-group">
-            <label for="appliance-warranty-months">Záruka (měsíce)</label>
-            <input type="number" id="appliance-warranty-months" value="24">
-          </div>
-          <div class="modal-actions">
-            <button type="button" id="btn-cancel-appliance" class="btn-secondary">Zrušit</button>
-            <button type="submit" class="btn-primary">Uložit</button>
-          </div>
-        </form>
-      </div>
-    </div>
   </main>
 
-  <button id="fab-add-btn" class="fab-btn" title="Rychle přidat položku">+</button>
+  <!-- Plovoucí tlačítko pro rychlý přídavek -->
+  <button class="fab-btn" id="fab-add-btn" title="Přidat výdaj">+</button>
 
+  <!-- Spodní navigační lišta -->
   <nav class="bottom-nav">
     <button class="nav-item active" data-tab="overview">
       <span class="icon">📊</span>
@@ -1069,6 +591,462 @@
     </button>
   </nav>
 
+  <!-- MODÁLNÍ OKNA -->
+  
+  <!-- Modální okno: Položka / Platba -->
+  <div class="modal hidden" id="modal-entry">
+    <div class="modal-content">
+      <h2 id="modal-entry-title">Nová položka</h2>
+      <form id="form-entry">
+        <div class="form-group">
+          <label>Typ položky:</label>
+          <div class="radio-row">
+            <label class="wallet-radio-box"><input type="radio" name="entryType" value="expense" checked> Výdaj</label>
+            <label class="wallet-radio-box"><input type="radio" name="entryType" value="income"> Příjem</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Peněženka / Zdroj:</label>
+          <div class="wallet-select-row">
+            <label class="wallet-radio-box"><input type="radio" name="entryWallet" value="bank" checked> 🏦 Účet</label>
+            <label class="wallet-radio-box"><input type="radio" name="entryWallet" value="cash"> 💵 Hotovost</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Název položky:</label>
+          <input type="text" id="entry-title" required placeholder="např. Nákup v Lidlu">
+        </div>
+
+        <div class="form-group">
+          <label>Částka (Kč):</label>
+          <input type="number" step="0.01" id="entry-amount" required placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label>Kategorie:</label>
+          <select id="entry-category">
+            <option value="Jídlo & Potraviny">Jídlo & Potraviny</option>
+            <option value="Bydlení">Bydlení</option>
+            <option value="Energie">Energie</option>
+            <option value="Doprava & Benzín">Doprava & Benzín</option>
+            <option value="Závazky">Závazky</option>
+            <option value="Zdraví & Lékárna">Zdraví & Lékárna</option>
+            <option value="Drogerie & Domácnost">Drogerie & Domácnost</option>
+            <option value="Restaurace & Občerstvení">Restaurace & Občerstvení</option>
+            <option value="Komunikace">Komunikace</option>
+            <option value="Služby">Služby</option>
+            <option value="Investice">Investice</option>
+            <option value="Zvířata">Zvířata</option>
+            <option value="Elektro & Nářadí">Elektro & Nářadí</option>
+            <option value="Web & Projekty">Web & Projekty</option>
+            <option value="Ostatní">Ostatní</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Den v měsíci splatnosti (1–31):</label>
+          <input type="number" id="entry-day" value="10" min="1" max="31">
+        </div>
+
+        <div class="form-group" id="wrap-entry-recurring" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="entry-recurring" style="width:20px; height:20px;">
+          <label for="entry-recurring" style="margin-bottom:0; cursor:pointer;">Uložit jako trvalou šablonu pro každý měsíc</label>
+        </div>
+
+        <div class="form-group hidden" id="wrap-recurring-frequency">
+          <label>Frekvence platby:</label>
+          <select id="entry-frequency">
+            <option value="monthly">Každý měsíc</option>
+            <option value="semi-annual">Pololetně (vyber měsíce)</option>
+            <option value="annual">Ročně (vyber měsíc)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="wrap-due-months" style="display:none;">
+          <label>Měsíce platnosti (oddělené čárkou, např. 5,11):</label>
+          <input type="text" id="entry-due-months" placeholder="5, 11">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-entry">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Převod peněz -->
+  <div class="modal hidden" id="modal-transfer">
+    <div class="modal-content">
+      <h2>Převod mezi účtem a hotovostí</h2>
+      <form id="form-transfer">
+        <div class="form-group">
+          <label>Směr převodu:</label>
+          <select id="transfer-direction">
+            <option value="atm">Výběr z bankomatu (Účet ➔ Hotovost)</option>
+            <option value="deposit">Vklad hotovosti na účet (Hotovost ➔ Účet)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Částka (Kč):</label>
+          <input type="number" step="0.01" id="transfer-amount" required placeholder="0">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-transfer">Zrušit</button>
+          <button type="submit" class="btn-primary">Provést převod</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Cíle -->
+  <div class="modal hidden" id="modal-goal">
+    <div class="modal-content">
+      <h2>Nový finanční cíl</h2>
+      <form id="form-goal">
+        <div class="form-group">
+          <label>Název cíle:</label>
+          <input type="text" id="goal-title" required placeholder="např. Nová koloběžka">
+        </div>
+        <div class="form-group">
+          <label>Cílová částka (Kč):</label>
+          <input type="number" step="1" id="goal-target" required placeholder="0">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-goal">Zrušit</button>
+          <button type="submit" class="btn-primary">Přidat cíl</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Nový dlužník -->
+  <div class="modal hidden" id="modal-new-debtor">
+    <div class="modal-content">
+      <h2>Nová osoba (Pohledávka)</h2>
+      <form id="form-new-debtor">
+        <div class="form-group">
+          <label>Jméno osoby / subjektu:</label>
+          <input type="text" id="debtor-name-input" required placeholder="např. JOE">
+        </div>
+        <div class="form-group">
+          <label>Název počáteční položky dluhu:</label>
+          <input type="text" id="debtor-item-label-input" required placeholder="např. Půjčka na auto">
+        </div>
+        <div class="form-group">
+          <label>Částka (Kč):</label>
+          <input type="number" step="1" id="debtor-item-amount-input" required placeholder="0">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-new-debtor">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit osobu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Nová půjčka (Závazek) -->
+  <div class="modal hidden" id="modal-new-loan">
+    <div class="modal-content">
+      <h2>Nový závazek / půjčka</h2>
+      <form id="form-new-loan">
+        <div class="form-group">
+          <label>Název věřitele:</label>
+          <input type="text" id="loan-name-input" required placeholder="např. Provident">
+        </div>
+        <div class="form-group">
+          <label>Celková zbývající jistina (Kč):</label>
+          <input type="number" step="1" id="loan-total-input" required placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Měsíční splátka (Kč):</label>
+          <input type="number" step="1" id="loan-monthly-input" required placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Den splátky v měsíci (1–31):</label>
+          <input type="number" id="loan-day-input" value="10" min="1" max="31">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-new-loan">Zrušit</button>
+          <button type="submit" class="btn-primary">Přidat závazek</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Detailní půjčení / Přičtení dlužníkovi -->
+  <div class="modal hidden" id="modal-lend-detailed">
+    <div class="modal-content">
+      <h2 id="modal-lend-detailed-title">+ Přičíst dlužníkovi</h2>
+      <form id="form-lend-detailed">
+        <input type="hidden" id="lend-debtor-id">
+        <div class="form-group">
+          <label>Režim přičtení:</label>
+          <div class="radio-row">
+            <label class="wallet-radio-box"><input type="radio" name="lendMode" value="existing" checked> K existující položce</label>
+            <label class="wallet-radio-box"><input type="radio" name="lendMode" value="new"> Jako nová položka</label>
+          </div>
+        </div>
+
+        <div class="form-group" id="wrap-lend-existing-item">
+          <label>Vyber položku:</label>
+          <select id="lend-existing-item-select"></select>
+        </div>
+
+        <div class="form-group hidden" id="wrap-lend-new-item">
+          <label>Název nové položky:</label>
+          <input type="text" id="lend-new-item-title" placeholder="např. Nákup v obchůdku">
+        </div>
+
+        <div class="form-group">
+          <label>Částka k přičtení (Kč):</label>
+          <input type="number" step="1" id="lend-amount-input" required placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label>Datum:</label>
+          <input type="date" id="lend-date-input" required>
+        </div>
+
+        <div class="form-group">
+          <label>Poznámka (nepovinné):</label>
+          <input type="text" id="lend-note-input" placeholder="např. Zaplaceno kartou">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-lend-detailed">Zrušit</button>
+          <button type="submit" class="btn-primary">Přičíst k dluhu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Úhrada od dlužníka -->
+  <div class="modal hidden" id="modal-repay-detailed">
+    <div class="modal-content">
+      <h2 id="modal-repay-detailed-title">Zadat úhradu</h2>
+      <form id="form-repay-detailed">
+        <input type="hidden" id="repay-debtor-id">
+        <div class="form-group">
+          <label>Cílová položka dluhu:</label>
+          <select id="repay-target-item-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label>Uhrazená částka (Kč) [automaticky se přičte na bankovní účet]:</label>
+          <input type="number" step="1" id="repay-amount-input" required placeholder="0">
+        </div>
+
+        <div class="form-group">
+          <label>Datum úhrady:</label>
+          <input type="date" id="repay-date-input" required>
+        </div>
+
+        <div class="form-group">
+          <label>Poznámka:</label>
+          <input type="text" id="repay-note-input" placeholder="např. Vráceno hotově">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-repay-detailed">Zrušit</button>
+          <button type="submit" class="btn-primary">Potvrdit úhradu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Mimořádná splátka závazku -->
+  <div class="modal hidden" id="modal-extra-pay">
+    <div class="modal-content">
+      <h2 id="modal-extra-pay-title">Mimořádná splátka</h2>
+      <form id="form-extra-pay">
+        <input type="hidden" id="extra-pay-debt-id">
+        <div class="form-group">
+          <label>Mimořádná úhrada jistiny (Kč):</label>
+          <input type="number" step="1" id="extra-pay-amount" required placeholder="0">
+        </div>
+        <div id="extra-pay-impact-box" style="background:var(--bg-card-sub); padding:10px; border-radius:8px; margin-bottom:12px; display:none; font-size:0.8rem;">
+          <div>Ušetřené splátky: <strong id="extra-pay-saved-months" class="text-green">0 měsíců</strong></div>
+          <div>Nové odhadované doplacení: <strong id="extra-pay-new-date" class="text-blue">-</strong></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-extra-pay">Zrušit</button>
+          <button type="submit" class="btn-primary">Uplatnit splátku</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Investown vklad -->
+  <div class="modal hidden" id="modal-itown-deposit-custom">
+    <div class="modal-content">
+      <h2>Investown - Vložit peníze</h2>
+      <form id="form-itown-deposit-custom">
+        <div class="form-group">
+          <label>Částka vkladu (Kč) [strhne se z účtu a přičte k jistině]:</label>
+          <input type="number" step="1" id="itown-deposit-amount-input" required placeholder="500">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-itown-deposit-custom">Zrušit</button>
+          <button type="submit" class="btn-primary">Provést vklad</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Investown zisk přímý -->
+  <div class="modal hidden" id="modal-itown-profit-direct">
+    <div class="modal-content">
+      <h2>Investown - Aktualizace celkového zisku</h2>
+      <form id="form-itown-profit-direct">
+        <div class="form-group">
+          <label>Celkový aktuální zisk z aplikace Investown (Kč):</label>
+          <input type="number" step="1" id="itown-direct-profit-input" required placeholder="344302">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-itown-profit-direct">Zrušit</button>
+          <button type="submit" class="btn-primary">Aktualizovat zisk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Investown prodej -->
+  <div class="modal hidden" id="modal-itown-sell">
+    <div class="modal-content">
+      <h2>Investown - Prodej / Výběr</h2>
+      <form id="form-itown-sell">
+        <div class="form-group">
+          <label>Částka výběru (Kč) [přičte se zpět na bankovní účet]:</label>
+          <input type="number" step="1" id="itown-sell-amount" required placeholder="0">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-itown-sell">Zrušit</button>
+          <button type="submit" class="btn-primary">Potvrdit výběr</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Fyzické zlato (Slitek) -->
+  <div class="modal hidden" id="modal-gold">
+    <div class="modal-content">
+      <h2>Nový zlatý slitek</h2>
+      <form id="form-gold">
+        <div class="form-group">
+          <label>Název / Popis:</label>
+          <input type="text" id="gold-name" required placeholder="např. Argor Heraeus 10g">
+        </div>
+        <div class="form-group">
+          <label>Hmotnost (g):</label>
+          <input type="number" step="0.1" id="gold-weight" required placeholder="10">
+        </div>
+        <div class="form-group">
+          <label>Nákupní cena (Kč):</label>
+          <input type="number" step="1" id="gold-bought" required placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Aktuální tržní hodnota (Kč):</label>
+          <input type="number" step="1" id="gold-current" required placeholder="0">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-gold">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit slitek</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Ostatní investice -->
+  <div class="modal hidden" id="modal-investment">
+    <div class="modal-content">
+      <h2>Nová investice / aktivum</h2>
+      <form id="form-investment">
+        <div class="form-group">
+          <label>Název:</label>
+          <input type="text" id="inv-name" required placeholder="např. Portu portfolio">
+        </div>
+        <div class="form-group">
+          <label>Vložená jistina (Kč):</label>
+          <input type="number" step="1" id="inv-invested" required placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Aktuální hodnota (Kč):</label>
+          <input type="number" step="1" id="inv-current" required placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Poznámka:</label>
+          <input type="text" id="inv-note" placeholder="např. Dlouhodobé">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-investment">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Měsíční odečet elektroměru -->
+  <div class="modal hidden" id="modal-meter">
+    <div class="modal-content">
+      <h2>Zápis stavu elektroměru</h2>
+      <form id="form-meter">
+        <div class="form-group">
+          <label>Datum odečtu:</label>
+          <input type="date" id="meter-date" required>
+        </div>
+        <div class="form-group">
+          <label>Stav počitadla (kWh):</label>
+          <input type="number" step="1" id="meter-value" required placeholder="12450">
+        </div>
+        <div class="form-group">
+          <label>Poznámka:</label>
+          <input type="text" id="meter-note" placeholder="např. Měsíční odečet ČEZ">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-meter">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit odečet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modální okno: Domácí spotřebič -->
+  <div class="modal hidden" id="modal-appliance">
+    <div class="modal-content">
+      <h2>Nový spotřebič / zařízení</h2>
+      <form id="form-appliance">
+        <div class="form-group">
+          <label>Název zařízení:</label>
+          <input type="text" id="appliance-name" required placeholder="např. Lednice">
+        </div>
+        <div class="form-group">
+          <label>Příkon (W):</label>
+          <input type="number" step="1" id="appliance-power" required placeholder="150">
+        </div>
+        <div class="form-group">
+          <label>Průměrný provoz (hodin / den):</label>
+          <input type="number" step="0.1" id="appliance-hours" required placeholder="24">
+        </div>
+        <div class="form-group">
+          <label>Datum nákupu (pro záruku):</label>
+          <input type="date" id="appliance-warranty-date">
+        </div>
+        <div class="form-group">
+          <label>Záruční doba (měsíců):</label>
+          <input type="number" id="appliance-warranty-months" value="24">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-appliance">Zrušit</button>
+          <button type="submit" class="btn-primary">Přidat spotřebič</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hlavní skripty -->
   <script src="db.js"></script>
   <script src="app.js"></script>
 </body>
