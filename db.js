@@ -1,18 +1,21 @@
-// Správa lokálního úložiště IndexedDB, zálohování a ochrana dat
+// Správa lokálního úložiště IndexedDB s pevně zafixovaným cloud zrcadlem
 const DB_NAME = 'KolobeznikDispecinkDB';
-const DB_VERSION = 10;
+const DB_VERSION = 11;
 
 let dbInstance = null;
+
+// ==========================================
+// 🛡️ ZDE VLOŽ SVŮJ GITHUB TOKEN A GIST ID
+// ==========================================
+const HARDCODED_CONFIG = {
+  token: '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', // např. ghp_xxxxxxxxxxxxxxxxxxxx
+  gistId: 'Dispecink-Sync'    // např. 123456789abcdef... (nebo nech prázdné, vytvoří se sám)
+};
 
 const Money = {
   toCents: (czk) => Math.round(Number(czk) * 100),
   toCzk: (cents) => (cents / 100).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kč',
   toCzkInt: (cents) => Math.round(cents / 100).toLocaleString('cs-CZ') + ' Kč'
-};
-
-const CLOUD_CONFIG = {
-  tokenKey: 'dispecink_gh_token',
-  gistKey: 'dispecink_gist_id'
 };
 
 function initDB() {
@@ -44,13 +47,12 @@ function initDB() {
     request.onsuccess = async (event) => {
       dbInstance = event.target.result;
       
-      // Kontrola, zda je databáze zcela prázdná
       const existingSettings = await dbGet('settings', 'initial_capital');
+      
+      // Pokud telefon v noci data smazal, automaticky je stáhneme z Gistu
       if (!existingSettings) {
-        // Zkusíme stáhnout data z Gistu, pokud existuje spojení
-        const restored = await autoRestoreFromCloud();
+        const restored = await restoreFromHardcodedGist();
         if (!restored) {
-          // Jen pokud je databáze úplně čistá a bez cloudu, naplníme základ
           await seedInitialData();
         }
       }
@@ -64,12 +66,36 @@ function initDB() {
   });
 }
 
+async function restoreFromHardcodedGist() {
+  if (!HARDCODED_CONFIG.token || HARDCODED_CONFIG.token.includes('SEM_VLOZ')) {
+    return false;
+  }
+
+  try {
+    const res = await fetch(`https://api.github.com/gists/${HARDCODED_CONFIG.gistId}`, {
+      headers: { 'Authorization': `Bearer ${HARDCODED_CONFIG.token}` }
+    });
+    if (!res.ok) return false;
+    const gist = await res.json();
+    const raw = gist.files['kolobeznik_dispecink_backup.json']?.content;
+    if (raw) {
+      const backupData = JSON.parse(raw);
+      await restoreFromBackup(backupData);
+      console.log('Data úspěšně obnovena z pevného Gistu!');
+      return true;
+    }
+  } catch (err) {
+    console.warn('Chyba při stahování ze zafixovaného Gistu:', err);
+  }
+  return false;
+}
+
 async function seedInitialData() {
   await dbSetInternal('settings', { key: 'initial_capital', value: 5100000 });
   await dbSetInternal('settings', { key: 'bank_capital', value: 4600000 });
   await dbSetInternal('settings', { key: 'cash_capital', value: 500000 });
   await dbSetInternal('settings', { key: 'payday', value: 10 });
-  await dbSetInternal('settings', { key: 'kwh_price', value: 650 });
+  await dbSetInternal('settings', { key: 'kwh_price', value: 820 });
 
   await dbSetInternal('settings', {
     key: 'itown_data',
@@ -250,18 +276,16 @@ function triggerAutoCloudSync() {
   }, 1000);
 }
 
+// Okamžité uložení změn na GitHub Gist
 async function autoSyncToCloud() {
-  const tokenRecord = await dbGet('settings', CLOUD_CONFIG.tokenKey);
-  const token = tokenRecord ? tokenRecord.value : null;
-  if (!token) return;
-
-  const gistRecord = await dbGet('settings', CLOUD_CONFIG.gistKey);
-  let gistId = gistRecord ? gistRecord.value : null;
+  const token = HARDCODED_CONFIG.token;
+  const gistId = HARDCODED_CONFIG.gistId;
+  if (!token || token.includes('SEM_VLOZ')) return;
 
   try {
     const backup = await createFullBackup();
     const payload = {
-      description: "Koloběžníkův finanční dispečink - Automatická ochrana dat",
+      description: "Koloběžníkův finanční dispečink - Pevná ochrana dat",
       public: false,
       files: {
         "kolobeznik_dispecink_backup.json": { content: JSON.stringify(backup, null, 2) }
@@ -271,7 +295,7 @@ async function autoSyncToCloud() {
     let url = 'https://api.github.com/gists';
     let method = 'POST';
 
-    if (gistId) {
+    if (gistId && !gistId.includes('SEM_VLOZ')) {
       url += `/${gistId}`;
       method = 'PATCH';
     }
@@ -279,7 +303,7 @@ async function autoSyncToCloud() {
     const res = await fetch(url, {
       method,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ` + token,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
@@ -287,33 +311,13 @@ async function autoSyncToCloud() {
 
     if (res.ok) {
       const data = await res.json();
-      if (!gistId && data.id) {
-        await dbSetInternal('settings', { key: CLOUD_CONFIG.gistKey, value: data.id });
-        localStorage.setItem(CLOUD_CONFIG.gistKey, data.id);
+      if ((!gistId || gistId.includes('SEM_VLOZ')) && data.id) {
+        console.log('Nově vytvořený Gist ID (zapiš si ho do kódu):', data.id);
       }
     }
-  } catch (err) {}
-}
-
-async function autoRestoreFromCloud() {
-  const localGistId = localStorage.getItem(CLOUD_CONFIG.gistKey);
-  const localToken = localStorage.getItem(CLOUD_CONFIG.tokenKey);
-  if (!localGistId || !localToken) return false;
-
-  try {
-    const res = await fetch(`https://api.github.com/gists/${localGistId}`, {
-      headers: { 'Authorization': `Bearer ${localToken}` }
-    });
-    if (!res.ok) return false;
-    const gist = await res.json();
-    const raw = gist.files['kolobeznik_dispecink_backup.json']?.content;
-    if (raw) {
-      const backupData = JSON.parse(raw);
-      await restoreFromBackup(backupData);
-      return true;
-    }
-  } catch (err) {}
-  return false;
+  } catch (err) {
+    console.warn('Chyba při cloudové synchronizaci:', err);
+  }
 }
 
 async function createFullBackup() {
