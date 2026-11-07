@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="./icon.png">
 
-  <!-- Čisté styly bez chyb -->
-  <link rel="stylesheet" href="style.css?v=100">
+  <!-- Styly s vynuceným promazáním mezipaměti -->
+  <link rel="stylesheet" href="style.css?v=101">
 </head>
 <body>
 
@@ -286,7 +286,7 @@
     <section id="tab-invest" class="tab-panel">
       <div class="assets-ring-card">
         <div class="ring-left">
-          <canvas id="assets-donut-chart" width="100" height="100"></canvas>
+          <canvas id="assets-donut-chart" style="width: 100px; height: 100px; display: block; margin: 0 auto;"></canvas>
           <div class="ring-center-text" id="assets-ratio-text">0%</div>
         </div>
         <div class="ring-right">
@@ -726,7 +726,6 @@
     </div>
   </div>
 
-  <!-- DŮLEŽITÉ: Nejprve db.js a hned za ním app.js -->
   <script src="db.js"></script>
   <script src="app.js"></script>
 </body>
